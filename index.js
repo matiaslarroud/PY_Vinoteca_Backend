@@ -5,9 +5,11 @@ const app = express();
 app.get('/' , (req , res) => {
     console.log('petición recibida.');
 
-    res.send('<h1>HOLA</h1>');
+    res.send('<h1>ENTUSIASMO POR EL VINO</h1><br><h2>En proceso...</h2>');
 })
 
-app.listen(4000, () => {
-    console.log("Escuchando puerto 4000.");
+const PORT = process.env.PORT || 4000
+
+app.listen(PORT, () => {
+    console.log("Escuchando puerto ", PORT);
 })
