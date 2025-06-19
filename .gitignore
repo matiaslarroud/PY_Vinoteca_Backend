@@ -1,4 +1,2 @@
 node_modules/
-.github/workflows/master_vinoteca.yml
-.gitignore
 .env
