@@ -2,6 +2,8 @@ console.log("HOLA DESDE EL SERVIDOR");
 
 const nombreP = document.querySelector('#inputNombre');
 const precioP = document.querySelector('#inputPrecio');
+const botonP = document.querySelector('#botonCargar');
 
-console.log(`NOMBRE: ${nombreP}`);
-console.log(`PRECIO: ${precioP}`);
+botonP.addEventListener('click' , (e) => {
+    console.log(e)
+})
