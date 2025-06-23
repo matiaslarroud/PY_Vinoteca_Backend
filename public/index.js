@@ -10,8 +10,7 @@ botonP.addEventListener('click' , (e) => {
 
     console.log({ nombre, precio });
 
-
-    fetch('/api/v1/products', {
+    fetch('http://localhost:5000/api/v1/products', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
