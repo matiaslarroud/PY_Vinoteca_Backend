@@ -3,7 +3,6 @@ const path = require('path');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-
 const app = express();
 
 mongoose
@@ -16,7 +15,7 @@ app.use(express.json());
 app.post('/api/v1/products' , (req , res ) => {
     console.log('Petición recibida.');
     console.log({body: req.body});
-    res.status(201)
+    res.status(201 , {ok:true})
 });
 
 app.use(express.static(path.join(__dirname,'public')));
