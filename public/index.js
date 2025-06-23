@@ -8,7 +8,7 @@ botonP.addEventListener('click' , (e) => {
     const nombre = nombreP.value;
     const precio = precioP.value;
 
-    console.log({ nombre, precio });
+    //console.log({ nombre, precio });
 
     fetch('http://localhost:5000/api/v1/products', {
         method: 'POST',
