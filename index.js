@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
+const { ok } = require('assert');
 require('dotenv').config();
 
 
@@ -11,9 +12,10 @@ mongoose
     .then((exito) => {console.log("CONEXION EXITOSA A LA BD.")})
     .catch((error) => {console.log(`ERROR DE CONEXION A LA BD. \n ERROR: ${error}`)})
 
-app.get('/' , (req , res , next) => {
+app.post('/api/v1/products' , (req , res) => {
     console.log('petición recibida.');
-    next();
+    console.log({body: req.body})
+    res.status(201).json({ok:true})
 })
 
 app.use(express.static(path.join(__dirname,'public')))
