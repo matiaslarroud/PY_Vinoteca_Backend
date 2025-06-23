@@ -14,8 +14,8 @@ botonP.addEventListener('click' , (e) => {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            nombre: nombre,
-            precio: precio,
+            nombre,
+            precio,
         }),
     })
 })
