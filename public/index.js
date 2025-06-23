@@ -11,7 +11,7 @@ botonP.addEventListener('click' , (e) => {
     fetch('/api/v1/products', {
         method: 'POST',
         headers: {
-            'Content-Type': '/application/json',
+            'Content-Type': 'application/json',
         },
         body: JSON.stringify({
             nombre: nombre,
