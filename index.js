@@ -1,7 +1,6 @@
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
-const { ok } = require('assert');
 require('dotenv').config();
 
 
@@ -17,7 +16,7 @@ app.use(express.json());
 app.post('/api/v1/products' , (req , res ) => {
     console.log('Petición recibida.');
     console.log({body: req.body});
-    res.status(201).json({ok:true})
+    res.status(201)
 });
 
 app.use(express.static(path.join(__dirname,'public')));
