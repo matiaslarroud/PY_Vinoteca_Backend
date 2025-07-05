@@ -12,8 +12,7 @@ const setProduct =  async (req , res ) => {
     const newProduct = new Product({name: nombreProducto , price: precioProducto});
     await newProduct.save()
         .then(() => { 
-            console.log("PRODUCTO CREADO EXITOSAMENTE");
-            res.status(201).json({ok:true});
+            res.status(201).json({ok:true , message:'Producto agregado correctamente.'})
         })
         .catch((error) => { console.log(error) }) 
     
@@ -31,23 +30,18 @@ const getProduct = async(req,res) => {
 const getProductID = async(req,res) => {
     const id = req.params.id;
     if(!id) {
-        res.status(400).json({ok:false, message:"ERROR --- ID invalido."})
+        res.status(400).json({ok:false, message:"El id no llego al controlador correctamente."})
         return
     }
     
     const product = await Product.findById(id);
     if (!product) {
-        res.status(400).json({ok:false, message:"ERROR --- Producto no encontrado."});
+        res.status(400).json({ok:false, message:"El id no corresponde a un producto."});
         return
     }
-    const nombre = product.name;
-    const precio = product.price;
     res.status(200).json({
         ok:true,
-        prod: {
-            name : nombre,
-            price : precio,
-        },
+        data: product
     })
 }
 const updateProduct =  async (req , res ) => {
