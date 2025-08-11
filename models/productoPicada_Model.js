@@ -7,7 +7,11 @@ const productoPicadaSchema = new mongoose.Schema({
                 ref: 'Vino_Tipo',
                 required: false
             },
-    precioVenta: {type: Number , require:true},
+    precioVenta: {
+        type: Number , 
+        require:true , 
+        min: [0, 'El precio de venta no puede ser negativo']
+    },
 
     },    
     {

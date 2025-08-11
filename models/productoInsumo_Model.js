@@ -7,8 +7,16 @@ const productoInsumoSchema = new mongoose.Schema({
             ref: 'Proveedor',
             required: true
         },
-    precioCosto: {type: Number , require:true},
-    ganancia: {type: Number , require:true},
+    precioCosto: {
+        type: Number , 
+        require:true , 
+        min: [0, 'El precio de costo no puede ser negativo'] ,
+    },
+    ganancia: {
+        type: Number , 
+        require:true , 
+        min: [0, 'La ganancia no puede ser negativa']
+    },
     },
     
     {

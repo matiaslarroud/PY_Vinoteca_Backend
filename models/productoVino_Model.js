@@ -37,7 +37,11 @@ const productoVinoSchema = new mongoose.Schema({
             ref: 'Vino_Volumen',
             required: false
         },
-    precioCosto: {type: Number , require:true},
+    precioCosto: {
+        type: Number , 
+        require:true , 
+        min: [0, 'El precio de costo no puede ser negativo']
+    },
     ganancia: {type: Number , require:true},
     },
     

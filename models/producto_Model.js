@@ -2,7 +2,11 @@ const mongoose = require('mongoose')
 
 const productSchema = mongoose.Schema({
     name: {type: String , require:true},
-    stock: {type: Number , require:true},
+    stock: {
+        type: Number , 
+        require:true ,
+        min: [0, 'El stock no puede ser negativo']
+    },
     deposito: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Deposito',
