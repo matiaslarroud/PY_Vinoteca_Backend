@@ -2,49 +2,131 @@ const Bodega = require('../models/bodega_Model.js');
 
 const setBodega = async (req , res ) => {
     const nombreBodega = req.body.name;    
-    const paisBodega = req.body.pais;
-    const provinciaBodega = req.body.provincia;
-    const localidadBodega = req.body.localidad;
-    const barrioBodega = req.body.barrio;
-    const calleBodega = req.body.calle;
+    const familiaBodega = req.body.familia;
     
-    if (!nombreBodega || !paisBodega || !provinciaBodega || !localidadBodega || !barrioBodega || !calleBodega) {
+    if (!nombreBodega || !familiaBodega) {
         res.status(400).json({ok:false , message:'No se puede cargar la bodega sin la carga de todos los datos.'});
         return
     }
 
     const newBodega = new Bodega({
         name: nombreBodega , 
-        pais: paisBodega ,  
-        provincia: provinciaBodega ,  
-        localidad: localidadBodega ,  
-        barrio: barrioBodega ,  
-        calle: calleBodega
+        familia: familiaBodega ,
     });
 
     await newBodega.save()
-        .then(() => { 
-            console.log("BODEGA CREADA EXITOSAMENTE");
-            res.status(201).json({ok:true});
+        .then(() => {
+            res.status(201).json({
+                ok:true,
+                message:"Bodega agregada correctamente."
+            });
         })
         .catch((error) => { console.log(error) }) 
     
 }
 
-const getBodega = () => {
-
+const getBodega = async(req,res) => {
+    const bodegas = await Bodega.find();
+    if (!bodegas) {
+        res.status(400).json({
+            ok:false , 
+            message:'Error al obtener datos de bodega.'
+        });
+        return
+    }
+    res.status(200).json({
+        ok:true,
+        message:"Bodegas encontradas exitosamente.",
+        data:bodegas
+    })
 }
 
-const getBodegaID = () => {
+const getBodegaID = async(req,res) => {
+    const bodegaID = req.params.id;
+    if (!bodegaID) {
+        res.status(400).json({
+            ok:false , 
+            message:'Error al obtener datos de bodega.'
+        });
+        return
+    }
 
+    const bodegaEncontrada = await Bodega.findById(bodegaID)
+
+    if (!bodegaEncontrada) {
+        res.status(400).json({
+            ok:false , 
+            message:'Error al obtener datos de bodega.'
+        });
+        return
+    }
+    res.status(200).json({
+        ok:true,
+        message:"Bodega encontrada exitosamente.",
+        data:bodegaEncontrada
+    })
 }
 
-const updateBodega = () => {
-
+const updateBodega = async(req,res) => {
+    const bodegaID = req.params.id;
+    if (!bodegaID) {
+        res.status(400).json({
+            ok:false , 
+            message:'Error al obtener datos de bodega.'
+        });
+        return
+    }
+    const nombreBodega = req.body.name;
+    const familiaBodega = req.body.familia;
+    if (!bodegaID) {
+        res.status(400).json({
+            ok:false , 
+            message:'Error al obtener datos de bodega.'
+        });
+        return
+    }
+    const updatedBodega = await Bodega.findByIdAndUpdate(
+        bodegaID,
+        {
+            name: nombreBodega,
+            familia: familiaBodega
+        },
+        { new: true , runValidators: true }
+    )
+    if (!updatedBodega) {
+        res.status(400).json({
+            ok:false , 
+            message:'Error al actualizar bodega.'
+        });
+        return
+    }
+    res.status(200).json({
+        ok:true,
+        message:"Bodega actualizada correctamente."
+    })
 }
 
-const deleteBodega = () => {
-
+const deleteBodega = async(req,res) => {
+    const bodegaID = req.params.id;
+    if (!bodegaID) {
+        res.status(400).json({
+            ok:false , 
+            message:'Error al obtener datos de bodega.'
+        });
+        return
+    }
+    const deletedBodega = await Bodega.findByIdAndDelete(bodegaID);
+    if (!deletedBodega) {
+        res.status(400).json({
+            ok:false , 
+            message:'Error al eliminar bodega.'
+        });
+        return
+    }
+    res.status(200).json({
+        ok:true,
+        message:"Bodega eliminada correctamente."
+    })
 }
 
 module.exports = {setBodega , getBodega , getBodegaID , updateBodega , deleteBodega};

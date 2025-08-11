@@ -1,18 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const controller = require('../controllers/product_Controller')
+const controller = require('../controllers/productInsumo_Controller')
 
 router.post('/' , controller.setProduct )
 
 router.get('/' , controller.getProduct)
-
-router.get('/tipos' , controller.getProductTipos)
-
-router.put('/stock/:id', controller.stockUpdate)
-
-router.get('/tipos/:id' , controller.getProductTipoID)
-
-router.get('/search/:query' , controller.getProductTipos)
 
 router.get('/:id' , controller.getProductID)
 

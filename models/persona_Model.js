@@ -1,7 +1,12 @@
 const mongoose = require("mongoose");
 
-const Deposito_Schema = mongoose.Schema({
+const Persona_Schema = mongoose.Schema({
     name: {type: String , require:true},
+    lastname: {type: String , require:true},
+    fechaNacimiento: {type: Date , require:true},
+    telefono: {type: String , require:true},
+    email: {type: String , require:true},
+    cuit: {type: String , require:true},
     pais: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Pais',
@@ -26,16 +31,15 @@ const Deposito_Schema = mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Calle',
             required: true
-        },
-    altura: {type: String , require:true},
-    deptoNumero: {type: String , require:false},
-    deptoLetra: {type: String , require:false},
-},
+        }
+    },
+    
     {
+        discriminatorKey: 'tipo',
+        collection: 'personas',
         timestamps: true
-    }  
+    }
 )
+const Persona = mongoose.model("Persona", Persona_Schema);
 
-const Deposito = mongoose.model("Deposito", Deposito_Schema);
-
-module.exports = Deposito;
+module.exports = Persona;

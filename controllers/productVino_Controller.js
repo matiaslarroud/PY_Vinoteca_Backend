@@ -1,13 +1,20 @@
-const Product = require('../models/producto_Model')
+const Product = require('../models/productoVino_Model.js')
 
 const setProduct =  async (req , res ) => {
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioCosto;
     const stockProducto = req.body.stock;
+    const bodegaProducto = req.body.bodega;
+    const parajeProducto = req.body.paraje;
+    const crianzaProducto = req.body.crianza;
     const gananciaProducto = req.body.ganancia;
+    const tipoProducto = req.body.tipo;
+    const uvaProducto = req.body.uva;
+    const varietalProducto = req.body.varietal;
+    const volumenProducto = req.body.volumen;
     const depositoProducto = req.body.deposito;
     
-    if (!nombreProducto || !precioProducto || !stockProducto  || !gananciaProducto  || !depositoProducto) {
+    if (!nombreProducto || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoProducto || !uvaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
         return
     }
@@ -15,8 +22,15 @@ const setProduct =  async (req , res ) => {
     const newProduct = new Product({
         name: nombreProducto , 
         precioCosto: precioProducto , 
-        stock: stockProducto ,  
+        stock: stockProducto , 
+        bodega: bodegaProducto , 
+        paraje: parajeProducto , 
+        crianza: crianzaProducto , 
         ganancia: gananciaProducto , 
+        tipo: tipoProducto , 
+        uva: uvaProducto , 
+        varietal: varietalProducto , 
+        volumen: volumenProducto , 
         deposito: depositoProducto
     });
     await newProduct.save()
@@ -34,57 +48,6 @@ const getProduct = async(req,res) => {
         ok:true,
         data:productos,
     })
-}
-
-const stockUpdate = async(req,res) => {
-    const id = req.params.id;
-    const cantidadVendida = req.body.cantidadVendida;
-    
-    if (isNaN(cantidadVendida)) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Cantidad inválida, debe ser un número',
-    })}
-
-    const producto = await Product.findById(id);
-    producto.stock -= Number(cantidadVendida);
-    await producto.save();
-
-    if (!producto) {
-        return res.status(400).json({
-            ok: false,
-            mensaje: 'Producto no encontrado',
-        });
-    }
-
-    res.status(200).json({ok:true , message:"Stock actualizado correctamente."})   
-
-}
-
-const getProductTipos = async(req,res) => {
-    const discriminadores = Product.discriminators || {}
-    const tipos = Object.keys(discriminadores).map(tipo => tipo.replace('Producto_', '')) 
-    res.status(200).json({
-        ok:true,
-        data:tipos,
-    })
-}
-
-const getProductTipoID = async(req,res) => {
-    const id = req.params.id;
-    const producto = await Product.findById(id);
-    if (!producto) {
-        return res.status(400).json({
-            ok: false,
-            mensaje: 'Tipo de producto no encontrado',
-        });
-    }
-    const tipo = producto.__t ? producto.__t.replace('Producto_', '') : 'Producto';
-
-    res.status(200).json({
-        ok: true,
-        data:tipo,
-    });
 }
 
 const getProductID = async(req,res) => {
@@ -110,10 +73,17 @@ const updateProduct =  async (req , res ) => {
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioCosto;
     const stockProducto = req.body.stock;
+    const bodegaProducto = req.body.bodega;
+    const parajeProducto = req.body.paraje;
+    const crianzaProducto = req.body.crianza;
     const gananciaProducto = req.body.ganancia;
+    const tipoProducto = req.body.tipo;
+    const uvaProducto = req.body.uva;
+    const varietalProducto = req.body.varietal;
+    const volumenProducto = req.body.volumen;
     const depositoProducto = req.body.deposito;
     
-    if (!nombreProducto || !precioProducto || !stockProducto || !gananciaProducto || !depositoProducto) {
+    if (!nombreProducto || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoProducto || !uvaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede actualizar el producto sin todos los datos.'});
         return
     }
@@ -124,7 +94,14 @@ const updateProduct =  async (req , res ) => {
                 name: nombreProducto , 
                 stock: stockProducto,
                 precioCosto: precioProducto,
+                bodega: bodegaProducto,
+                paraje: parajeProducto,
+                crianza:crianzaProducto,
                 ganancia: gananciaProducto,
+                tipo: tipoProducto,
+                uva:uvaProducto,
+                varietal:varietalProducto,
+                volumen:volumenProducto,
                 deposito: depositoProducto,
             },
             { new: true , runValidators: true }
@@ -147,20 +124,4 @@ const deleteProduct = async (req , res) => {
     res.status(200).json({ok:true , message:"Producto eliminado correctamente."});
 }
 
-const getProduct_query = async (req , res) => {
-    const query = req.params.query;
-    const listProducts = await Product.find({
-        nombre: { $regex: query, $options: 'i' } // 'i' para ignorar mayúsculas
-    })
-
-    if(!listProducts) {
-        res.status(400).json({ok:false,message:"EProductos no encontrados"});
-        return
-    }
-    res.status(200).json({
-        ok:true ,
-        data: listProducts, 
-        message:"Productos encontrados correctamente.",
-    });
-}
-module.exports = {setProduct , getProduct , getProductID , updateProduct , deleteProduct , getProduct_query , getProductTipos , getProductTipoID , stockUpdate};
+module.exports = {setProduct , getProduct , getProductID , updateProduct , deleteProduct};

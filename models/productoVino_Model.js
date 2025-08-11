@@ -1,8 +1,7 @@
 const mongoose = require('mongoose')
+const Producto = require('./producto_Model.js');
 
-const productSchema = mongoose.Schema({
-    name: {type: String , require:true},
-    stock: {type: Number , require:true},
+const productoVinoSchema = new mongoose.Schema({
     bodega: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Bodega',
@@ -18,7 +17,6 @@ const productSchema = mongoose.Schema({
             ref: 'Vino_Crianza',
             required: false
         },
-    price: {type: Number , require:true},
     tipo: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Vino_Tipo',
@@ -39,18 +37,14 @@ const productSchema = mongoose.Schema({
             ref: 'Vino_Volumen',
             required: false
         },
-    deposito: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Deposito',
-            required: false
-        } ,
+    precioCosto: {type: Number , require:true},
+    ganancia: {type: Number , require:true},
     },
     
     {
         timestamps: true
     }
 )
+const ProductoVino = Producto.discriminator('ProductoVino', productoVinoSchema);
 
-const Product = mongoose.model("Product", productSchema)
-
-module.exports = Product;
+module.exports = ProductoVino;

@@ -14,6 +14,6 @@ const UvaTipo_Schema = mongoose.Schema({
     
 )
 
-const UvaTipo = mongoose.model("Uva_Tipo", UvaTipo_Schema);
+const UvaTipo = mongoose.model("Vino_Uva", UvaTipo_Schema);
 
 module.exports = UvaTipo;

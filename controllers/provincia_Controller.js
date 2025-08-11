@@ -21,15 +21,6 @@ const setProvincia = async(req,res) => {
         return
     }
 
-    const verifyPais = await Pais.findById(pais)
-    if(!verifyPais){
-        res.status(400).json({
-            ok:false,
-            message:"No se pudo verificar correctamente el pais."
-        })
-        return
-    }
-
     const newProvincia = new Provincia({name: nombreProvincia , pais: pais});
     await newProvincia.save()
         .then(() => {
