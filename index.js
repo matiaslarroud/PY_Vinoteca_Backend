@@ -35,6 +35,8 @@ const routerCliente_NotaPedidoDetalle = require('./routes/clienteNotaPedidoDetal
 const routerCliente_ComprobanteVenta = require('./routes/clienteComprobanteVenta_Router.js');
 const routerCliente_ComprobanteVentaDetalle = require('./routes/clienteComprobanteVentaDetalle_Router.js');
 const routerTipoComprobante = require('./routes/tipoComprobante_Router.js');
+const routerTransporte = require('./routes/transporte_Router.js');
+const routerTransporteDetalle = require('./routes/transporteDetalle_Router.js');
 
 const app = express();
 
@@ -73,3 +75,5 @@ app.use(`${process.env.ROUTE}/cliente/notaPedidoDetalle` , routerCliente_NotaPed
 app.use(`${process.env.ROUTE}/cliente/comprobanteVenta` , routerCliente_ComprobanteVenta);
 app.use(`${process.env.ROUTE}/cliente/comprobanteVentaDetalle` , routerCliente_ComprobanteVentaDetalle);
 app.use(`${process.env.ROUTE}/gestion/tipoComprobante` , routerTipoComprobante);
+app.use(`${process.env.ROUTE}/gestion/transporte` , routerTransporte);
+app.use(`${process.env.ROUTE}/gestion/transporteDetalle` , routerTransporteDetalle);
