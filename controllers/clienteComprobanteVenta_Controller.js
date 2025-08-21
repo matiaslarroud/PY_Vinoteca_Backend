@@ -29,6 +29,7 @@ const setComprobanteVenta = async (req, res) => {
             tipoComprobante: tipoComprobanteP,
             descuento: descuentoP || 0,
             facturado: true,
+            remitoCreado: false,
             notaPedido: notaPedidoP
         });
 
@@ -128,7 +129,8 @@ const updateComprobanteVenta = async(req,res) => {
         fecha: fechaP , 
         tipoComprobante: tipoComprobanteP,
         descuento: descuentoP,
-        facturado: true, // Default value
+        facturado: true, 
+        remitoCreado: false,
     };
     
     if (notaPedidoP) {

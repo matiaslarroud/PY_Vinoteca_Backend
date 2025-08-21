@@ -10,6 +10,7 @@ const ComprobanteVenta_Schema = mongoose.Schema({
             ref: 'Cliente_NotaPedido',
         },
     facturado: {type: Boolean , require:true},
+    remitoCreado: {type: Boolean , require:true},
 },
     
     {

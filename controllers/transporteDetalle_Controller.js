@@ -70,7 +70,7 @@ const getTransporteDetalle_ByTransporte = async(req,res) => {
         return
     }
 
-    const transporteDetalle = await TransporteDetalle.find({picada:id});
+    const transporteDetalle = await TransporteDetalle.find({transporteID:id});
     if(!transporteDetalle || transporteDetalle.length === 0){
         res.status(400).json({
             ok:false,

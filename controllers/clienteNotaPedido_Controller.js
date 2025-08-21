@@ -84,6 +84,30 @@ const getNotaPedidoID = async(req,res) => {
     })
 }
 
+const getNotaPedidoByCliente = async(req,res) => {
+    const clienteID = req.params.id;
+    if(!clienteID){
+        res.status(400).json({ 
+            ok:false,
+            message:'El id no llego al controlador correctamente.'
+        })
+        return
+    }
+    const notaPedidos = await NotaPedido.find({ cliente: clienteID });
+    if(!notaPedidos || notaPedidos.length === 0){
+        res.status(404).json({
+            ok:false,
+            message:'No se encontraron pedidos para el cliente especificado.'
+        })
+        return
+    }
+    res.status(200).json({
+        ok:true,
+        data:notaPedidos,
+    })
+}
+
+
 const updateNotaPedido = async(req,res) => {
     const id = req.params.id;
     
@@ -168,4 +192,4 @@ const deleteNotaPedido = async(req,res) => {
     })
 }
 
-module.exports = { setNotaPedido , getNotaPedido , getNotaPedidoID , updateNotaPedido , deleteNotaPedido };
+module.exports = { setNotaPedido , getNotaPedido , getNotaPedidoID , getNotaPedidoByCliente , updateNotaPedido , deleteNotaPedido };

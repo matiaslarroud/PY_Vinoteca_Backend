@@ -34,9 +34,12 @@ const routerCliente_NotaPedido = require('./routes/clienteNotaPedido_Router.js')
 const routerCliente_NotaPedidoDetalle = require('./routes/clienteNotaPedidoDetalle_Router.js');
 const routerCliente_ComprobanteVenta = require('./routes/clienteComprobanteVenta_Router.js');
 const routerCliente_ComprobanteVentaDetalle = require('./routes/clienteComprobanteVentaDetalle_Router.js');
+const routerCliente_Remito= require('./routes/clienteRemito_Router.js');
+const routerCliente_RemitoDetalle = require('./routes/clienteRemitoDetalle_Router.js');
 const routerTipoComprobante = require('./routes/tipoComprobante_Router.js');
 const routerTransporte = require('./routes/transporte_Router.js');
 const routerTransporteDetalle = require('./routes/transporteDetalle_Router.js');
+const router = require('./routes/productVino_Router.js');
 
 const app = express();
 
@@ -74,6 +77,8 @@ app.use(`${process.env.ROUTE}/cliente/notaPedido` , routerCliente_NotaPedido);
 app.use(`${process.env.ROUTE}/cliente/notaPedidoDetalle` , routerCliente_NotaPedidoDetalle);
 app.use(`${process.env.ROUTE}/cliente/comprobanteVenta` , routerCliente_ComprobanteVenta);
 app.use(`${process.env.ROUTE}/cliente/comprobanteVentaDetalle` , routerCliente_ComprobanteVentaDetalle);
+app.use(`${process.env.ROUTE}/cliente/remito` , routerCliente_Remito);
+app.use(`${process.env.ROUTE}/cliente/remitoDetalle` , routerCliente_RemitoDetalle);
 app.use(`${process.env.ROUTE}/gestion/tipoComprobante` , routerTipoComprobante);
 app.use(`${process.env.ROUTE}/gestion/transporte` , routerTransporte);
 app.use(`${process.env.ROUTE}/gestion/transporteDetalle` , routerTransporteDetalle);
