@@ -39,7 +39,8 @@ const routerCliente_RemitoDetalle = require('./routes/clienteRemitoDetalle_Route
 const routerTipoComprobante = require('./routes/tipoComprobante_Router.js');
 const routerTransporte = require('./routes/transporte_Router.js');
 const routerTransporteDetalle = require('./routes/transporteDetalle_Router.js');
-const router = require('./routes/productVino_Router.js');
+const routerOrdenProduccion = require('./routes/ordenProduccion_Router.js');
+const routerOrdenProduccionDetalle = require('./routes/ordenProduccionDetalle_Router.js');
 
 const app = express();
 
@@ -50,6 +51,11 @@ app.use(cors());
     
 app.use(`${process.env.ROUTE}/products/productVino`, routerProductVino);
 app.use(`${process.env.ROUTE}/products/productPicada`, routerPicadas);
+app.use(`${process.env.ROUTE}/products/productInsumo`, routerInsumos);
+app.use(`${process.env.ROUTE}/products/productPicadaDetalle`, routerPicadasDetalle);
+app.use(`${process.env.ROUTE}/products/ordenProduccion` , routerOrdenProduccion);
+app.use(`${process.env.ROUTE}/products/ordenProduccionDetalle` , routerOrdenProduccionDetalle);
+
 app.use(`${process.env.ROUTE}/gestion/bodega` , routerBodega);
 app.use(`${process.env.ROUTE}/gestion/bodega-paraje` , routerParaje);
 app.use(`${process.env.ROUTE}/gestion/pais` , routerPais);
@@ -68,17 +74,16 @@ app.use(`${process.env.ROUTE}/gestion/condicioniva` , routerCondicionIva);
 app.use(`${process.env.ROUTE}/gestion/cliente` , routerCliente);
 app.use(`${process.env.ROUTE}/gestion/products` , routerProducts);
 app.use(`${process.env.ROUTE}/gestion/empleado` , routerEmpleado);
-app.use(`${process.env.ROUTE}/cliente/presupuesto` , routerCliente_Presupuesto);
-app.use(`${process.env.ROUTE}/cliente/presupuestoDetalle` , routerCliente_PresupuestoDetalle);
+app.use(`${process.env.ROUTE}/gestion/tipoComprobante` , routerTipoComprobante);
+app.use(`${process.env.ROUTE}/gestion/transporte` , routerTransporte);
+app.use(`${process.env.ROUTE}/gestion/transporteDetalle` , routerTransporteDetalle);
 app.use(`${process.env.ROUTE}/gestion/proveedor` , routerProveedor); 
-app.use(`${process.env.ROUTE}/products/productInsumo`, routerInsumos);
-app.use(`${process.env.ROUTE}/products/productPicadaDetalle`, routerPicadasDetalle);
+
 app.use(`${process.env.ROUTE}/cliente/notaPedido` , routerCliente_NotaPedido);
 app.use(`${process.env.ROUTE}/cliente/notaPedidoDetalle` , routerCliente_NotaPedidoDetalle);
 app.use(`${process.env.ROUTE}/cliente/comprobanteVenta` , routerCliente_ComprobanteVenta);
 app.use(`${process.env.ROUTE}/cliente/comprobanteVentaDetalle` , routerCliente_ComprobanteVentaDetalle);
 app.use(`${process.env.ROUTE}/cliente/remito` , routerCliente_Remito);
 app.use(`${process.env.ROUTE}/cliente/remitoDetalle` , routerCliente_RemitoDetalle);
-app.use(`${process.env.ROUTE}/gestion/tipoComprobante` , routerTipoComprobante);
-app.use(`${process.env.ROUTE}/gestion/transporte` , routerTransporte);
-app.use(`${process.env.ROUTE}/gestion/transporteDetalle` , routerTransporteDetalle);
+app.use(`${process.env.ROUTE}/cliente/presupuesto` , routerCliente_Presupuesto);
+app.use(`${process.env.ROUTE}/cliente/presupuestoDetalle` , routerCliente_PresupuestoDetalle);
