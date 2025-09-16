@@ -1,14 +1,15 @@
 const mongoose = require("mongoose");
 
 const NotaPedidoDetalle_Schema = mongoose.Schema({
+    _id: Number,
         subtotal: {type: Number , require:true},
         notaPedido: {
-                type: mongoose.Schema.Types.ObjectId,
+                type: Number,
                 ref: 'Cliente_NotaPedido',
                 required: true
         },
         producto: {
-                type: mongoose.Schema.Types.ObjectId,
+                type: Number,
                 ref: 'Producto',
                 required: true
         },
@@ -20,6 +21,6 @@ const NotaPedidoDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const NotaPedidoDetalle = mongoose.model("NotaPedidoDetalle", NotaPedidoDetalle_Schema);
+const NotaPedidoDetalle = mongoose.model("Cliente_NotaPedidoDetalle", NotaPedidoDetalle_Schema , "Cliente_NotaPedidoDetalle");
 
 module.exports = NotaPedidoDetalle;

@@ -1,9 +1,10 @@
 const mongoose = require("mongoose");
 
 const Provincia_Schema = mongoose.Schema({
+    _id: Number,
     name: {type: String , require:true},
     pais: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Pais',
             required: true
         },
@@ -13,6 +14,6 @@ const Provincia_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const Provincia = mongoose.model("Provincia", Provincia_Schema);
+const Provincia = mongoose.model("Provincia", Provincia_Schema , "Provincia");
 
 module.exports = Provincia;

@@ -1,6 +1,8 @@
 const OrdenProduccionDetalle = require("../models/ordenProduccionDetalle_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setOrdenProduccionDetalle = async (req,res) => {
+    const newId = await getNextSequence("OrdenProduccionDetalle");
     const insumoOrden = req.body.insumo;
     const cantidadOrden = req.body.cantidad;
     const ordenProduccion = req.body.ordenProduccion;
@@ -10,6 +12,7 @@ const setOrdenProduccionDetalle = async (req,res) => {
         return
     }
     const newOrdenDetalle = new OrdenProduccionDetalle ({
+        _id: newId,
         insumo: insumoOrden,
         cantidad: cantidadOrden,
         ordenProduccion : ordenProduccion

@@ -1,6 +1,8 @@
 const TipoComprobante = require("../models/tipoComprobante");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setTipoComprobante = async(req,res) => {
+    const newId = await getNextSequence("TipoComprobante");
     const nombreTipoComprobante = req.body.name;
     const condicionIvaID = req.body.condicionIva;
 
@@ -11,7 +13,8 @@ const setTipoComprobante = async(req,res) => {
         })
         return
     }
-    const newTipoComprobante = await new TipoComprobante({name:nombreTipoComprobante, condicionIva:condicionIvaID});
+    const newTipoComprobante = await new TipoComprobante({
+        _id: newId,name:nombreTipoComprobante, condicionIva:condicionIvaID});
     
     if(!newTipoComprobante){
         res.status(400).json({

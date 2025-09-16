@@ -1,7 +1,10 @@
 const Barrio = require("../models/barrio_Model.js");
 const Localidad = require("../models/localidad_Model.js")
+const getNextSequence = require("../controllers/counter_Controller");
+
 
 const setBarrio = async(req,res) => {
+    const newId = await getNextSequence("Barrio");
     const nombreBarrio = req.body.name;
     const localidadBarrio = req.body.localidad;
     if(!nombreBarrio || !localidadBarrio){
@@ -11,7 +14,8 @@ const setBarrio = async(req,res) => {
         })
         return
     }
-    const newBarrio = await new Barrio({name:nombreBarrio,localidad:localidadBarrio});
+    const newBarrio = await new Barrio({
+        _id: newId,name:nombreBarrio,localidad:localidadBarrio});
     if(!newBarrio){
         res.status(400).json({
             ok:false,

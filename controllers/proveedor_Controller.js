@@ -1,9 +1,9 @@
 const Proveedor = require("../models/proveedor_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setProveedor = async (req,res) => {
+    const newId = await getNextSequence("Proveedor");
     const nombreC = req.body.name;
-    const apellidoC = req.body.lastname;
-    const nacimientoC = new Date(req.body.fechaNacimiento);
     const telefonoC = req.body.telefono;
     const emailC = req.body.email;
     const cuitC = req.body.cuit;
@@ -12,16 +12,18 @@ const setProveedor = async (req,res) => {
     const localidadC = req.body.localidad;
     const barrioC = req.body.barrio;
     const calleC = req.body.calle;
+    const alturaC = req.body.altura;
     const ivaC = req.body.condicionIva;
 
-    if(!nombreC || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
+    if(!nombreC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
     const newProveedor = new Proveedor ({
-        name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
-        pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC
+        _id: newId,
+        name: nombreC , telefono: telefonoC , email: emailC , cuit: cuitC ,
+        pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , altura: alturaC , condicionIva: ivaC
     });
     await newProveedor.save()
         .then( () => {
@@ -52,7 +54,7 @@ const getProveedorID = async(req,res) => {
     }
 
     const proveedor = await Proveedor.findById(id);
-    if(!Proveedor){
+    if(!proveedor){
         res.status(400).json({
             ok:false,
             message:'El id no corresponde a un proveedor.'
@@ -70,8 +72,6 @@ const updateProveedor = async(req,res) => {
     const id = req.params.id;
     
     const nombreC = req.body.name;
-    const apellidoC = req.body.lastname;
-    const nacimientoC = new Date(req.body.fechaNacimiento);
     const telefonoC = req.body.telefono;
     const emailC = req.body.email;
     const cuitC = req.body.cuit;
@@ -80,6 +80,7 @@ const updateProveedor = async(req,res) => {
     const localidadC = req.body.localidad;
     const barrioC = req.body.barrio;
     const calleC = req.body.calle;
+    const alturaC = req.body.altura;
     const ivaC = req.body.condicionIva;
 
     if(!id){
@@ -90,7 +91,7 @@ const updateProveedor = async(req,res) => {
         return
     }
 
-    if(!nombreC || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
+    if(!nombreC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
@@ -99,8 +100,8 @@ const updateProveedor = async(req,res) => {
     const updatedProveedor = await Proveedor.findByIdAndUpdate(
         id,
         {
-            name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
-            pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC 
+            name: nombreC , telefono: telefonoC , email: emailC , cuit: cuitC ,
+            pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , altura:alturaC , condicionIva: ivaC 
         },
         { new: true , runValidators: true }
     )

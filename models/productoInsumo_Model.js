@@ -2,8 +2,9 @@ const mongoose = require('mongoose')
 const Producto = require('./producto_Model.js');
 
 const productoInsumoSchema = new mongoose.Schema({
+    _id: Number,
     proveedor: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Proveedor',
             required: true
         },
@@ -23,6 +24,6 @@ const productoInsumoSchema = new mongoose.Schema({
         timestamps: true
     }
 )
-const ProductoInsumo = Producto.discriminator('ProductoInsumo', productoInsumoSchema);
+const ProductoInsumo = Producto.discriminator('ProductoInsumo', productoInsumoSchema , 'ProductoInsumo');
 
 module.exports = ProductoInsumo;

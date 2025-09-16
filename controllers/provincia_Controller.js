@@ -1,7 +1,9 @@
 const Provincia = require("../models/provincia_Model.js");
 const Pais = require("../models/pais_Model.js");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setProvincia = async(req,res) => {
+    const newId = await getNextSequence("Provincia");
     const nombreProvincia = req.body.name;
     const pais = req.body.pais;
 
@@ -21,7 +23,8 @@ const setProvincia = async(req,res) => {
         return
     }
 
-    const newProvincia = new Provincia({name: nombreProvincia , pais: pais});
+    const newProvincia = new Provincia({
+        _id: newId ,name: nombreProvincia , pais: pais});
     await newProvincia.save()
         .then(() => {
             res.status(201).json({

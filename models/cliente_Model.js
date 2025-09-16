@@ -1,10 +1,43 @@
 const mongoose = require("mongoose");
 
-const Persona = require('./persona_Model');
-
 const Cliente_Schema = mongoose.Schema({
+    _id: Number,
+    name: {type: String , require:true},
+    lastname: {type: String , require:true},
+    fechaNacimiento: {type: Date , require:true},
+    telefono: {type: String , require:true},
+    email: {type: String , require:true},
+    cuit: {type: String , require:true},
+    pais: {
+            type: Number,
+            ref: 'Pais',
+            required: true
+        },
+    provincia: {
+            type: Number,
+            ref: 'Provincia',
+            required: true
+        },
+    localidad: {
+            type: Number,
+            ref: 'Localidad',
+            required: true
+        },
+    barrio: {
+            type: Number,
+            ref: 'Barrio',
+            required: true
+        },
+    calle: {
+            type: Number,
+            ref: 'Calle',
+            required: true
+        },    
+    altura: {type: String , require:true},
+    deptoNumero: {type: String , require:false},
+    deptoLetra: {type: String , require:false},
     condicionIva: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'CondicionIva',
             required: true
         },
@@ -19,6 +52,6 @@ const Cliente_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const Cliente = Persona.discriminator('Cliente', Cliente_Schema);
+const Cliente = mongoose.model('Cliente', Cliente_Schema , "Cliente");
 
 module.exports = Cliente;

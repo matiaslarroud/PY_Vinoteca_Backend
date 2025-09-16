@@ -1,9 +1,10 @@
 const mongoose = require("mongoose");
 
 const Localidad_Schema = mongoose.Schema({
+    _id: Number,
     name: {type: String , require:true},
     provincia: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Provincia',
             required: true
         },
@@ -13,6 +14,6 @@ const Localidad_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const Localidad = mongoose.model("Localidad", Localidad_Schema);
+const Localidad = mongoose.model("Localidad", Localidad_Schema , "Localidad");
 
 module.exports = Localidad;

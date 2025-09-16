@@ -1,25 +1,30 @@
 const Product = require('../models/productoInsumo_Model')
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setProduct =  async (req , res ) => {
+    const newId = await getNextSequence("ProductoInsumo");
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioCosto;
     const stockProducto = req.body.stock;
     const gananciaProducto = req.body.ganancia;
     const depositoProducto = req.body.deposito;
     const proveedorProducto = req.body.proveedor;
+    const productType = 'ProductoInsumo';
     
-    if (!nombreProducto || !precioProducto || !stockProducto ||  !gananciaProducto || !depositoProducto || !proveedorProducto) {
+    if (!nombreProducto || !productType || !precioProducto || !stockProducto ||  !gananciaProducto || !depositoProducto || !proveedorProducto) {
         res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
         return
     }
 
     const newProduct = new Product({
+        _id: newId,
         name: nombreProducto , 
         precioCosto: precioProducto , 
         stock: stockProducto , 
         ganancia: gananciaProducto , 
         deposito: depositoProducto, 
-        proveedor: proveedorProducto
+        proveedor: proveedorProducto,
+        tipoProducto: productType
     });
     await newProduct.save()
         .then(() => { 

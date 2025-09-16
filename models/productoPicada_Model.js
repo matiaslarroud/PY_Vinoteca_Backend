@@ -2,11 +2,7 @@ const mongoose = require('mongoose')
 const Producto = require('./producto_Model.js');
 
 const productoPicadaSchema = new mongoose.Schema({
-    tipoVino: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Vino_Tipo',
-                required: false
-            },
+    _id: Number,
     precioVenta: {
         type: Number , 
         require:true , 
@@ -18,6 +14,6 @@ const productoPicadaSchema = new mongoose.Schema({
         timestamps: true
     }
 )
-const ProductoPicada = Producto.discriminator('ProductoPicada', productoPicadaSchema);
+const ProductoPicada = Producto.discriminator('ProductoPicada', productoPicadaSchema, 'ProductoPicada');
 
 module.exports = ProductoPicada;

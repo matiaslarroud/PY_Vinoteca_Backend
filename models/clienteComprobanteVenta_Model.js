@@ -1,12 +1,13 @@
 const mongoose = require("mongoose");
 
 const ComprobanteVenta_Schema = mongoose.Schema({
+    _id: Number,
     total: {type: Number , require:true},
     tipoComprobante: {type: String , require:true},
     descuento: {type: Number},
     fecha: {type: Date , require:true},
     notaPedido: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Cliente_NotaPedido',
         },
     facturado: {type: Boolean , require:true},
@@ -17,6 +18,6 @@ const ComprobanteVenta_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const Cliente_ComprobanteVenta = mongoose.model("Cliente_ComprobanteVenta", ComprobanteVenta_Schema);
+const Cliente_ComprobanteVenta = mongoose.model("Cliente_ComprobanteVenta", ComprobanteVenta_Schema , "Cliente_ComprobanteVenta");
 
 module.exports = Cliente_ComprobanteVenta;

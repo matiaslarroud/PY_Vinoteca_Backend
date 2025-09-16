@@ -1,15 +1,16 @@
 const mongoose = require('mongoose');
 
 const OrdenProduccionDetalle_Schema = mongoose.Schema({
-    insumo: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'ProductoInsumo',
+    _id: Number,
+    picada: {
+                type: Number,
+                ref: 'ProductoPicada',
                 required: true
             },
     cantidad: {type:Number , require:true},
     ordenProduccion: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'ProducOrdenProducciontoPicada',
+            type: Number,
+            ref: 'OrdenProduccion',
             required: true
         },
     },
@@ -18,6 +19,6 @@ const OrdenProduccionDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const OrdenProduccionDetalle = mongoose.model("OrdenProduccionDetalle", OrdenProduccionDetalle_Schema)
+const OrdenProduccionDetalle = mongoose.model("OrdenProduccionDetalle", OrdenProduccionDetalle_Schema, "OrdenProduccionDetalle");
 
 module.exports =  OrdenProduccionDetalle;

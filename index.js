@@ -38,7 +38,6 @@ const routerCliente_Remito= require('./routes/clienteRemito_Router.js');
 const routerCliente_RemitoDetalle = require('./routes/clienteRemitoDetalle_Router.js');
 const routerTipoComprobante = require('./routes/tipoComprobante_Router.js');
 const routerTransporte = require('./routes/transporte_Router.js');
-const routerTransporteDetalle = require('./routes/transporteDetalle_Router.js');
 const routerOrdenProduccion = require('./routes/ordenProduccion_Router.js');
 const routerOrdenProduccionDetalle = require('./routes/ordenProduccionDetalle_Router.js');
 
@@ -76,7 +75,6 @@ app.use(`${process.env.ROUTE}/gestion/products` , routerProducts);
 app.use(`${process.env.ROUTE}/gestion/empleado` , routerEmpleado);
 app.use(`${process.env.ROUTE}/gestion/tipoComprobante` , routerTipoComprobante);
 app.use(`${process.env.ROUTE}/gestion/transporte` , routerTransporte);
-app.use(`${process.env.ROUTE}/gestion/transporteDetalle` , routerTransporteDetalle);
 app.use(`${process.env.ROUTE}/gestion/proveedor` , routerProveedor); 
 
 app.use(`${process.env.ROUTE}/cliente/notaPedido` , routerCliente_NotaPedido);

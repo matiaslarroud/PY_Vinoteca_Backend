@@ -1,14 +1,15 @@
 const mongoose = require("mongoose");
 
 const PresupuestoDetalle_Schema = mongoose.Schema({
+    _id: Number,
         subtotal: {type: Number , require:true},
         presupuesto: {
-                type: mongoose.Schema.Types.ObjectId,
+                type: Number,
                 ref: 'Cliente_Presupuesto',
                 required: true
         },
         producto: {
-                type: mongoose.Schema.Types.ObjectId,
+                type: Number,
                 ref: 'Producto',
                 required: true
         },
@@ -20,6 +21,6 @@ const PresupuestoDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const PresupuestoDetalle = mongoose.model("PresupuestoDetalle", PresupuestoDetalle_Schema);
+const PresupuestoDetalle = mongoose.model("Cliente_PresupuestoDetalle", PresupuestoDetalle_Schema , "Cliente_PresupuestoDetalle");
 
 module.exports = PresupuestoDetalle;

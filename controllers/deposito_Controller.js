@@ -1,6 +1,8 @@
 const Deposito = require("../models/deposito_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setDeposito = async(req,res) => {
+    const newId = await getNextSequence("Deposito");
     const nombreD = req.body.name;
     const paisD = req.body.pais;
     const provinciaD = req.body.provincia;
@@ -20,7 +22,9 @@ const setDeposito = async(req,res) => {
     }
 
     const newDeposito = new Deposito(
+            
         {
+            _id: newId,
             name: nombreD , 
             pais: paisD ,
             provincia: provinciaD , 

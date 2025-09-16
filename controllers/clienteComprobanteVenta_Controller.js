@@ -1,5 +1,6 @@
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
 const NotaPedido = require("../models/clienteNotaPedido_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
@@ -8,6 +9,7 @@ const obtenerFechaHoy = () => {
 
 const setComprobanteVenta = async (req, res) => {
     try {
+        const newId = await getNextSequence("Cliente_ComprobanteVenta");
         const totalP = req.body.total;
         const fechaP = obtenerFechaHoy();
         const tipoComprobanteP = req.body.tipoComprobante;
@@ -24,6 +26,7 @@ const setComprobanteVenta = async (req, res) => {
 
         // Crear el comprobante
         const newComprobanteVenta = new ComprobanteVenta({
+            _id: newId,
             total: totalP,
             fecha: fechaP,
             tipoComprobante: tipoComprobanteP,

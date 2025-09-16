@@ -1,13 +1,16 @@
 const CondicionIva = require("../models/condicionIva_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setCondicionIva = async (req,res) => {
+    const newId = await getNextSequence("CondicionIva ");
     const name = req.body.name;
 
     if(!name){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
-    const newCondicionIva = new CondicionIva ({name: name});
+    const newCondicionIva = new CondicionIva ({
+        _id: newId,name: name});
     await newCondicionIva.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Condicion de iva agregada correctamente.'})

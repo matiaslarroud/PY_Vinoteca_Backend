@@ -1,14 +1,17 @@
 const MedioPago = require("../models/medioPago_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setMedioPago = async (req,res) => {
+    const newId = await getNextSequence("MedioPago");
     const name = req.body.name;
     const interes = req.body.interes;
 
-    if(!name || !interes){
+    if(!name){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
-    const newMedioPago = new MedioPago ({name: name , interes: interes});
+    const newMedioPago = new MedioPago ({
+        _id: newId,name: name , interes: interes});
     await newMedioPago.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Medio de pago agregado correctamente.'})

@@ -1,13 +1,14 @@
 const mongoose = require("mongoose");
 
 const PicadaDetalle_Schema = mongoose.Schema({
+    _id: Number,
         picada: {
-                type: mongoose.Schema.Types.ObjectId,
+                type: Number,
                 ref: 'ProductoPicada',
                 required: true
         },
         insumo: {
-                type: mongoose.Schema.Types.ObjectId,
+                type: Number,
                 ref: 'ProductoInsumo',
                 required: true
         },
@@ -18,6 +19,6 @@ const PicadaDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const PicadaDetalle = mongoose.model("PicadaDetalle", PicadaDetalle_Schema);
+const PicadaDetalle = mongoose.model("ProductoPicadaDetalle", PicadaDetalle_Schema, "ProductoPicadaDetalle");
 
 module.exports = PicadaDetalle;

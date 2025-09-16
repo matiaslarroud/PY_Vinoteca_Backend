@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 
 const productSchema = mongoose.Schema({
+    _id: Number,
     name: {type: String , require:true},
     stock: {
         type: Number , 
@@ -8,17 +9,17 @@ const productSchema = mongoose.Schema({
         min: [0, 'El stock no puede ser negativo']
     },
     deposito: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Deposito',
             required: false
         } ,
+    tipoProducto:{type: String , require:true}
     },
-    
     {
         timestamps: true
     }
 )
 
-const Product = mongoose.model("Producto", productSchema)
+const Product = mongoose.model("Producto", productSchema , "Producto");
 
 module.exports = Product;

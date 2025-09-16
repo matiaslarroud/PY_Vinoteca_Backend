@@ -1,6 +1,8 @@
 const NotaPedidoDetalle = require("../models/clienteNotaPedidoDetalle_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setNotaPedidoDetalle = async (req,res) => {
+    const newId = await getNextSequence("Cliente_NotaPedidoDetalle");
     const subtotalP = req.body.subtotal;
     const precioP = req.body.precio;
     const cantidadP = req.body.cantidad;
@@ -12,6 +14,7 @@ const setNotaPedidoDetalle = async (req,res) => {
         return
     }
     const newNotaPedidoDetalle = new NotaPedidoDetalle ({
+        _id: newId,
         subtotal: subtotalP , notaPedido: notaPedidoP , producto: productoID , precio:precioP , cantidad:cantidadP
     });
     await newNotaPedidoDetalle.save()

@@ -1,19 +1,24 @@
 const Product = require('../models/producto_Model')
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setProduct =  async (req , res ) => {
+    const newId = await getNextSequence("Producto");
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioCosto;
     const stockProducto = req.body.stock;
+    const tipoProducto = req.body.tipoProducto;
     const gananciaProducto = req.body.ganancia;
     const depositoProducto = req.body.deposito;
     
-    if (!nombreProducto || !precioProducto || !stockProducto  || !gananciaProducto  || !depositoProducto) {
+    if (!nombreProducto || !tipoProducto || !precioProducto || !stockProducto  || !gananciaProducto  || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
         return
     }
 
     const newProduct = new Product({
+        _id: newId,
         name: nombreProducto , 
+        tipoProducto: tipoProducto,
         precioCosto: precioProducto , 
         stock: stockProducto ,  
         ganancia: gananciaProducto , 
@@ -108,12 +113,13 @@ const updateProduct =  async (req , res ) => {
     const id = req.params.id;
     
     const nombreProducto = req.body.name;
+    const tipoProducto = req.body.tipoProducto;
     const precioProducto = req.body.precioCosto;
     const stockProducto = req.body.stock;
     const gananciaProducto = req.body.ganancia;
     const depositoProducto = req.body.deposito;
     
-    if (!nombreProducto || !precioProducto || !stockProducto || !gananciaProducto || !depositoProducto) {
+    if (!nombreProducto || !tipoProducto || !precioProducto || !stockProducto || !gananciaProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede actualizar el producto sin todos los datos.'});
         return
     }
@@ -122,6 +128,7 @@ const updateProduct =  async (req , res ) => {
             id, 
             {
                 name: nombreProducto , 
+                tipoProducto: tipoProducto,
                 stock: stockProducto,
                 precioCosto: precioProducto,
                 ganancia: gananciaProducto,

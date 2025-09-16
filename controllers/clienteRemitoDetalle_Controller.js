@@ -1,6 +1,8 @@
 const RemitoDetalle = require("../models/clienteRemitoDetalle_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setRemitoDetalle = async (req,res) => {
+    const newId = await getNextSequence("Cliente_RemitoDetalle");
     const remitoID = req.body.remitoID;
     const productoID = req.body.producto;
     const cantidad = req.body.cantidad;
@@ -10,6 +12,7 @@ const setRemitoDetalle = async (req,res) => {
         return
     }
     const newRemitoDetalle = new RemitoDetalle ({
+        _id: newId,
         remitoID: remitoID,
         producto: productoID,
         cantidad: cantidad,

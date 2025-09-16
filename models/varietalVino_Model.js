@@ -1,9 +1,10 @@
 const mongoose = require("mongoose");
 
 const VarietalVino_Schema = mongoose.Schema({
+    _id: Number,
     name: {type: String , require:true},
     uva: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Number,
         ref: 'Vino_Uva',
         required: true
     } ,
@@ -14,6 +15,6 @@ const VarietalVino_Schema = mongoose.Schema({
     }
 )
 
-const VarietalVino = mongoose.model("Vino_Varietal", VarietalVino_Schema);
+const VarietalVino = mongoose.model("Vino_Varietal", VarietalVino_Schema , "Vino_Varietal");
 
 module.exports = VarietalVino;

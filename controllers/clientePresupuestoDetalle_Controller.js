@@ -1,6 +1,8 @@
 const PresupuestoDetalle = require("../models/clientePresupuestoDetalle_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setPresupuestoDetalle = async (req,res) => {
+    const newId = await getNextSequence("Cliente_PresupuestoDetalle");
     const subtotalP = req.body.subtotal;
     const precioP = req.body.precio;
     const cantidadP = req.body.cantidad;
@@ -12,6 +14,7 @@ const setPresupuestoDetalle = async (req,res) => {
         return
     }
     const newPresupuestoDetalle = new PresupuestoDetalle ({
+        _id: newId,
         subtotal: subtotalP , presupuesto: presupuestoP , producto: productoID , precio:precioP , cantidad:cantidadP
     });
     await newPresupuestoDetalle.save()

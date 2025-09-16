@@ -1,13 +1,14 @@
 const mongoose = require("mongoose");
 
 const RemitoDetalle_Schema = mongoose.Schema({
+    _id: Number,
         remitoID: {
-                type: mongoose.Schema.Types.ObjectId,
+                type: Number,
                 ref: 'Cliente_Remito',
                 required: true
         },
         producto: {
-                type: mongoose.Schema.Types.ObjectId,
+                type: Number,
                 ref: 'Producto',
                 required: true
         },
@@ -18,6 +19,6 @@ const RemitoDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const Cliente_RemitoDetalle = mongoose.model("Cliente_RemitoDetalle", RemitoDetalle_Schema);
+const Cliente_RemitoDetalle = mongoose.model("Cliente_RemitoDetalle", RemitoDetalle_Schema, "Cliente_RemitoDetalle");
 
 module.exports = Cliente_RemitoDetalle;

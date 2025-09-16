@@ -1,6 +1,8 @@
 const PicadaDetalle = require("../models/productoPicadaDetalle_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setPicadaDetalle = async (req,res) => {
+    const newId = await getNextSequence("ProductoPicadaDetalle");
     const cantidadP = req.body.cantidad;
     const picadaP = req.body.picada;
     const insumoID = req.body.insumo;
@@ -10,6 +12,7 @@ const setPicadaDetalle = async (req,res) => {
         return
     }
     const newPicadaDetalle = new PicadaDetalle ({
+        _id: newId,
         picada: picadaP , cantidad: cantidadP , insumo: insumoID
     });
     await newPicadaDetalle.save()

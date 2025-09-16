@@ -1,13 +1,16 @@
 const Pais = require("../models/pais_Model.js");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setPais = async (req,res) => {
+    const newId = await getNextSequence("Pais");
     const name = req.body.name;
 
     if(!name){
         res.status(400).json({ok:false , message:'No se puede cargar un pais sin el nombre.'})
         return
     }
-    const newPais = new Pais ({name: name});
+    const newPais = new Pais ({
+        _id: newId,name: name});
     await newPais.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Pais agregado correctamente.'})

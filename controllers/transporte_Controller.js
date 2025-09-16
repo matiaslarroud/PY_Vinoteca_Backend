@@ -1,6 +1,8 @@
 const Transporte = require('../models/transporte_Model')
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setTransporte =  async (req , res ) => {
+    const newId = await getNextSequence("Transporte");
     const razonSocial = req.body.name;
     const telefonoTransporte = req.body.telefono;
     const emailTransporte = req.body.email;
@@ -19,6 +21,7 @@ const setTransporte =  async (req , res ) => {
     }
 
     const newTransporte = new Transporte({
+        _id: newId,
         name: razonSocial,
         telefono: telefonoTransporte,
         email: emailTransporte, 

@@ -1,29 +1,30 @@
 const mongoose = require("mongoose");
 
 const Deposito_Schema = mongoose.Schema({
+    _id: Number,
     name: {type: String , require:true},
     pais: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Pais',
             required: true
         },
     provincia: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Provincia',
             required: true
         },
     localidad: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Localidad',
             required: true
         },
     barrio: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Barrio',
             required: true
         },
     calle: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Calle',
             required: true
         },
@@ -36,6 +37,6 @@ const Deposito_Schema = mongoose.Schema({
     }  
 )
 
-const Deposito = mongoose.model("Deposito", Deposito_Schema);
+const Deposito = mongoose.model("Deposito", Deposito_Schema , "Deposito");
 
 module.exports = Deposito;

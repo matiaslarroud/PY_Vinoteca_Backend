@@ -12,8 +12,6 @@ router.put('/stock/:id', controller.stockUpdate)
 
 router.get('/tipos/:id' , controller.getProductTipoID)
 
-router.get('/search/:query' , controller.getProductTipos)
-
 router.get('/:id' , controller.getProductID)
 
 router.put('/:id' , controller.updateProduct)

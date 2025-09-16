@@ -1,4 +1,5 @@
 const Presupuesto = require("../models/clientePresupuesto_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
@@ -6,19 +7,20 @@ const obtenerFechaHoy = () => {
 }
 
 const setPresupuesto = async (req,res) => {
+    const newId = await getNextSequence("Cliente_Presupuesto");
     const totalP = req.body.total;
     const fechaP = obtenerFechaHoy();
     const clienteID = req.body.cliente;
     const empleadoID = req.body.empleado;
-    const medioPagoID = req.body.medioPago;
 
-    if(!totalP || !fechaP || !clienteID || !empleadoID || !medioPagoID){
+    if(!totalP || !fechaP || !clienteID || !empleadoID ){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
     const newPresupuesto = new Presupuesto ({
+        _id: newId,
         total: totalP , fecha: fechaP , cliente: clienteID,
-        empleado:empleadoID , medioPago:medioPagoID
+        empleado:empleadoID 
     });
     await newPresupuesto.save()
         .then( () => {
@@ -74,7 +76,6 @@ const updatePresupuesto = async(req,res) => {
     const fechaP = req.body.fecha;
     const clienteID = req.body.cliente;
     const empleadoID = req.body.empleado;
-    const medioPagoID = req.body.medioPago;
 
     if(!id){
         res.status(400).json({
@@ -88,7 +89,7 @@ const updatePresupuesto = async(req,res) => {
         id,
         {   
             total: totalP , fecha: fechaP , cliente: clienteID,
-            empleado:empleadoID , medioPago:medioPagoID
+            empleado:empleadoID 
         },
         { new: true , runValidators: true }
     )

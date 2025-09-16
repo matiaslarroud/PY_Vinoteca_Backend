@@ -1,6 +1,8 @@
 const Cliente = require("../models/cliente_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setCliente = async (req,res) => {
+    const newId = await getNextSequence("Cliente");
     const nombreC = req.body.name;
     const apellidoC = req.body.lastname;
     const nacimientoC = new Date(req.body.fechaNacimiento);
@@ -10,19 +12,24 @@ const setCliente = async (req,res) => {
     const paisC = req.body.pais;
     const provinciaC = req.body.provincia;
     const localidadC = req.body.localidad;
+    const altura = req.body.altura;
+    const deptoNumero = req.body.deptoNumero;
+    const deptoLetra = req.body.deptoLetra;
     const barrioC = req.body.barrio;
     const calleC = req.body.calle;
     const ivaC = req.body.condicionIva;
     const cuentaCorrienteC = req.body.cuentaCorriente ? true : false;
 
-    if(!nombreC || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
+    if(!nombreC || !altura || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
     const newCliente = new Cliente ({
+        _id: newId,
         name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
-        pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC, cuentaCorriente: cuentaCorrienteC
+        pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC, cuentaCorriente: cuentaCorrienteC ,
+        altura: altura , deptoNumero: deptoNumero , deptoLetra: deptoLetra
     });
     await newCliente.save()
         .then( () => {
@@ -83,6 +90,9 @@ const updateCliente = async(req,res) => {
     const calleC = req.body.calle;
     const ivaC = req.body.condicionIva;
     const cuentaCorrienteC = req.body.cuentaCorriente;
+    const altura = req.body.altura;
+    const deptoNumero = req.body.deptoNumero;
+    const deptoLetra = req.body.deptoLetra;
 
     if(!id){
         res.status(400).json({
@@ -92,7 +102,7 @@ const updateCliente = async(req,res) => {
         return
     }
 
-    if(!nombreC || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
+    if(!nombreC || !altura || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
@@ -102,7 +112,8 @@ const updateCliente = async(req,res) => {
         id,
         {
             name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
-            pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC , cuentaCorriente:cuentaCorrienteC
+            pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC , cuentaCorriente:cuentaCorrienteC ,
+            altura: altura , deptoNumero: deptoNumero , deptoLetra: deptoLetra
         },
         { new: true , runValidators: true }
     )

@@ -1,4 +1,5 @@
 const NotaPedido = require("../models/clienteNotaPedido_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
@@ -6,21 +7,29 @@ const obtenerFechaHoy = () => {
 }
 
 const setNotaPedido = async (req,res) => {
+    const newId = await getNextSequence("Cliente_NotaPedido");
     const totalP = req.body.total;
     const fechaP = obtenerFechaHoy();
     const envioP = req.body.envio;
-    const envioDireccionP = req.body.envioDireccion;
     const fechaEntregaP = req.body.fechaEntrega;
     const clienteID = req.body.cliente;
     const empleadoID = req.body.empleado;
     const medioPagoID = req.body.medioPago;
     const presupuestoID = req.body.presupuesto;
+    const provincia = req.body.provincia;
+    const localidad = req.body.localidad;
+    const barrio = req.body.barrio;
+    const calle = req.body.calle;
+    const altura = req.body.altura;
+    const deptoNumero = req.body.deptoNumero;
+    const deptoLetra = req.body.deptoLetra;
 
     if(!totalP || !fechaP || !clienteID || !empleadoID || !medioPagoID || !fechaEntregaP){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
     const newNotaPedido = new NotaPedido ({
+        _id: newId,
         total: totalP , 
         fecha: fechaP , 
         cliente: clienteID,
@@ -35,7 +44,17 @@ const setNotaPedido = async (req,res) => {
     }
 
     if (envioP) {
-        newNotaPedido.envioDireccion = envioDireccionP;
+        if(!provincia || !localidad || !barrio || !calle || !altura){
+            res.status(400).json({ok:false , message:'Error al cargar los datos de entrega.'})
+            return
+        }
+        newNotaPedido.provincia = provincia;
+        newNotaPedido.localidad = localidad;
+        newNotaPedido.barrio = barrio;
+        newNotaPedido.calle = calle;
+        newNotaPedido.altura = altura;
+        newNotaPedido.deptoNumero = deptoNumero;
+        newNotaPedido.deptoLetra = deptoLetra;
     }
     await newNotaPedido.save()
         .then( () => {
@@ -125,6 +144,13 @@ const updateNotaPedido = async(req,res) => {
     const empleadoID = req.body.empleado;
     const medioPagoID = req.body.medioPago;
     const presupuestoID = req.body.presupuesto;
+    const provincia = req.body.provincia;
+    const localidad = req.body.localidad;
+    const barrio = req.body.barrio;
+    const calle = req.body.calle;
+    const altura = req.body.altura;
+    const deptoNumero = req.body.deptoNumero;
+    const deptoLetra = req.body.deptoLetra;
 
     if(!id){
         res.status(400).json({
@@ -133,6 +159,7 @@ const updateNotaPedido = async(req,res) => {
         })
         return
     }
+
 
      const updatedPedidoData = {
         total: totalP , 
@@ -146,6 +173,20 @@ const updateNotaPedido = async(req,res) => {
     
     if (presupuestoID) {
         updatedPedidoData.presupuesto = presupuestoID;
+    }
+
+    if (envioP) {
+        if(!provincia || !localidad || !barrio || !calle || !altura){
+            res.status(400).json({ok:false , message:'Error al cargar los datos de entrega.'})
+            return
+        }
+        updatedPedidoData.provincia = provincia;
+        updatedPedidoData.localidad = localidad;
+        updatedPedidoData.barrio = barrio;
+        updatedPedidoData.calle = calle;
+        updatedPedidoData.altura = altura;
+        updatedPedidoData.deptoNumero = deptoNumero;
+        updatedPedidoData.deptoLetra = deptoLetra;
     }
 
     const updatedNotaPedido = await NotaPedido.findByIdAndUpdate(

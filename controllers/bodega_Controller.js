@@ -1,6 +1,8 @@
 const Bodega = require('../models/bodega_Model.js');
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setBodega = async (req , res ) => {
+    const newId = await getNextSequence("Bodega");
     const nombreBodega = req.body.name;    
     const familiaBodega = req.body.familia;
     
@@ -10,6 +12,7 @@ const setBodega = async (req , res ) => {
     }
 
     const newBodega = new Bodega({
+        _id: newId,
         name: nombreBodega , 
         familia: familiaBodega ,
     });

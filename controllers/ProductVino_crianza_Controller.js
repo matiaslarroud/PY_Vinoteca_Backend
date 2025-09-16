@@ -1,13 +1,16 @@
 const Crianza = require("../models//crianzaVino_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setCrianza = async (req,res) => {
+    const newId = await getNextSequence("Vino_Crianza");
     const name = req.body.name;
 
     if(!name){
         res.status(400).json({ok:false , message:'No se puede agregar sin el nombre.'})
         return
     }
-    const newCrianza = new Crianza ({name: name});
+    const newCrianza = new Crianza ({
+        _id: newId,name: name});
     await newCrianza.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Crianza agregada correctamente.'})

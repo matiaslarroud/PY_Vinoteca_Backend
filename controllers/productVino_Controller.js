@@ -1,6 +1,8 @@
 const Product = require('../models/productoVino_Model.js')
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setProduct =  async (req , res ) => {
+    const newId = await getNextSequence("ProductoVino");
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioCosto;
     const stockProducto = req.body.stock;
@@ -8,18 +10,21 @@ const setProduct =  async (req , res ) => {
     const parajeProducto = req.body.paraje;
     const crianzaProducto = req.body.crianza;
     const gananciaProducto = req.body.ganancia;
-    const tipoProducto = req.body.tipo;
+    const tipoVino = req.body.tipo;
     const uvaProducto = req.body.uva;
     const varietalProducto = req.body.varietal;
     const volumenProducto = req.body.volumen;
     const depositoProducto = req.body.deposito;
+    const productType = 'ProductoVino'
+
     
-    if (!nombreProducto || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoProducto || !uvaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
+    if (!nombreProducto || !productType || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoVino || !uvaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
         return
     }
 
     const newProduct = new Product({
+        _id: newId,
         name: nombreProducto , 
         precioCosto: precioProducto , 
         stock: stockProducto , 
@@ -27,11 +32,12 @@ const setProduct =  async (req , res ) => {
         paraje: parajeProducto , 
         crianza: crianzaProducto , 
         ganancia: gananciaProducto , 
-        tipo: tipoProducto , 
+        tipo: tipoVino , 
         uva: uvaProducto , 
         varietal: varietalProducto , 
         volumen: volumenProducto , 
-        deposito: depositoProducto
+        deposito: depositoProducto,
+        tipoProducto: productType
     });
     await newProduct.save()
         .then(() => { 
@@ -77,7 +83,7 @@ const updateProduct =  async (req , res ) => {
     const parajeProducto = req.body.paraje;
     const crianzaProducto = req.body.crianza;
     const gananciaProducto = req.body.ganancia;
-    const tipoProducto = req.body.tipo;
+    const tipoVino = req.body.tipo;
     const uvaProducto = req.body.uva;
     const varietalProducto = req.body.varietal;
     const volumenProducto = req.body.volumen;
@@ -98,7 +104,7 @@ const updateProduct =  async (req , res ) => {
                 paraje: parajeProducto,
                 crianza:crianzaProducto,
                 ganancia: gananciaProducto,
-                tipo: tipoProducto,
+                tipo: tipoVino,
                 uva:uvaProducto,
                 varietal:varietalProducto,
                 volumen:volumenProducto,

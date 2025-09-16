@@ -1,6 +1,8 @@
 const VarietalVino = require("../models/varietalVino_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setVarietalVino = async (req,res) => {
+    const newId = await getNextSequence("Vino_Varietal");
     const name = req.body.name;
     const tipoUva = req.body.tipoUva;
 
@@ -8,7 +10,8 @@ const setVarietalVino = async (req,res) => {
         res.status(400).json({ok:false , message:'No se puede agregar sin los datos.'})
         return
     }
-    const newVarietalVino = new VarietalVino ({name: name , uva:tipoUva});
+    const newVarietalVino = new VarietalVino ({
+        _id: newId,name: name , uva:tipoUva});
     await newVarietalVino.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Varietal de vino agregado correctamente.'})

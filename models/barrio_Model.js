@@ -1,9 +1,10 @@
 const mongoose = require("mongoose");
 
 const Barrio_Schema = mongoose.Schema({
+    _id: Number,
     name: {type: String , require:true},
     localidad: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Localidad',
             required: true
         },
@@ -13,6 +14,6 @@ const Barrio_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const Barrio = mongoose.model("Barrio", Barrio_Schema);
+const Barrio = mongoose.model("Barrio", Barrio_Schema, "Barrio");
 
 module.exports = Barrio;

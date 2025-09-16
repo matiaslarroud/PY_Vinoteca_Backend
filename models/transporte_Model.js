@@ -1,39 +1,39 @@
 const mongoose = require("mongoose");
 
-const Persona = require('./persona_Model');
-
 const Transporte_Schema = mongoose.Schema({
+    _id: Number,
     name: {type: String , require:true},name: {type: String , require:true},
     telefono: {type: String , require:true},
     email: {type: String , require:true},
     cuit: {type: String , require:true},
     pais: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Pais',
             required: true
         },
     provincia: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Provincia',
             required: true
         },
     localidad: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Localidad',
             required: true
         },
     barrio: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Barrio',
             required: true
         },
     calle: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Number,
             ref: 'Calle',
             required: true
-        },
+        },    
+    altura: {type: String , require:true},
     condicionIva: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Number,
         ref: 'CondicionIva',
         required: true
     }
@@ -44,6 +44,6 @@ const Transporte_Schema = mongoose.Schema({
         timestamps: true
     }
 )
-const Transporte = mongoose.model('Transporte', Transporte_Schema);
+const Transporte = mongoose.model('Transporte', Transporte_Schema , "Transporte");
 
 module.exports = Transporte;

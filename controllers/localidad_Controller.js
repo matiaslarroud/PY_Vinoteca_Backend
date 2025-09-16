@@ -1,6 +1,8 @@
 const Localidad = require("../models/localidad_Model.js");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setLocalidad = async(req,res) => {
+    const newId = await getNextSequence("Localidad");
     const nombreLocalidad = req.body.name;
     const provinciaID = req.body.provincia;
 
@@ -11,7 +13,8 @@ const setLocalidad = async(req,res) => {
         })
         return
     }
-    const newLocalidad = await new Localidad({name:nombreLocalidad, provincia:provinciaID});
+    const newLocalidad = await new Localidad({
+        _id: newId,name:nombreLocalidad, provincia:provinciaID});
     
     if(!newLocalidad){
         res.status(400).json({

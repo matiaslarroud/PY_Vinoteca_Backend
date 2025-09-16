@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const CrianzaVino_Schema = mongoose.Schema({
+    _id: Number,
     name: {type: String , require:true},
 },
     {
@@ -8,6 +9,6 @@ const CrianzaVino_Schema = mongoose.Schema({
     }  
 )
 
-const CrianzaVino = mongoose.model("Vino_Crianza", CrianzaVino_Schema);
+const CrianzaVino = mongoose.model("Vino_Crianza", CrianzaVino_Schema , "Vino_Crianza");
 
 module.exports = CrianzaVino;

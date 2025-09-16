@@ -1,6 +1,8 @@
 const ComprobanteVentaDetalle = require("../models/clienteComprobanteVentaDetalle_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setComprobanteVentaDetalle = async (req,res) => {
+    const newId = await getNextSequence("Cliente_ComprobanteVentaDetalle");
     const subtotalP = req.body.subtotal;
     const comprobanteVentaP = req.body.comprobanteVenta;
     const productoID = req.body.producto;
@@ -12,6 +14,7 @@ const setComprobanteVentaDetalle = async (req,res) => {
         return
     }
     const newComprobanteVentaDetalle = new ComprobanteVentaDetalle ({
+        _id: newId,
         subtotal: subtotalP , 
         comprobanteVenta: comprobanteVentaP , 
         producto: productoID , 

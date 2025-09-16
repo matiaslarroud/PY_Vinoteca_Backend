@@ -1,6 +1,8 @@
 const Uva = require("../models/tipoUva_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setUva = async (req,res) => {
+    const newId = await getNextSequence("Vino_Uva");
     const name = req.body.name;
     const tipoVino = req.body.tipoVino;
 
@@ -8,7 +10,8 @@ const setUva = async (req,res) => {
         res.status(400).json({ok:false , message:'No se puede agregar sin los datos.'})
         return
     }
-    const newUva = new Uva ({name: name , tipo:tipoVino});
+    const newUva = new Uva ({
+        _id: newId,name: name , tipo:tipoVino});
     await newUva.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Uva agregada correctamente.'})

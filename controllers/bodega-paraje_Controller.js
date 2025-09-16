@@ -1,6 +1,8 @@
 const Paraje = require('../models/bodega-paraje_Model');
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setParaje = async (req , res ) => {
+    const newId = await getNextSequence("Bodega_Paraje");
     const nombreParaje = req.body.name; 
     const bodegaParaje = req.body.bodega;   
     const paisParaje = req.body.pais;
@@ -8,6 +10,7 @@ const setParaje = async (req , res ) => {
     const localidadParaje = req.body.localidad;
     const barrioParaje = req.body.barrio;
     const calleParaje = req.body.calle;
+    const alturaParaje = req.body.altura;
     
     if (!nombreParaje || !bodegaParaje || !paisParaje || !provinciaParaje || !localidadParaje || !barrioParaje || !calleParaje) {
         res.status(400).json({ok:false , message:'No se puede cargar la Paraje sin la carga de todos los datos.'});
@@ -15,13 +18,15 @@ const setParaje = async (req , res ) => {
     }
 
     const newParaje = new Paraje({
+        _id: newId,
         name: nombreParaje , 
         bodega: bodegaParaje,
         pais: paisParaje ,  
         provincia: provinciaParaje ,  
         localidad: localidadParaje ,  
         barrio: barrioParaje ,  
-        calle: calleParaje
+        calle: calleParaje,
+        altura: alturaParaje
     });
     
     if(!newParaje){
@@ -104,6 +109,8 @@ const updateParaje = async(req,res) => {
     const localidadP = req.body.localidad;
     const barrioP = req.body.barrio;
     const calleP = req.body.calle;
+    const alturaP = req.body.altura;
+
     if(!nameP  || !bodegaP || !paisP || !provinciaP || !localidadP || !barrioP || !calleP){
         res.status(400).json({
             ok:false,
@@ -120,7 +127,8 @@ const updateParaje = async(req,res) => {
             provincia:provinciaP,
             localidad:localidadP,
             barrio:barrioP,
-            calle:calleP
+            calle:calleP,
+            altura: alturaP
         },
         { new: true , runValidators: true }
     )

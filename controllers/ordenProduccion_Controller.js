@@ -1,4 +1,5 @@
 const OrdenProduccion = require('../models/ordenProduccion_Model')
+const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
@@ -6,6 +7,7 @@ const obtenerFechaHoy = () => {
 }
 
 const setOrdenProduccion =  async (req , res ) => {
+    const newId = await getNextSequence("OrdenProduccion");
     const fechaOrden = obtenerFechaHoy();
     const fechaElaboracionOrden = req.body.fechaElaboracion;
     const fechaEntregaOrden = req.body.fechaEntrega;
@@ -18,6 +20,7 @@ const setOrdenProduccion =  async (req , res ) => {
     }
 
     const newOrden = new OrdenProduccion({
+        _id: newId,
         fecha: fechaOrden,
         fechaElaboracion: fechaElaboracionOrden,
         fechaEntrega: fechaEntregaOrden,

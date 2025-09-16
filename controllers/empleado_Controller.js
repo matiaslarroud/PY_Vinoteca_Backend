@@ -1,6 +1,8 @@
 const Empleado = require("../models/empleado_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setEmpleado = async (req,res) => {
+    const newId = await getNextSequence("Empleado");
     const nombreC = req.body.name;
     const apellidoC = req.body.lastname;
     const nacimientoC = new Date(req.body.fechaNacimiento);
@@ -12,15 +14,19 @@ const setEmpleado = async (req,res) => {
     const localidadC = req.body.localidad;
     const barrioC = req.body.barrio;
     const calleC = req.body.calle;
+    const alturaC = req.body.altura;
+    const deptoNumC = req.body.deptoNum;
+    const deptoLetraC = req.body.deptoLetra;
 
-    if(!nombreC || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
+    if(!nombreC || !alturaC || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
     const newEmpleado = new Empleado ({
-        name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
-        pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC
+        _id: newId,
+        name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC, telefono: telefonoC , email: emailC , cuit: cuitC ,
+        pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , altura: alturaC , deptoNumero: deptoNumC , deptoLetra: deptoLetraC
     });
     await newEmpleado.save()
         .then( () => {
@@ -79,6 +85,9 @@ const updateEmpleado = async(req,res) => {
     const localidadC = req.body.localidad;
     const barrioC = req.body.barrio;
     const calleC = req.body.calle;
+    const alturaC = req.body.altura;
+    const deptoNumC = req.body.deptoNumero;
+    const deptoLetraC = req.body.deptoLetra;
 
     if(!id){
         res.status(400).json({
@@ -88,17 +97,17 @@ const updateEmpleado = async(req,res) => {
         return
     }
 
-    if(!nombreC || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
+    if(!nombreC || !alturaC || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
-    }
+    } 
 
     const updatedEmpleado = await Empleado.findByIdAndUpdate(
         id,
         {
             name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
-            pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC
+            pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , altura: alturaC , deptoNumero: deptoNumC , deptoLetra: deptoLetraC
         },
         { new: true , runValidators: true }
     )

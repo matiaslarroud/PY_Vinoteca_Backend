@@ -1,23 +1,26 @@
 const Product = require('../models/productoPicada_Model')
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setProduct =  async (req , res ) => {
+    const newId = await getNextSequence("ProductoPicada");
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioVenta;
-    const tipoVinoProducto = req.body.tipoVino;
     const stockProducto = req.body.stock;
     const depositoProducto = req.body.deposito;
+    const productType = 'ProductoPicada';
     
-    if (!nombreProducto || !precioProducto || !stockProducto || !depositoProducto || !tipoVinoProducto) {
+    if (!nombreProducto || !productType || !precioProducto || !stockProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
         return
     }
 
     const newProduct = new Product({
+        _id: newId,
         name: nombreProducto , 
         precioVenta: precioProducto , 
-        tipoVino: tipoVinoProducto ,
         stock: stockProducto ,  
-        deposito: depositoProducto
+        deposito: depositoProducto,
+        tipoProducto: productType
     });
     await newProduct.save()
         .then(() => { 
@@ -62,11 +65,10 @@ const updateProduct =  async (req , res ) => {
     
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioVenta;
-    const tipoVinoProducto = req.body.tipoVino;
     const stockProducto = req.body.stock;
     const depositoProducto = req.body.deposito;
     
-    if (!nombreProducto || !precioProducto || !stockProducto || !tipoVinoProducto || !depositoProducto) {
+    if (!nombreProducto || !precioProducto || !stockProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede actualizar el producto sin todos los datos.'});
         return
     }
@@ -77,7 +79,6 @@ const updateProduct =  async (req , res ) => {
                 name: nombreProducto , 
                 precioVenta: precioProducto , 
                 stock: stockProducto ,  
-                tipoVino: tipoVinoProducto , 
                 deposito: depositoProducto
             },
             { new: true , runValidators: true }

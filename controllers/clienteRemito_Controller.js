@@ -1,5 +1,6 @@
 const Remito = require("../models/clienteRemito_Model");
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
@@ -7,7 +8,9 @@ const obtenerFechaHoy = () => {
 }
 
 const setRemito = async (req, res) => {
+    
     try {
+        const newId = await getNextSequence("Cliente_Remito");
         const totalPrecio = req.body.totalPrecio;
         const totalBultos = req.body.totalBultos;
         const fecha = obtenerFechaHoy();
@@ -23,6 +26,7 @@ const setRemito = async (req, res) => {
         }
 
         const newRemito = new Remito({
+            _id: newId,
             totalPrecio: totalPrecio,
             totalBultos: totalBultos,
             fecha: fecha,

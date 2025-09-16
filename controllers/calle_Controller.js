@@ -1,6 +1,8 @@
 const Calle = require("../models/calle_Model.js");
+const getNextSequence = require("../controllers/counter_Controller");
 
 const setCalle = async(req,res) => {
+    const newId = await getNextSequence("Calle");
     const nombreCalle = req.body.name;
     const barrioID = req.body.barrio;
 
@@ -12,7 +14,8 @@ const setCalle = async(req,res) => {
         return
     }
     
-    const newCalle = new Calle({name: nombreCalle , barrio:barrioID})
+    const newCalle = new Calle({
+        _id: newId,name: nombreCalle , barrio:barrioID})
     await newCalle.save()
         .then(()=>{
             res.status(201).json({
