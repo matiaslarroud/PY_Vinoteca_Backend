@@ -93,7 +93,8 @@ const imprimir = async (req, res) => {
         });
 
       // ---------------- Encabezado con logo y datos de la empresa ----------------
-      const logoPath = "E:/Documentos/Proyectos/PY_Vinoteca/backend/src/logo.jpg";
+      const BASE_URL = process.env.BASE_URL || `http://localhost:${process.end.PORT}`;
+      const logoPath = `${BASE_URL}/logo.png`;
       const empresa = {
         razonSocial: "Entusiasmo por el Vino",
         inicioActividades: "23/03/2023",
