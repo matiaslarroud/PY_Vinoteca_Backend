@@ -6,6 +6,7 @@ const connectDB = require('./db/db.js')
 
 
 const routerProductVino = require('./routes/productVino_Router.js')
+const routerProductVinoDetalle = require('./routes/productVinoDetalle_Router.js')
 const routerProductVinoCrianza = require('./routes/productVino_crianza_Router.js')
 const routerBodega = require('./routes/bodega_Router.js')
 const routerParaje = require('./routes/bodega-paraje_Router.js')
@@ -49,6 +50,7 @@ app.use(express.json());
 app.use(cors());
     
 app.use(`${process.env.ROUTE}/products/productVino`, routerProductVino);
+app.use(`${process.env.ROUTE}/products/productVinoDetalle`, routerProductVinoDetalle);
 app.use(`${process.env.ROUTE}/products/productPicada`, routerPicadas);
 app.use(`${process.env.ROUTE}/products/productInsumo`, routerInsumos);
 app.use(`${process.env.ROUTE}/products/productPicadaDetalle`, routerPicadasDetalle);

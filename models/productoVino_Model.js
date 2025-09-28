@@ -23,11 +23,6 @@ const productoVinoSchema = new mongoose.Schema({
             ref: 'Vino_Tipo',
             required: false
         } ,
-    uva: {
-            type: Number,
-            ref: 'Vino_Uva',
-            required: false
-        } ,
     varietal: {
             type: Number,
             ref: 'Vino_Varietal',

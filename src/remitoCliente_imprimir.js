@@ -1,40 +1,53 @@
-// src/presupuestoCliente_imprimir.js
+// src/RemitoCliente_imprimir.js
 const PDFDocument = require("pdfkit");
-const Presupuesto = require("../models/clientePresupuesto_Model");
-const PresupuestoDetalle = require("../models/clientePresupuestoDetalle_Model");
+const Remito = require("../models/clienteRemito_Model");
+const RemitoDetalle = require("../models/clienteRemitoDetalle_Model");
 
 
 const imprimir = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Traer el presupuesto con cliente, empleado
-    const presupuesto = await Presupuesto.findById(id)
-    .populate({
-      path: "cliente",
-      populate: [
-        { path: "pais" },
-        { path: "provincia" },
-        { path: "localidad" },
-        { path: "barrio" },
-        { path: "calle" },
-        { path: "condicionIva" }
-      ]
-    })
-    .populate("empleado")
+    // Traer el Remito con cliente, empleado y medio de pago
+    const remito = await Remito.findById(req.params.id)
+      .populate({
+        path: "comprobanteVentaID",
+        populate: {
+          path: "notaPedido",
+          populate: [
+            { 
+              path: "cliente" ,
+              populate: [
+                { path: "pais" },
+                { path: "provincia" },
+                { path: "localidad" },
+                { path: "barrio" },
+                { path: "calle" },
+                { path: "condicionIva" }
+              ]
+            }
+          ]
+        }
+      })
+      .populate({path: "transporteID"})
 
-    if (!presupuesto) {
-      return res.status(404).json({ ok: false, msg: "Presupuesto no encontrado" });
+    const comprobante = remito.comprobanteVentaID;
+    const pedido = comprobante?.notaPedido;
+    const cliente = pedido?.cliente;
+    const transporte = remito.transporteID;
+
+    if (!remito) {
+      return res.status(404).json({ ok: false, msg: "Remito no encontrado" });
     }
 
     // Traer los detalles con productos
-    const detalles = await PresupuestoDetalle.find({ presupuesto: id })
+    const detalles = await RemitoDetalle.find({ remitoID: id })
       .populate("producto");
-    presupuesto.detalles = detalles;
+    remito.detalles = detalles;
 
     // Configurar headers de respuesta
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `inline; filename=presupuesto_${id}.pdf`);
+    res.setHeader("Content-Disposition", `inline; filename=Remito_${id}.pdf`);
 
     const doc = new PDFDocument({ margin: 50 });
     doc.pipe(res);
@@ -42,15 +55,15 @@ const imprimir = async (req, res) => {
     // ---------------- Título ----------------
     doc.font("Helvetica-Bold")
       .fontSize(20)
-      .text("Presupuesto Cliente", 50, 50, { align: "center" });
+      .text("Remito Cliente", 50, 50, { align: "center" });
 
     // Texto a la derecha: fecha y código
-    const fechaPresupuesto = new Date(presupuesto.fecha).toLocaleDateString();
-    const codigoPresupuesto = presupuesto._id?.toString().slice(-6) || "N/A"; // ejemplo: últimos 6 dígitos del ID
+    const fechaRemito = new Date(remito.fecha).toLocaleDateString();
+    const codigoRemito = remito._id?.toString().slice(-6) || "N/A";
 
     doc.font("Helvetica")
       .fontSize(10)
-      .text(`Fecha: ${fechaPresupuesto}\nN° Presupuesto: ${codigoPresupuesto}`, 490, 55, {
+      .text(`Fecha: ${fechaRemito}\nN° Remito: ${codigoRemito}\nN° Comp.: ${comprobante?._id}`, 490, 55, {
         align: "left",
         width: 150
       });
@@ -125,32 +138,34 @@ const imprimir = async (req, res) => {
     
     // ---------------- Cuerpo ----------------
 
-// ---------------- Datos del presupuesto, cliente y empleado ----------------
+// ---------------- Datos del Remito, cliente y empleado ----------------
 
     // Cliente
     const cDatosCliente = [
-      ["Código:", presupuesto.cliente?._id || "N/A"],
-      ["Nombre:", presupuesto.cliente?.name || "N/A"],
-      ["Apellido:", presupuesto.cliente?.lastname || "N/A"],
-      ["CUIT:", presupuesto.cliente?.cuit || "N/A"],
-      ["Email:", presupuesto.cliente?.email || "N/A"],
-      ["Teléfono:", presupuesto.cliente?.telefono || "N/A"],
-      ["País:", presupuesto.cliente?.pais?.name || "N/A"],
-      ["Provincia:", presupuesto.cliente?.provincia?.name || "N/A"],
-      ["Localidad:", presupuesto.cliente?.localidad?.name || "N/A"],
-      ["Barrio:", presupuesto.cliente?.barrio?.name || "N/A"],
-      ["Calle:", presupuesto.cliente?.calle?.name || "N/A"],
-      ["Altura:", presupuesto.cliente?.altura || "N/A"],
-      ["Cond. IVA:", presupuesto.cliente?.condicionIva?.name || "N/A"],
+      ["Código:", cliente?._id || "N/A"],
+      ["Nombre:", cliente?.name || "N/A"],
+      ["Apellido:", cliente?.lastname || "N/A"],
+      ["CUIT:", cliente?.cuit || "N/A"],
+      ["Email:", cliente?.email || "N/A"],
+      ["Teléfono:", cliente?.telefono || "N/A"],
+      ["País:", cliente?.pais?.name || "N/A"],
+      ["Provincia:", cliente?.provincia?.name || "N/A"],
+      ["Localidad:", cliente?.localidad?.name || "N/A"],
+      ["Barrio:", cliente?.barrio?.name || "N/A"],
+      ["Calle:", cliente?.calle?.name || cliente?.calle || "N/A"], // depende si es ref o string
+      ["Altura:", cliente?.altura || "N/A"],
+      ["Cond. IVA:", cliente?.condicionIva?.name || "N/A"],
     ];
 
-    // Empleado
-    const cDatosEmpleado = [
-      ["Código:", presupuesto.empleado?._id || "N/A"],
-      ["Nombre:", presupuesto.empleado?.name || "N/A"],
-      ["Apellido:", presupuesto.empleado?.lastname || "N/A"],
-      ["CUIT:", presupuesto.empleado?.cuit || "N/A"],
+    // Transporte
+    const cDatosTransporte = [
+      ["Código:", transporte?._id || "N/A"],
+      ["Nombre:", transporte?.name || "N/A"],
+      ["CUIT:", transporte?.cuit || "N/A"],
+      ["Telefono:", transporte?.telefono || "N/A"],
+      ["Email:", transporte?.email || "N/A"],
     ];
+
 
     // Definir posiciones de columnas
     const cCol1X = 50;     // Cliente col 1
@@ -167,7 +182,7 @@ const imprimir = async (req, res) => {
     // Título centrado para Empleado
     doc.font("Helvetica-Bold")
       .fontSize(12)
-      .text("Empleado", cCol3X, cCurrentY - 12, { width: 120, align: "center" });
+      .text("Transporte", cCol3X, cCurrentY - 12, { width: 120, align: "center" });
 
     // Cliente → repartimos mitad de datos en col1 y mitad en col2
     cDatosCliente.forEach(([label, value], index) => {
@@ -182,7 +197,7 @@ const imprimir = async (req, res) => {
     });
 
     // Empleado → todos en col3
-    cDatosEmpleado.forEach(([label, value], index) => {
+    cDatosTransporte.forEach(([label, value], index) => {
       const y = cCurrentY + index * cRowHeight;
       doc.font("Helvetica-Bold").fontSize(9).text(label, cCol3X, y);
       doc.font("Helvetica").fontSize(9).text(value, cCol3X + 50, y);
@@ -191,7 +206,7 @@ const imprimir = async (req, res) => {
     // Línea vertical separadora Cliente ↔ Empleado
     const cTotalFilas = Math.max(
       Math.ceil(cDatosCliente.length / 2),
-      cDatosEmpleado.length
+      cDatosTransporte.length
     );
     const cSepX = 360;
     const cSepYInicio = cCurrentY - 5;
@@ -202,8 +217,6 @@ const imprimir = async (req, res) => {
       .lineWidth(1)
       .strokeColor("black")
       .stroke();
-
-    // doc.lineWidth(0.5).strokeColor("black"); // reset
 
     // Línea horizontal debajo
     doc.moveTo(50, cSepYFin + 5)
@@ -218,43 +231,37 @@ const imprimir = async (req, res) => {
     // Encabezado de columnas
 doc.font("Helvetica-Bold").fontSize(9);
 const startX = 50;
-const colWidths = { num: 30 , tipo: 50, name: 200, qty: 60, price: 80, subtotal: 80 };
+const colWidths = { num: 30 , tipo: 50, name: 300, qty: 100};
 let rowY = doc.y + 10;
 
 doc.text("#", startX, rowY, { width: colWidths.num, align: "center" });
 doc.text("Tipo", startX+ 50 , rowY, { width: colWidths.tipo, align: "center" });
 doc.text("Producto", startX + colWidths.num+ colWidths.tipo, rowY, { width: colWidths.name, align: "center" });
-doc.text("Cantidad", startX + colWidths.num+ colWidths.tipo+ colWidths.name, rowY, { width: colWidths.qty, align: "center" });
-doc.text("Precio", startX + colWidths.num+ colWidths.tipo + colWidths.name + colWidths.qty, rowY, { width: colWidths.price, align: "center" });
-doc.text("Importe", startX + colWidths.num+ colWidths.tipo + colWidths.name + colWidths.qty + colWidths.price, rowY, { width: colWidths.subtotal, align: "center" });
+doc.text("Cantidad", startX + colWidths.num+ colWidths.tipo + colWidths.name, rowY, { width: colWidths.qty, align: "center" });
 
 doc.moveDown(0.5);
 
 // Detalle de productos
 doc.font("Helvetica").fontSize(9);
-presupuesto.detalles.forEach((det, i) => {
+remito.detalles.forEach((det, i) => {
   const rowY = doc.y;
   const codigo = det.producto?._id || "N/A";
   const tipo = det.producto?.tipoProducto || "N/A";
   const nombreProducto = det.producto?.name || "Producto";
   const cantidad = det.cantidad || 0;
-  const precio = det.precio?.toFixed(2) || "0.00";
-  const subtotal = det.subtotal?.toFixed(2) || "0.00";
 
   doc.text(`${codigo}`, startX, rowY, { width: colWidths.num, align: "center" });
-  if(tipo ==='ProductoPicada'){
-    doc.text(`Picada`, startX + 50, rowY, { width: colWidths.tipo, align: "center" });
-  }
-  if(tipo ==='ProductoVino'){
-    doc.text(`Vino`, startX + 50, rowY, { width: colWidths.tipo, align: "center" });
-  }
-  if(tipo ==='ProductoInsumo'){
-    doc.text(`Insumo`, startX + 50, rowY, { width: colWidths.tipo, align: "center" });
-  }
-  doc.text(nombreProducto, startX + colWidths.num + colWidths.tipo, rowY, { width: colWidths.name, align: "center" });
-  doc.text(cantidad, startX + colWidths.num + colWidths.tipo + colWidths.name, rowY, { width: colWidths.qty, align: "center" });
-  doc.text(`$${precio}`, startX + colWidths.num + colWidths.tipo + colWidths.name + colWidths.qty, rowY, { width: colWidths.price, align: "center" });
-  doc.text(`$${subtotal}`, startX + colWidths.num + colWidths.tipo + colWidths.name + colWidths.qty + colWidths.price, rowY, { width: colWidths.subtotal, align: "center" });
+    if(tipo ==='ProductoPicada'){
+      doc.text(`Picada`, startX + 50, rowY, { width: colWidths.tipo, align: "center" });
+    }
+    if(tipo ==='ProductoVino'){
+      doc.text(`Vino`, startX + 50, rowY, { width: colWidths.tipo, align: "center" });
+    }
+    if(tipo ==='ProductoInsumo'){
+      doc.text(`Insumo`, startX + 50, rowY, { width: colWidths.tipo, align: "center" });
+    }
+  doc.text(nombreProducto, startX + colWidths.num+ colWidths.tipo, rowY, { width: colWidths.name, align: "center" });
+  doc.text(cantidad, startX + colWidths.num+ colWidths.tipo+ colWidths.name, rowY, { width: colWidths.qty, align: "center" });
 
   doc.moveDown(0.5);
 });
@@ -265,14 +272,24 @@ presupuesto.detalles.forEach((det, i) => {
     const totalY = 700;
 
     // Línea separadora encima del total
+    doc.moveTo(50, totalY - 50)  // desde el margen izquierdo
+      .lineTo(550, totalY - 50) // hasta el margen derecho
+      .stroke();
+
+    // Texto del total
+    doc.font("Helvetica-Bold")
+      .fontSize(14)
+      .text(`Total bultos: ${remito.totalBultos}`, 50, totalY-35, { align: "right" });
+
+    // Línea separadora encima del total
     doc.moveTo(50, totalY - 5)  // desde el margen izquierdo
       .lineTo(550, totalY - 5) // hasta el margen derecho
       .stroke();
 
     // Texto del total
     doc.font("Helvetica-Bold")
-      .fontSize(16)
-      .text(`TOTAL: $${presupuesto.total}`, 50, totalY, { align: "right" });
+      .fontSize(14)
+      .text(`Valor total: $${remito.totalPrecio}`, 50, totalY, { align: "right" });
 
 
     // Finalizar PDF

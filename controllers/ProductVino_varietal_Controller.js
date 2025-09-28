@@ -4,14 +4,13 @@ const getNextSequence = require("../controllers/counter_Controller");
 const setVarietalVino = async (req,res) => {
     const newId = await getNextSequence("Vino_Varietal");
     const name = req.body.name;
-    const tipoUva = req.body.tipoUva;
 
-    if(!name || !tipoUva){
+    if(!name){
         res.status(400).json({ok:false , message:'No se puede agregar sin los datos.'})
         return
     }
     const newVarietalVino = new VarietalVino ({
-        _id: newId,name: name , uva:tipoUva});
+        _id: newId,name: name });
     await newVarietalVino.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Varietal de vino agregado correctamente.'})
@@ -61,8 +60,7 @@ const getVarietalVinoID = async(req,res) => {
 const updateVarietalVino = async(req,res) => {
     const id = req.params.id;
     const nombreVarietalVino = req.body.name;
-    const tipoUva = req.body.tipoUva;
-    if(!id || !nombreVarietalVino || !tipoUva){
+    if(!id || !nombreVarietalVino){
         res.status(400).json({
             ok:false,
             message:'Error al actualizar varietal.',
@@ -72,7 +70,7 @@ const updateVarietalVino = async(req,res) => {
 
     const updatedVarietalVino = await VarietalVino.findByIdAndUpdate(
         id,
-        {name:nombreVarietalVino , uva:tipoUva},
+        {name:nombreVarietalVino},
         { new: true , runValidators: true }
     )
 

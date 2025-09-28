@@ -1,4 +1,5 @@
 const NotaPedido = require("../models/clienteNotaPedido_Model");
+const NotaPedidoDetalle = require("../models/clienteNotaPedidoDetalle_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -11,7 +12,7 @@ const setNotaPedido = async (req,res) => {
     const totalP = req.body.total;
     const fechaP = obtenerFechaHoy();
     const envioP = req.body.envio;
-    const fechaEntregaP = req.body.fechaEntrega;
+    const fechaEntregaP = new Date(req.body.fechaEntrega);
     const clienteID = req.body.cliente;
     const empleadoID = req.body.empleado;
     const medioPagoID = req.body.medioPago;
@@ -221,6 +222,14 @@ const deleteNotaPedido = async(req,res) => {
 
     const deletedNotaPedido = await NotaPedido.findByIdAndDelete(id);
     if(!deletedNotaPedido){
+        res.status(400).json({
+            ok:false,
+            message: 'Error durante el borrado.'
+        })
+        return
+    }
+    const deletedNotaPedidoDetalle = await NotaPedidoDetalle.deleteMany({notaPedido:id});
+    if(!deletedNotaPedidoDetalle){
         res.status(400).json({
             ok:false,
             message: 'Error durante el borrado.'

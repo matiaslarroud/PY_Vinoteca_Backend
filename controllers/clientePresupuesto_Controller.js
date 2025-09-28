@@ -1,4 +1,5 @@
 const Presupuesto = require("../models/clientePresupuesto_Model");
+const PresupuestoDetalle = require("../models/clientePresupuestoDetalle_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -123,6 +124,14 @@ const deletePresupuesto = async(req,res) => {
         res.status(400).json({
             ok:false,
             message: 'Error durante el borrado.'
+        })
+        return
+    }
+    const deletedPresupuestoDetalle = await PresupuestoDetalle.deleteMany({presupuesto:id});
+    if(!deletedPresupuestoDetalle){
+        res.status(400).json({
+            ok:false,
+            message: 'Error durante el borrado del detalle.'
         })
         return
     }

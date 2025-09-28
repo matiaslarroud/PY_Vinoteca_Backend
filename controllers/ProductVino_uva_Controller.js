@@ -4,14 +4,13 @@ const getNextSequence = require("../controllers/counter_Controller");
 const setUva = async (req,res) => {
     const newId = await getNextSequence("Vino_Uva");
     const name = req.body.name;
-    const tipoVino = req.body.tipoVino;
 
-    if(!name || !tipoVino){
+    if(!name){
         res.status(400).json({ok:false , message:'No se puede agregar sin los datos.'})
         return
     }
     const newUva = new Uva ({
-        _id: newId,name: name , tipo:tipoVino});
+        _id: newId,name: name});
     await newUva.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Uva agregada correctamente.'})
@@ -61,8 +60,7 @@ const getUvaID = async(req,res) => {
 const updateUva = async(req,res) => {
     const id = req.params.id;
     const nombreUva = req.body.name;
-    const tipoVino = req.body.tipoVino;
-    if(!id || !nombreUva || !tipoVino){
+    if(!id || !nombreUva ){
         res.status(400).json({
             ok:false,
             message:'Error al actualizar uva.',
@@ -72,7 +70,7 @@ const updateUva = async(req,res) => {
 
     const updatedUva = await Uva.findByIdAndUpdate(
         id,
-        {name:nombreUva , tipo:tipoVino},
+        {name:nombreUva},
         { new: true , runValidators: true }
     )
 

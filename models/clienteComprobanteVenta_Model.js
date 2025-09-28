@@ -3,7 +3,10 @@ const mongoose = require("mongoose");
 const ComprobanteVenta_Schema = mongoose.Schema({
     _id: Number,
     total: {type: Number , require:true},
-    tipoComprobante: {type: String , require:true},
+    tipoComprobante: {
+        type: String , 
+        ref: 'TipoComprobante',
+        require:true},
     descuento: {type: Number},
     fecha: {type: Date , require:true},
     notaPedido: {

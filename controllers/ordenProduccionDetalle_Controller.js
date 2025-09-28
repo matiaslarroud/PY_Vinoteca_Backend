@@ -3,17 +3,17 @@ const getNextSequence = require("../controllers/counter_Controller");
 
 const setOrdenProduccionDetalle = async (req,res) => {
     const newId = await getNextSequence("OrdenProduccionDetalle");
-    const insumoOrden = req.body.insumo;
+    const picadaOrden = req.body.picada;
     const cantidadOrden = req.body.cantidad;
     const ordenProduccion = req.body.ordenProduccion;
 
-    if( !insumoOrden || !cantidadOrden || !ordenProduccion ){
+    if( !picadaOrden || !cantidadOrden || !ordenProduccion ){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
     const newOrdenDetalle = new OrdenProduccionDetalle ({
         _id: newId,
-        insumo: insumoOrden,
+        picada: picadaOrden,
         cantidad: cantidadOrden,
         ordenProduccion : ordenProduccion
     });
@@ -91,7 +91,7 @@ const updateOrdenDetalle = async(req,res) => {
     
     const cantidadP = req.body.cantidad;
     const ordenProduccion = req.body.ordenProduccion;
-    const insumoID = req.body.insumo;
+    const picadaID = req.body.picada;
 
     if(!id){
         res.status(400).json({
@@ -104,7 +104,7 @@ const updateOrdenDetalle = async(req,res) => {
     const updatedOrdenDetalle = await OrdenProduccionDetalle.findByIdAndUpdate(
         id,
         {   
-            ordenProduccion: ordenProduccion , cantidad: cantidadP , insumo: insumoID
+            ordenProduccion: ordenProduccion , cantidad: cantidadP , picada: picadaID
         },
         { new: true , runValidators: true }
     )

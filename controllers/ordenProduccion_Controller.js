@@ -1,4 +1,5 @@
-const OrdenProduccion = require('../models/ordenProduccion_Model')
+const OrdenProduccion = require('../models/ordenProduccion_Model');
+const OrdenProduccionDetalle = require("../models/ordenProduccionDetalle_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -12,9 +13,8 @@ const setOrdenProduccion =  async (req , res ) => {
     const fechaElaboracionOrden = req.body.fechaElaboracion;
     const fechaEntregaOrden = req.body.fechaEntrega;
     const empleadoOrden = req.body.empleado;
-    const picadaOrden = req.body.picada;
     
-    if (!fechaOrden || !fechaElaboracionOrden || !fechaEntregaOrden || !empleadoOrden || !picadaOrden) {
+    if (!fechaOrden || !fechaElaboracionOrden || !fechaEntregaOrden || !empleadoOrden) {
         res.status(400).json({ok:false , message:'No se puede cargar la orden de produccion sin todos los datos.'});
         return
     }
@@ -24,8 +24,7 @@ const setOrdenProduccion =  async (req , res ) => {
         fecha: fechaOrden,
         fechaElaboracion: fechaElaboracionOrden,
         fechaEntrega: fechaEntregaOrden,
-        empleado: empleadoOrden,
-        picada: picadaOrden
+        empleado: empleadoOrden
     });
 
     if(!newOrden){
@@ -80,9 +79,8 @@ const updateOrdenProduccion =  async (req , res ) => {
     const fechaElaboracionOrden = req.body.fechaElaboracion;
     const fechaEntregaOrden = req.body.fechaEntrega;
     const empleadoOrden = req.body.empleado;
-    const picadaOrden = req.body.picada;
     
-    if (!fechaOrden || !fechaElaboracionOrden || !fechaEntregaOrden || !empleadoOrden || !picadaOrden) {
+    if ( !fechaElaboracionOrden || !fechaEntregaOrden || !empleadoOrden) {
         res.status(400).json({ok:false , message:'No se puede actualizar una orden de produccion sin todos los datos.'});
         return
     }
@@ -93,8 +91,7 @@ const updateOrdenProduccion =  async (req , res ) => {
                 fecha: fechaOrden,
                 fechaElaboracion: fechaElaboracionOrden,
                 fechaEntrega: fechaEntregaOrden,
-                empleado: empleadoOrden,
-                picada: picadaOrden
+                empleado: empleadoOrden
             },
             { new: true , runValidators: true }
         )
@@ -118,6 +115,14 @@ const deleteOrdenProduccion = async (req , res) => {
     const deletedOrden = await OrdenProduccion.findByIdAndDelete(id)
     if(!deletedOrden) {
         res.status(400).json({ok:false,message:"Error al eliminar orden de produccion."});
+        return
+    }
+    const deletedOrdenDetalle = await OrdenProduccionDetalle.deleteMany({ordenProduccion:id});
+    if(!deletedOrdenDetalle){
+        res.status(400).json({
+            ok:false,
+            message: 'Error durante el borrado de los detalles de la orden de produccion.'
+        })
         return
     }
     res.status(200).json({ok:true , message:"Orden de produccion eliminada correctamente."});

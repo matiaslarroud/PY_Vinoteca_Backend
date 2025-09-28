@@ -26,7 +26,12 @@ const imprimir = async (req, res) => {
       ]
     })
     .populate("empleado")
-    .populate("medioPago");
+    .populate("medioPago")
+    .populate("provincia")
+    .populate("localidad")
+    .populate("barrio")
+    .populate("calle")
+    .populate("presupuesto")
 
     if (!notaPedido) {
       return res.status(404).json({ ok: false, msg: "NotaPedido no encontrado" });
@@ -51,11 +56,12 @@ const imprimir = async (req, res) => {
 
     // Texto a la derecha: fecha y código
     const fechaNotaPedido = new Date(notaPedido.fecha).toLocaleDateString();
-    const codigoNotaPedido = notaPedido._id?.toString().slice(-6) || "N/A"; // ejemplo: últimos 6 dígitos del ID
+    const codigoNotaPedido = notaPedido._id?.toString().slice(-6) || "N/A";
+    const presupuesto = notaPedido.presupuesto;
 
     doc.font("Helvetica")
       .fontSize(10)
-      .text(`Fecha: ${fechaNotaPedido}\nCódigo: ${codigoNotaPedido}`, 490, 55, {
+      .text(`Fecha: ${fechaNotaPedido}\nN° Pedido: ${codigoNotaPedido}\nN° Presup.: ${presupuesto?._id || "N/A"}`, 490, 55, {
         align: "left",
         width: 150
       });
@@ -146,7 +152,7 @@ const imprimir = async (req, res) => {
       ["Barrio:", notaPedido.cliente?.barrio?.name || "N/A"],
       ["Calle:", notaPedido.cliente?.calle?.name || "N/A"],
       ["Altura:", notaPedido.cliente?.altura || "N/A"],
-      ["Cond. IVA:", notaPedido.cliente?.condicionIVA?.name || "N/A"],
+      ["Cond. IVA:", notaPedido.cliente?.condicionIva?.name || "N/A"],
     ];
 
     // Empleado
@@ -159,7 +165,7 @@ const imprimir = async (req, res) => {
 
     // Definir posiciones de columnas
     const cCol1X = 50;     // Cliente col 1
-    const cCol2X = 230;    // Cliente col 2
+    const cCol2X = 200;    // Cliente col 2
     const cCol3X = 380;    // Empleado
     let cCurrentY = headerEndY + 25; // más ajustado, sin espacio de más
     const cRowHeight = 10;
@@ -167,7 +173,7 @@ const imprimir = async (req, res) => {
     // Título centrado para Cliente
     doc.font("Helvetica-Bold")
       .fontSize(12)
-      .text("Cliente", cCol1X, cCurrentY - 12, { width: 380, align: "center" });
+      .text("Cliente", cCol1X, cCurrentY - 12, { width: 350, align: "center" });
 
     // Título centrado para Empleado
     doc.font("Helvetica-Bold")
@@ -219,42 +225,65 @@ const imprimir = async (req, res) => {
     // ---------------- Direccion de Entrega ----------------
 
     const direccionEntrega = {
-    calle: notaPedido.calleID?.name || "N/A",
+    provincia: notaPedido.provincia?.name || "N/A",
+    localidad: notaPedido.localidad?.name || "N/A",
+    barrio: notaPedido.barrio?.name || "N/A",
+    calle: notaPedido.calle?.name || "N/A",
     altura: notaPedido.altura || "N/A",
-    barrio: notaPedido.barrioID?.name || "N/A",
-    localidad: notaPedido.localidadID?.name || "N/A",
-    provincia: notaPedido.provinciaID?.name || "N/A",
-    pais: "Argentina" 
+    deptoNumero: notaPedido.deptoNumero || "N/A",
+    deptoLetra: notaPedido.deptoLetra || "N/A",
   };
 
   // Posición en el PDF
   const direccionY = cSepYFin + 12;
+  const entregaX = 50;
+  // Título centrado para direccion de entrega
+    doc.font("Helvetica-Bold")
+      .fontSize(12)
+      .text("Dirección de Entrega", 50, direccionY, { width: 550, align: "center" });
+  if(notaPedido.envio){
+    doc.font("Helvetica-Bold").fontSize(10).text('Provincia:',entregaX , direccionY + 15);
+    doc.font("Helvetica").fontSize(10).text(direccionEntrega.provincia,entregaX + 60 , direccionY + 15);
+    doc.font("Helvetica-Bold").fontSize(10).text('Localidad:',entregaX + 170 , direccionY + 15);
+    doc.font("Helvetica").fontSize(10).text(direccionEntrega.localidad,entregaX + 230, direccionY + 15);
+    doc.font("Helvetica-Bold").fontSize(10).text('Barrio:',entregaX + 360 , direccionY + 15);
+    doc.font("Helvetica").fontSize(10).text(direccionEntrega.barrio,entregaX + 410 , direccionY + 15);
+    doc.font("Helvetica-Bold").fontSize(10).text('Calle:',entregaX , direccionY + 30);
+    doc.font("Helvetica").fontSize(10).text(direccionEntrega.calle,entregaX + 40 , direccionY + 30);
+    doc.font("Helvetica-Bold").fontSize(10).text('Altura:',entregaX + 120 , direccionY + 30);
+    doc.font("Helvetica").fontSize(10).text(direccionEntrega.altura,entregaX + 160 , direccionY + 30);
+    doc.font("Helvetica-Bold").fontSize(10).text('Depto. N°:',entregaX + 240 , direccionY + 30);
+    doc.font("Helvetica").fontSize(10).text(direccionEntrega.deptoNumero,entregaX + 300 , direccionY + 30);
+    doc.font("Helvetica-Bold").fontSize(10).text('Depto. Letra:',entregaX + 360 , direccionY + 30);
+    doc.font("Helvetica").fontSize(10).text(direccionEntrega.deptoLetra,entregaX + 430 , direccionY + 30);
+  } else {
+    doc.font("Helvetica").fontSize(10)
+      .text(
+        `Sin envio`,
+        50,
+        direccionY + 20,
+        { width: 550, align: "center" }
+      );
+  }
 
-  doc.font("Helvetica-Bold").fontSize(10)
-    .text("Dirección de Entrega:", 50, direccionY);
 
-  doc.font("Helvetica").fontSize(10)
-    .text(
-      `${direccionEntrega.calle} ${direccionEntrega.altura}, ${direccionEntrega.barrio}, ${direccionEntrega.localidad}, ${direccionEntrega.provincia}, ${direccionEntrega.pais}`,
-      150,
-      direccionY
-    );
+
 
     // Línea horizontal debajo
-    doc.moveTo(50, cSepYFin + 26)
-      .lineTo(550, cSepYFin + 26)
+    doc.moveTo(50, cSepYFin + 60)
+      .lineTo(550, cSepYFin + 60)
       .stroke();
 
     // ---------------- Medio de Pago ----------------
     const medioPagoNombre = notaPedido.medioPago?.name || "N/A";
     doc.font("Helvetica-Bold").fontSize(10)
-      .text("Medio de Pago:", 50, cSepYFin + 35);
+      .text("Medio de Pago:", 50, cSepYFin + 70);
     doc.font("Helvetica").fontSize(10)
-      .text(medioPagoNombre, 150, cSepYFin + 35);
+      .text(medioPagoNombre, 125, cSepYFin + 70);
 
     // Línea horizontal debajo
-    doc.moveTo(50, cSepYFin + 48)
-      .lineTo(550, cSepYFin + 48)
+    doc.moveTo(50, cSepYFin + 90)
+      .lineTo(550, cSepYFin + 90)
       .stroke();
 
     // ---------------- Detalle de productos ----------------
@@ -264,14 +293,15 @@ const imprimir = async (req, res) => {
       // Encabezado de columnas
   doc.font("Helvetica-Bold").fontSize(9);
   const startX = 50;
-  const colWidths = { num: 30, name: 200, qty: 60, price: 80, subtotal: 80 };
+  const colWidths = { num: 30 , tipo: 50, name: 200, qty: 60, price: 80, subtotal: 80 };
   let rowY = doc.y;
 
   doc.text("#", startX, rowY, { width: colWidths.num, align: "center" });
-  doc.text("Producto", startX + colWidths.num, rowY, { width: colWidths.name, align: "center" });
-  doc.text("Cantidad", startX + colWidths.num + colWidths.name, rowY, { width: colWidths.qty, align: "center" });
-  doc.text("Precio", startX + colWidths.num + colWidths.name + colWidths.qty, rowY, { width: colWidths.price, align: "center" });
-  doc.text("Subtotal", startX + colWidths.num + colWidths.name + colWidths.qty + colWidths.price, rowY, { width: colWidths.subtotal, align: "center" });
+  doc.text("Tipo", startX+ 50 , rowY, { width: colWidths.tipo, align: "center" });
+  doc.text("Producto", startX + colWidths.num+ colWidths.tipo, rowY, { width: colWidths.name, align: "center" });
+  doc.text("Cantidad", startX + colWidths.num+ colWidths.tipo + colWidths.name, rowY, { width: colWidths.qty, align: "center" });
+  doc.text("Precio", startX + colWidths.num+ colWidths.tipo + colWidths.name + colWidths.qty, rowY, { width: colWidths.price, align: "center" });
+  doc.text("Importe", startX + colWidths.num+ colWidths.tipo + colWidths.name + colWidths.qty + colWidths.price, rowY, { width: colWidths.subtotal, align: "center" });
 
   doc.moveDown(0.5);
 
@@ -279,16 +309,27 @@ const imprimir = async (req, res) => {
   doc.font("Helvetica").fontSize(9);
   notaPedido.detalles.forEach((det, i) => {
     const rowY = doc.y;
+    const codigo = det.producto?._id || "N/A";
+    const tipo = det.producto?.tipoProducto || "N/A";
     const nombreProducto = det.producto?.name || "Producto";
     const cantidad = det.cantidad || 0;
     const precio = det.precio?.toFixed(2) || "0.00";
     const subtotal = det.subtotal?.toFixed(2) || "0.00";
 
-    doc.text(`${i + 1}`, startX, rowY, { width: colWidths.num, align: "center" });
-    doc.text(nombreProducto, startX + colWidths.num, rowY, { width: colWidths.name, align: "center" });
-    doc.text(cantidad, startX + colWidths.num + colWidths.name, rowY, { width: colWidths.qty, align: "center" });
-    doc.text(`$${precio}`, startX + colWidths.num + colWidths.name + colWidths.qty, rowY, { width: colWidths.price, align: "center" });
-    doc.text(`$${subtotal}`, startX + colWidths.num + colWidths.name + colWidths.qty + colWidths.price, rowY, { width: colWidths.subtotal, align: "center" });
+    doc.text(`${codigo}`, startX, rowY, { width: colWidths.num, align: "center" });
+      if(tipo ==='ProductoPicada'){
+        doc.text(`Picada`, startX + 50, rowY, { width: colWidths.tipo, align: "center" });
+      }
+      if(tipo ==='ProductoVino'){
+        doc.text(`Vino`, startX + 50, rowY, { width: colWidths.tipo, align: "center" });
+      }
+      if(tipo ==='ProductoInsumo'){
+        doc.text(`Insumo`, startX + 50, rowY, { width: colWidths.tipo, align: "center" });
+      }
+    doc.text(nombreProducto, startX + colWidths.num+ colWidths.tipo, rowY, { width: colWidths.name, align: "center" });
+    doc.text(cantidad, startX + colWidths.num+ colWidths.tipo + colWidths.name, rowY, { width: colWidths.qty, align: "center" });
+    doc.text(`$${precio}`, startX + colWidths.num+ colWidths.tipo + colWidths.name + colWidths.qty, rowY, { width: colWidths.price, align: "center" });
+    doc.text(`$${subtotal}`, startX + colWidths.num+ colWidths.tipo + colWidths.name + colWidths.qty + colWidths.price, rowY, { width: colWidths.subtotal, align: "center" });
 
     doc.moveDown(0.5);
   });

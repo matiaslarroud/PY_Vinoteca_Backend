@@ -2,12 +2,7 @@ const mongoose = require("mongoose");
 
 const VarietalVino_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},
-    uva: {
-        type: Number,
-        ref: 'Vino_Uva',
-        required: true
-    } ,
+    name: {type: String , require:true}
 },
     
     {

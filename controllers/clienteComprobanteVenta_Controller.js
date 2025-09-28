@@ -1,4 +1,5 @@
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
+const ComprobanteVentaDetalle = require("../models/clienteComprobanteVentaDetalle_Model");
 const NotaPedido = require("../models/clienteNotaPedido_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
@@ -174,6 +175,15 @@ const deleteComprobanteVenta = async(req,res) => {
 
     const deletedComprobanteVenta = await ComprobanteVenta.findByIdAndDelete(id);
     if(!deletedComprobanteVenta){
+        res.status(400).json({
+            ok:false,
+            message: 'Error durante el borrado.'
+        })
+        return
+    }
+
+    const deletedComprobanteVentaDetalle = await ComprobanteVentaDetalle.deleteMany({comprobanteVenta:id});
+    if(!deletedComprobanteVentaDetalle){
         res.status(400).json({
             ok:false,
             message: 'Error durante el borrado.'

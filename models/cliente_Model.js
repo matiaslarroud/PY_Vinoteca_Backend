@@ -45,7 +45,13 @@ const Cliente_Schema = mongoose.Schema({
     cuentaCorriente:{
             type:Boolean,
             required:true
+        },
+    saldoCuentaCorriente: {
+        type: Number,
+        required: function () {
+            return this.cuentaCorriente === true;
         }
+    }
     },
     
     {

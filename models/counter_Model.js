@@ -5,4 +5,4 @@ const counterSchema = new mongoose.Schema({
   seq: { type: Number, default: 0 } // Último número usado
 });
 
-module.exports = mongoose.model("Counter", counterSchema);
+module.exports = mongoose.model("Counter", counterSchema,"Counter");

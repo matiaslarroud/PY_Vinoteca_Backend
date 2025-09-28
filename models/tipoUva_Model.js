@@ -2,13 +2,8 @@ const mongoose = require("mongoose");
 
 const UvaTipo_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},
-    tipo: {
-        type: Number,
-        ref: 'Vino_Tipo',
-        required: true
-    } ,
-},
+    name: {type: String , require:true}
+    },
     {
         timestamps: true
     }  

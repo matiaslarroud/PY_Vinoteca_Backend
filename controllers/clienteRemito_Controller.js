@@ -1,4 +1,5 @@
 const Remito = require("../models/clienteRemito_Model");
+const RemitoDetalle = require("../models/clienteRemitoDetalle_Model");
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
@@ -166,6 +167,15 @@ const deleteRemito = async(req,res) => {
 
     const deletedRemito = await Remito.findByIdAndDelete(id);
     if(!deletedRemito){
+        res.status(400).json({
+            ok:false,
+            message: 'Error durante el borrado.'
+        })
+        return
+    }
+
+    const deletedRemitoDetalle = await RemitoDetalle.deleteMany({remitoID:id});
+    if(!deletedRemitoDetalle){
         res.status(400).json({
             ok:false,
             message: 'Error durante el borrado.'

@@ -11,14 +11,13 @@ const setProduct =  async (req , res ) => {
     const crianzaProducto = req.body.crianza;
     const gananciaProducto = req.body.ganancia;
     const tipoVino = req.body.tipo;
-    const uvaProducto = req.body.uva;
     const varietalProducto = req.body.varietal;
     const volumenProducto = req.body.volumen;
     const depositoProducto = req.body.deposito;
     const productType = 'ProductoVino'
 
     
-    if (!nombreProducto || !productType || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoVino || !uvaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
+    if (!nombreProducto || !productType || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoVino || !varietalProducto || !volumenProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
         return
     }
@@ -33,7 +32,6 @@ const setProduct =  async (req , res ) => {
         crianza: crianzaProducto , 
         ganancia: gananciaProducto , 
         tipo: tipoVino , 
-        uva: uvaProducto , 
         varietal: varietalProducto , 
         volumen: volumenProducto , 
         deposito: depositoProducto,
@@ -41,7 +39,11 @@ const setProduct =  async (req , res ) => {
     });
     await newProduct.save()
         .then(() => { 
-            res.status(201).json({ok:true , message:'Producto agregado correctamente.'})
+            res.status(201).json({
+                ok:true , 
+                message:'Producto agregado correctamente.',
+                data: newProduct
+            })
         })
         .catch((error) => { console.log(error) }) 
     
@@ -84,12 +86,11 @@ const updateProduct =  async (req , res ) => {
     const crianzaProducto = req.body.crianza;
     const gananciaProducto = req.body.ganancia;
     const tipoVino = req.body.tipo;
-    const uvaProducto = req.body.uva;
     const varietalProducto = req.body.varietal;
     const volumenProducto = req.body.volumen;
     const depositoProducto = req.body.deposito;
     
-    if (!nombreProducto || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoProducto || !uvaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
+    if (!nombreProducto || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede actualizar el producto sin todos los datos.'});
         return
     }
@@ -105,7 +106,6 @@ const updateProduct =  async (req , res ) => {
                 crianza:crianzaProducto,
                 ganancia: gananciaProducto,
                 tipo: tipoVino,
-                uva:uvaProducto,
                 varietal:varietalProducto,
                 volumen:volumenProducto,
                 deposito: depositoProducto,
@@ -114,10 +114,17 @@ const updateProduct =  async (req , res ) => {
         )
         
     if(!updatedProduct) {
-        res.status(400).json({ok:false,message:"Error al actualizar producto."});
+        res.status(400).json({
+            ok:false,
+            message:"Error al actualizar producto."
+        });
         return
     }
-    res.status(200).json({ok:true , message:"Producto actualizado correctamente."})    
+    res.status(200).json({
+        ok:true , 
+        message:"Producto actualizado correctamente.",
+        data: updatedProduct
+    })    
 }
 
 const deleteProduct = async (req , res) => {
