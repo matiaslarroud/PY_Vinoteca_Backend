@@ -70,8 +70,8 @@ const imprimir = async (req, res) => {
     doc.moveDown(1);
 
     // ---------------- Encabezado con logo y datos de la empresa ----------------
-    const BASE_URL = process.env.BASE_URL || `http://localhost:${process.end.PORT}`;
-    const logoPath = `${BASE_URL}/logo.png`;
+    const path = require('path');
+    const logoPath = path.resolve(__dirname, '../public/logo.jpg');
     const empresa = {
     razonSocial: "Entusiasmo por el Vino",
     inicioActividades: "23/03/2023",
