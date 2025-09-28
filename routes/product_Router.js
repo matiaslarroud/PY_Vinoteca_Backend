@@ -8,6 +8,8 @@ router.get('/' , controller.getProduct)
 
 router.get('/tipos' , controller.getProductTipos)
 
+router.get('/lowStock' , controller.lowStockProducts)
+
 router.put('/stock/:id', controller.stockUpdate)
 
 router.get('/tipos/:id' , controller.getProductTipoID)

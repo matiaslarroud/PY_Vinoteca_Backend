@@ -75,6 +75,27 @@ const getProductTipos = async(req,res) => {
     })
 }
 
+const lowStockProducts = async (req, res) => {
+  try {
+    const listProducts = await Product.find({
+        $expr: { $lte: ["$stock", "$stockMinimo"] } // stock <= stockMinimo
+    });
+
+
+    res.status(200).json({
+      ok: true,
+      data: listProducts,
+    });
+  } catch (error) {
+    console.error("Error al obtener productos con stock bajo:", error);
+    res.status(500).json({
+      ok: false,
+      message: "Error al obtener productos con stock bajo",
+    });
+  }
+};
+
+
 const getProductTipoID = async(req,res) => {
     const id = req.params.id;
     const producto = await Product.findById(id);
@@ -170,4 +191,4 @@ const getProduct_query = async (req , res) => {
         message:"Productos encontrados correctamente.",
     });
 }
-module.exports = {setProduct , getProduct , getProductID , updateProduct , deleteProduct , getProduct_query , getProductTipos , getProductTipoID , stockUpdate};
+module.exports = {setProduct , getProduct , getProductID , lowStockProducts , updateProduct , deleteProduct , getProduct_query , getProductTipos , getProductTipoID , stockUpdate};

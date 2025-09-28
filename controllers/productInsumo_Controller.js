@@ -6,6 +6,7 @@ const setProduct =  async (req , res ) => {
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioCosto;
     const stockProducto = req.body.stock;
+    const stockMinimoProducto = req.body.stockMinimo;
     const gananciaProducto = req.body.ganancia;
     const depositoProducto = req.body.deposito;
     const proveedorProducto = req.body.proveedor;
@@ -26,6 +27,11 @@ const setProduct =  async (req , res ) => {
         proveedor: proveedorProducto,
         tipoProducto: productType
     });
+
+    if(stockMinimoProducto){
+        newProduct.stockMinimo = stockMinimoProducto
+    }
+
     await newProduct.save()
         .then(() => { 
             res.status(201).json({ok:true , message:'Insumo agregado correctamente.'})
@@ -66,6 +72,7 @@ const updateProduct =  async (req , res ) => {
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioCosto;
     const stockProducto = req.body.stock;
+    const stockMinimoProducto = req.body.stockMinimo;
     const gananciaProducto = req.body.ganancia;
     const depositoProducto = req.body.deposito;
     const proveedorProducto = req.body.proveedor;
@@ -81,6 +88,7 @@ const updateProduct =  async (req , res ) => {
                 name: nombreProducto , 
                 precioCosto: precioProducto , 
                 stock: stockProducto , 
+                stockMinimo: stockMinimoProducto,
                 ganancia: gananciaProducto , 
                 deposito: depositoProducto, 
                 proveedor: proveedorProducto

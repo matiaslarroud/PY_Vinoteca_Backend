@@ -6,6 +6,7 @@ const setProduct =  async (req , res ) => {
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioVenta;
     const stockProducto = req.body.stock;
+    const stockMinimoProducto = req.body.stockMinimo;
     const depositoProducto = req.body.deposito;
     const productType = 'ProductoPicada';
     
@@ -22,6 +23,11 @@ const setProduct =  async (req , res ) => {
         deposito: depositoProducto,
         tipoProducto: productType
     });
+
+    if (stockMinimoProducto){
+        newProduct.stockMinimo = stockMinimoProducto;
+    }
+
     await newProduct.save()
         .then(() => { 
             res.status(201).json({
@@ -66,6 +72,7 @@ const updateProduct =  async (req , res ) => {
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioVenta;
     const stockProducto = req.body.stock;
+    const stockMinimoProducto = req.body.stockMinimo;
     const depositoProducto = req.body.deposito;
     
     if (!nombreProducto || !precioProducto || !stockProducto || !depositoProducto) {
@@ -79,10 +86,12 @@ const updateProduct =  async (req , res ) => {
                 name: nombreProducto , 
                 precioVenta: precioProducto , 
                 stock: stockProducto ,  
+                stockMinimo: stockMinimoProducto,
                 deposito: depositoProducto
             },
             { new: true , runValidators: true }
         )
+
         
     if(!updatedProduct) {
         res.status(400).json({

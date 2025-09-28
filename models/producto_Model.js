@@ -8,6 +8,11 @@ const productSchema = mongoose.Schema({
         require:true ,
         min: [0, 'El stock no puede ser negativo']
     },
+    stockMinimo: {
+        type: Number , 
+        require:false ,
+        min: [0, 'El stock minimo no puede ser negativo']
+    },
     deposito: {
             type: Number,
             ref: 'Deposito',
