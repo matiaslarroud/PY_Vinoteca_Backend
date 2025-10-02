@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const ComprobanteVentaDetalle_Schema = mongoose.Schema({
     _id: Number,
-        subtotal: {type: Number , require:true},
+        importe: {type: Number , require:true},
         comprobanteVenta: {
                 type: Number,
                 ref: 'Cliente_ComprobanteVenta',

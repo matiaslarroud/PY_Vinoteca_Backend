@@ -3,19 +3,19 @@ const getNextSequence = require("../controllers/counter_Controller");
 
 const setComprobanteVentaDetalle = async (req,res) => {
     const newId = await getNextSequence("Cliente_ComprobanteVentaDetalle");
-    const subtotalP = req.body.subtotal;
+    const importeP = req.body.importe;
     const comprobanteVentaP = req.body.comprobanteVenta;
     const productoID = req.body.producto;
     const precioP = req.body.precio;
     const cantidadP = req.body.cantidad;
 
-    if(!subtotalP || !comprobanteVentaP || !productoID || !precioP || !cantidadP){
+    if(!importeP || !comprobanteVentaP || !productoID || !precioP || !cantidadP){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
     const newComprobanteVentaDetalle = new ComprobanteVentaDetalle ({
         _id: newId,
-        subtotal: subtotalP , 
+        importe: importeP , 
         comprobanteVenta: comprobanteVentaP , 
         producto: productoID , 
         precio:precioP , 
@@ -94,7 +94,7 @@ const getComprobanteVentaDetalleID = async(req,res) => {
 const updateComprobanteVentaDetalle = async(req,res) => {
     const id = req.params.id;
     
-    const subtotalP = req.body.subtotal;
+    const importeP = req.body.importe;
     const comprobanteVentaP = req.body.comprobanteVenta;
     const productoID = req.body.producto;
     const precioP = req.body.precio;
@@ -111,7 +111,7 @@ const updateComprobanteVentaDetalle = async(req,res) => {
     const updatedComprobanteVentaDetalle = await ComprobanteVentaDetalle.findByIdAndUpdate(
         id,
         {   
-            subtotal: subtotalP , 
+            importe: importeP , 
             comprobanteVenta: comprobanteVentaP , 
             producto: productoID , 
             precio:precioP , 

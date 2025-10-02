@@ -41,6 +41,10 @@ const routerTipoComprobante = require('./routes/tipoComprobante_Router.js');
 const routerTransporte = require('./routes/transporte_Router.js');
 const routerOrdenProduccion = require('./routes/ordenProduccion_Router.js');
 const routerOrdenProduccionDetalle = require('./routes/ordenProduccionDetalle_Router.js');
+const routerProveedor_Presupuesto = require('./routes/proveedorPresupuesto_Router.js');
+const routerProveedor_PresupuestoDetalle = require('./routes/proveedorPresupuestoDetalle_Router.js');
+const routerProveedor_SolicitudPresupuesto = require('./routes/proveedorSolicitudPresupuesto_Router.js');
+const routerProveedor_SolicitudPresupuestoDetalle = require('./routes/proveedorSolicitudPresupuestoDetalle_Router.js');
 
 const app = express();
 
@@ -87,3 +91,8 @@ app.use(`${process.env.ROUTE}/cliente/remito` , routerCliente_Remito);
 app.use(`${process.env.ROUTE}/cliente/remitoDetalle` , routerCliente_RemitoDetalle);
 app.use(`${process.env.ROUTE}/cliente/presupuesto` , routerCliente_Presupuesto);
 app.use(`${process.env.ROUTE}/cliente/presupuestoDetalle` , routerCliente_PresupuestoDetalle);
+
+app.use(`${process.env.ROUTE}/proveedor/presupuesto` , routerProveedor_Presupuesto);
+app.use(`${process.env.ROUTE}/proveedor/presupuestoDetalle` , routerProveedor_PresupuestoDetalle);
+app.use(`${process.env.ROUTE}/proveedor/solicitudPresupuesto` , routerProveedor_SolicitudPresupuesto);
+app.use(`${process.env.ROUTE}/proveedor/solicitudPresupuestoDetalle` , routerProveedor_SolicitudPresupuestoDetalle);

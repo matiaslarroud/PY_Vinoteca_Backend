@@ -219,7 +219,7 @@ const imprimir = async (req, res) => {
     // Encabezado de columnas
 doc.font("Helvetica-Bold").fontSize(9);
 const startX = 50;
-const colWidths = { num: 30 , tipo: 50, name: 200, qty: 60, price: 80, subtotal: 80 };
+const colWidths = { num: 30 , tipo: 50, name: 200, qty: 60, price: 80, importe: 80 };
 let rowY = doc.y + 10;
 
 doc.text("#", startX, rowY, { width: colWidths.num, align: "center" });
@@ -227,7 +227,7 @@ doc.text("Tipo", startX+ 50 , rowY, { width: colWidths.tipo, align: "center" });
 doc.text("Producto", startX + colWidths.num+ colWidths.tipo, rowY, { width: colWidths.name, align: "center" });
 doc.text("Cantidad", startX + colWidths.num+ colWidths.tipo+ colWidths.name, rowY, { width: colWidths.qty, align: "center" });
 doc.text("Precio", startX + colWidths.num+ colWidths.tipo + colWidths.name + colWidths.qty, rowY, { width: colWidths.price, align: "center" });
-doc.text("Importe", startX + colWidths.num+ colWidths.tipo + colWidths.name + colWidths.qty + colWidths.price, rowY, { width: colWidths.subtotal, align: "center" });
+doc.text("Importe", startX + colWidths.num+ colWidths.tipo + colWidths.name + colWidths.qty + colWidths.price, rowY, { width: colWidths.importe, align: "center" });
 
 doc.moveDown(0.5);
 
@@ -240,7 +240,7 @@ presupuesto.detalles.forEach((det, i) => {
   const nombreProducto = det.producto?.name || "Producto";
   const cantidad = det.cantidad || 0;
   const precio = det.precio?.toFixed(2) || "0.00";
-  const subtotal = det.subtotal?.toFixed(2) || "0.00";
+  const importe = det.importe?.toFixed(2) || "0.00";
 
   doc.text(`${codigo}`, startX, rowY, { width: colWidths.num, align: "center" });
   if(tipo ==='ProductoPicada'){
@@ -255,7 +255,7 @@ presupuesto.detalles.forEach((det, i) => {
   doc.text(nombreProducto, startX + colWidths.num + colWidths.tipo, rowY, { width: colWidths.name, align: "center" });
   doc.text(cantidad, startX + colWidths.num + colWidths.tipo + colWidths.name, rowY, { width: colWidths.qty, align: "center" });
   doc.text(`$${precio}`, startX + colWidths.num + colWidths.tipo + colWidths.name + colWidths.qty, rowY, { width: colWidths.price, align: "center" });
-  doc.text(`$${subtotal}`, startX + colWidths.num + colWidths.tipo + colWidths.name + colWidths.qty + colWidths.price, rowY, { width: colWidths.subtotal, align: "center" });
+  doc.text(`$${importe}`, startX + colWidths.num + colWidths.tipo + colWidths.name + colWidths.qty + colWidths.price, rowY, { width: colWidths.importe, align: "center" });
 
   doc.moveDown(0.5);
 });

@@ -3,19 +3,19 @@ const getNextSequence = require("../controllers/counter_Controller");
 
 const setNotaPedidoDetalle = async (req,res) => {
     const newId = await getNextSequence("Cliente_NotaPedidoDetalle");
-    const subtotalP = req.body.subtotal;
+    const importeP = req.body.importe;
     const precioP = req.body.precio;
     const cantidadP = req.body.cantidad;
     const notaPedidoP = req.body.notaPedido;
     const productoID = req.body.producto;
 
-    if(!subtotalP || !notaPedidoP || !productoID || !precioP || !cantidadP ){
+    if(!importeP || !notaPedidoP || !productoID || !precioP || !cantidadP ){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
     const newNotaPedidoDetalle = new NotaPedidoDetalle ({
         _id: newId,
-        subtotal: subtotalP , notaPedido: notaPedidoP , producto: productoID , precio:precioP , cantidad:cantidadP
+        importe: importeP , notaPedido: notaPedidoP , producto: productoID , precio:precioP , cantidad:cantidadP
     });
     await newNotaPedidoDetalle.save()
         .then( () => {
@@ -90,7 +90,7 @@ const getNotaPedidoDetalleID = async(req,res) => {
 const updateNotaPedidoDetalle = async(req,res) => {
     const id = req.params.id;
     
-    const subtotalP = req.body.subtotal;
+    const importeP = req.body.importe;
     const precioP = req.body.precio;
     const cantidadP = req.body.cantidad;
     const notaPedidoP = req.body.notaPedido;
@@ -107,7 +107,7 @@ const updateNotaPedidoDetalle = async(req,res) => {
     const updatedNotaPedidoDetalle = await NotaPedidoDetalle.findByIdAndUpdate(
         id,
         {   
-            subtotal: subtotalP , notaPedido: notaPedidoP , producto: productoID , precio:precioP , cantidad:cantidadP
+            importe: importeP , notaPedido: notaPedidoP , producto: productoID , precio:precioP , cantidad:cantidadP
         },
         { new: true , runValidators: true }
     )

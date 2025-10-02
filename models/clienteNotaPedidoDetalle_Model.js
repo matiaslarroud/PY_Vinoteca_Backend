@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const NotaPedidoDetalle_Schema = mongoose.Schema({
     _id: Number,
-        subtotal: {type: Number , require:true},
+        importe: {type: Number , require:true},
         notaPedido: {
                 type: Number,
                 ref: 'Cliente_NotaPedido',

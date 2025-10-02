@@ -1,32 +1,30 @@
-const PresupuestoDetalle = require("../models/clientePresupuestoDetalle_Model");
-const getNextSequence = require("../controllers/counter_Controller");
+const SolicitudPresupuestoDetalle = require("../models/proveedorSolicitudPresupuestoDetalle_Model");
+const getNextSequence = require("./counter_Controller");
 
-const setPresupuestoDetalle = async (req,res) => {
-    const newId = await getNextSequence("Cliente_PresupuestoDetalle");
-    const importeP = req.body.importe;
-    const precioP = req.body.precio;
+const setSolicitudPresupuestoDetalle = async (req,res) => {
+    const newId = await getNextSequence("Proveedor_SolicitudPresupuestoDetalle");
     const cantidadP = req.body.cantidad;
-    const presupuestoP = req.body.presupuesto;
+    const solicitudPresupuestoP = req.body.solicitudPresupuesto;
     const productoID = req.body.producto;
 
-    if(!importeP || !presupuestoP || !productoID || !precioP || !cantidadP ){
+    if(!solicitudPresupuestoP || !productoID || !cantidadP ){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
-    const newPresupuestoDetalle = new PresupuestoDetalle ({
+    const newPresupuestoDetalle = new SolicitudPresupuestoDetalle ({
         _id: newId,
-        importe: importeP , presupuesto: presupuestoP , producto: productoID , precio:precioP , cantidad:cantidadP
+        solicitudPresupuesto: solicitudPresupuestoP , producto: productoID , cantidad:cantidadP
     });
     await newPresupuestoDetalle.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Presupuesto Detalle agregado correctamente.'})
+            res.status(201).json({ok:true, message:'Solicitud de presupuesto detalle agregado correctamente.'})
         })
         .catch((err)=>{console.log(err)});
 
 }
 
-const getPresupuestoDetalle = async(req, res) => {
-    const detallesPresupuesto = await PresupuestoDetalle.find();
+const getSolicitudPresupuestoDetalle = async(req, res) => {
+    const detallesPresupuesto = await SolicitudPresupuestoDetalle.find();
 
     res.status(200).json({
         ok:true,
@@ -34,7 +32,7 @@ const getPresupuestoDetalle = async(req, res) => {
     })
 }
 
-const getPresupuestoDetalleByPresupuesto = async(req,res) => {
+const getSolicitudPresupuestoDetalleBySolicitudPresupuesto = async(req,res) => {
     const id = req.params.id;
 
     if(!id){
@@ -45,7 +43,34 @@ const getPresupuestoDetalleByPresupuesto = async(req,res) => {
         return
     }
 
-    const presupuestoDetalle = await PresupuestoDetalle.find({presupuesto:id});
+    const presupuestoDetalle = await SolicitudPresupuestoDetalle.find({solicitudPresupuesto:id});
+    if(!presupuestoDetalle){
+        res.status(400).json({
+            ok:false,
+            message:'El id no corresponde al detalle de una solicitud de presupuesto.'
+        })
+        return
+    }
+
+    res.status(200).json({
+        ok:true,
+        data:presupuestoDetalle,
+    })
+}
+
+
+const getSolicitudPresupuestoDetalleID = async(req,res) => {
+    const id = req.params.id;
+
+    if(!id){
+        res.status(400).json({
+            ok:false,
+            message:'El id no llego al controlador correctamente',
+        })
+        return
+    }
+
+    const presupuestoDetalle = await SolicitudPresupuestoDetalle.findByID(id);
     if(!presupuestoDetalle){
         res.status(400).json({
             ok:false,
@@ -60,38 +85,11 @@ const getPresupuestoDetalleByPresupuesto = async(req,res) => {
     })
 }
 
-
-const getPresupuestoDetalleID = async(req,res) => {
-    const id = req.params.id;
-
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'El id no llego al controlador correctamente',
-        })
-        return
-    }
-
-    const presupuestoDetalle = await PresupuestoDetalle.findByID(id);
-    if(!presupuestoDetalle){
-        res.status(400).json({
-            ok:false,
-            message:'El id no corresponde al detalle de un presupuesto.'
-        })
-        return
-    }
-
-    res.status(200).json({
-        ok:true,
-        data:presupuestoDetalle,
-    })
-}
-
-const updatePresupuestoDetalle = async(req,res) => {
+const updateSolicitudPresupuestoDetalle = async(req,res) => {
     const id = req.params.id;
     
-    const importeP = req.body.importe;
-    const presupuestoP = req.body.presupuesto;
+    const cantidadP = req.body.cantidad;
+    const solicitudPresupuestoP = req.body.solicitudPresupuesto;
     const productoID = req.body.producto;
 
     if(!id){
@@ -102,10 +100,10 @@ const updatePresupuestoDetalle = async(req,res) => {
         return
     }
 
-    const updatedPresupuestoDetalle = await PresupuestoDetalle.findByIdAndUpdate(
+    const updatedPresupuestoDetalle = await SolicitudPresupuestoDetalle.findByIdAndUpdate(
         id,
         {   
-            importe: importeP , presupuesto: presupuestoP , producto: productoID
+            cantidad: cantidadP , solicitudPresupuesto: solicitudPresupuestoP , producto: productoID
         },
         { new: true , runValidators: true }
     )
@@ -113,18 +111,18 @@ const updatePresupuestoDetalle = async(req,res) => {
     if(!updatedPresupuestoDetalle){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el PresupuestoDetalle.'
+            message:'Error al actualizar el solicitud de presupuesto detalle.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedPresupuestoDetalle,
-        message:'PresupuestoDetalle actualizado correctamente.',
+        message:'Solicitud de presupuesto detalle actualizado correctamente.',
     })
 }
 
-const deletePresupuestoDetalle = async(req,res) => {
+const deleteSolicitudPresupuestoDetalle = async(req,res) => {
     const id = req.params.id;
     
     if(!id){
@@ -135,7 +133,7 @@ const deletePresupuestoDetalle = async(req,res) => {
         return
     }
 
-    const deletedPresupuestoDetalle = await PresupuestoDetalle.deleteMany({presupuesto:id});
+    const deletedPresupuestoDetalle = await SolicitudPresupuestoDetalle.deleteMany({solicitudPresupuesto:id});
     if(!deletedPresupuestoDetalle){
         res.status(400).json({
             ok:false,
@@ -145,8 +143,8 @@ const deletePresupuestoDetalle = async(req,res) => {
     }
     res.status(200).json({
         ok:true,
-        message:'PresupuestoDetalle eliminado correctamente.'
+        message:'Solicitud de presupuesto detalle eliminado correctamente.'
     })
 }
 
-module.exports = { setPresupuestoDetalle , getPresupuestoDetalle , getPresupuestoDetalleID , updatePresupuestoDetalle , deletePresupuestoDetalle , getPresupuestoDetalleByPresupuesto };
+module.exports = { setSolicitudPresupuestoDetalle , getSolicitudPresupuestoDetalle , getSolicitudPresupuestoDetalleID , updateSolicitudPresupuestoDetalle , deleteSolicitudPresupuestoDetalle , getSolicitudPresupuestoDetalleBySolicitudPresupuesto};

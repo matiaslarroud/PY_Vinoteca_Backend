@@ -1,5 +1,5 @@
-const PresupuestoDetalle = require("../models/clientePresupuestoDetalle_Model");
-const getNextSequence = require("../controllers/counter_Controller");
+const PresupuestoDetalle = require("../models/proveedorPresupuestoDetalle_Model");
+const getNextSequence = require("./counter_Controller");
 
 const setPresupuestoDetalle = async (req,res) => {
     const newId = await getNextSequence("Cliente_PresupuestoDetalle");
