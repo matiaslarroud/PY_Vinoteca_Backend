@@ -10,7 +10,7 @@ const setVolumen = async (req,res) => {
         return
     }
     const newVolumen = new Volumen ({
-        _id: newId,name: name});
+        _id: newId,name: name , estado:true});
     await newVolumen.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Volumen agregado correctamente.'})
@@ -20,7 +20,7 @@ const setVolumen = async (req,res) => {
 }
 
 const getVolumen = async(req, res) => {
-    const volumenes = await Volumen.find();
+    const volumenes = await Volumen.find({estado:true});
     if(!volumenes){
         res.status(400).json({ok:false , message:'Error al obtener datos.'})
         return
@@ -98,7 +98,12 @@ const deleteVolumen = async(req,res) => {
         return
     }
 
-    const deletedVolumen = await Volumen.findByIdAndDelete(id);
+    const deletedVolumen = await Volumen.findByIdAndUpdate(
+        id,
+        {estado:false},
+        { new: true , runValidators: true }
+    )
+
     if(!deletedVolumen){
         res.status(400).json({
             ok:false,

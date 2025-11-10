@@ -10,7 +10,7 @@ const setPais = async (req,res) => {
         return
     }
     const newPais = new Pais ({
-        _id: newId,name: name});
+        _id: newId,name: name , estado:true});
     await newPais.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Pais agregado correctamente.'})
@@ -20,7 +20,7 @@ const setPais = async (req,res) => {
 }
 
 const getPais = async(req, res) => {
-    const paises = await Pais.find();
+    const paises = await Pais.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -95,7 +95,12 @@ const deletePais = async(req,res) => {
         return
     }
 
-    const deletedPais = await Pais.findByIdAndDelete(id);
+    const deletedPais = await Pais.findByIdAndUpdate(
+        id,
+        {estado:false},
+        { new: true , runValidators: true }
+    )
+
     if(!deletedPais){
         res.status(400).json({
             ok:false,

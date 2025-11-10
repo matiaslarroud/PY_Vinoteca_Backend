@@ -10,7 +10,7 @@ const setCondicionIva = async (req,res) => {
         return
     }
     const newCondicionIva = new CondicionIva ({
-        _id: newId,name: name});
+        _id: newId,name: name , estado:true});
     await newCondicionIva.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Condicion de iva agregada correctamente.'})
@@ -20,7 +20,7 @@ const setCondicionIva = async (req,res) => {
 }
 
 const getCondicionIva = async(req, res) => {
-    const condicionesIva = await CondicionIva.find();
+    const condicionesIva = await CondicionIva.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -96,7 +96,11 @@ const deleteCondicionIva = async(req,res) => {
         return
     }
 
-    const deletedCondicionIva = await CondicionIva.findByIdAndDelete(id);
+    const deletedCondicionIva = await CondicionIva.findByIdAndUpdate(
+        id,
+        {estado:false},
+        { new: true , runValidators: true }
+    )
     if(!deletedCondicionIva){
         res.status(400).json({
             ok:false,

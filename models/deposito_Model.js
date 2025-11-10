@@ -31,6 +31,7 @@ const Deposito_Schema = mongoose.Schema({
     altura: {type: String , require:true},
     deptoNumero: {type: String , require:false},
     deptoLetra: {type: String , require:false},
+    estado: {type: Boolean , require:true},
 },
     {
         timestamps: true

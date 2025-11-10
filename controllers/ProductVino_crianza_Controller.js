@@ -10,7 +10,7 @@ const setCrianza = async (req,res) => {
         return
     }
     const newCrianza = new Crianza ({
-        _id: newId,name: name});
+        _id: newId,name: name , estado:true});
     await newCrianza.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Crianza agregada correctamente.'})
@@ -20,7 +20,7 @@ const setCrianza = async (req,res) => {
 }
 
 const getCrianza = async(req, res) => {
-    const crianzas = await Crianza.find();
+    const crianzas = await Crianza.find({estado:true});
     if(!crianzas){
         res.status(400).json({ok:false , message:'Error al obtener datos.'})
         return
@@ -98,7 +98,11 @@ const deleteCrianza = async(req,res) => {
         return
     }
 
-    const deletedCrianza = await Crianza.findByIdAndDelete(id);
+    const deletedCrianza = await Crianza.findByIdAndUpdate(
+        id,
+        {estado:false},
+        { new: true , runValidators: true }
+    )
     if(!deletedCrianza){
         res.status(400).json({
             ok:false,

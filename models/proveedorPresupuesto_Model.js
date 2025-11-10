@@ -14,11 +14,17 @@ const ProveedorPresupuesto_Schema = mongoose.Schema({
             ref: 'MedioPago',
             required: true
         },
+    solicitudPresupuesto: {
+            type: Number,
+            ref: 'Proveedor_SolicitudPresupuesto',
+            required: false
+        },
     empleado: {
             type: Number,
             ref: 'Empleado',
             required: true
-        }
+        },
+    estado: {type: Boolean , require:true},
     },
     
     {

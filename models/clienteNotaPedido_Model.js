@@ -68,6 +68,7 @@ const NotaPedido_Schema = mongoose.Schema({
         type: String,
         require:false
     },
+    estado: {type: Boolean , require:true},
 },
     
     {

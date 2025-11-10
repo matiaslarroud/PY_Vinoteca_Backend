@@ -8,6 +8,7 @@ const Localidad_Schema = mongoose.Schema({
             ref: 'Provincia',
             required: true
         },
+    estado: {type: Boolean , require:true},
     },
     
     {

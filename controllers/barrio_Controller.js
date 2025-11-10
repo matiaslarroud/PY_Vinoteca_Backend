@@ -15,7 +15,7 @@ const setBarrio = async(req,res) => {
         return
     }
     const newBarrio = await new Barrio({
-        _id: newId,name:nombreBarrio,localidad:localidadBarrio});
+        _id: newId,name:nombreBarrio,localidad:localidadBarrio , estado:true});
     if(!newBarrio){
         res.status(400).json({
             ok:false,
@@ -41,7 +41,7 @@ const setBarrio = async(req,res) => {
 }
 
 const getBarrio = async(req,res) => {
-    const barrios = await Barrio.find();
+    const barrios = await Barrio.find({estado:true});
     if(!barrios){
         res.status(400).json({
             ok:false,
@@ -128,7 +128,11 @@ const deleteBarrio = async(req,res) => {
         })
         return
     }
-    const deletedBarrio = await Barrio.findByIdAndDelete(barrioID);
+    const deletedBarrio = await Barrio.findByIdAndUpdate(
+        barrioID,
+        {estado:false},
+        { new: true , runValidators: true }
+    )
     if(!deletedBarrio){
         res.status(400).json({
             ok:false,

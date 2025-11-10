@@ -14,19 +14,28 @@ const setPresupuesto = async (req,res) => {
     const proveedorID = req.body.proveedor;
     const empleadoID = req.body.empleado;
     const medioPagoID = req.body.medioPago;
+    const solicitudP = req.body.solicitudPresupuesto;
+
 
     if(!totalP || !fechaP || !proveedorID || !medioPagoID || !empleadoID ){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
+    
     const newPresupuesto = new Presupuesto ({
         _id: newId,
         total: totalP , 
         fecha: fechaP , 
         proveedor: proveedorID ,
         medioPago : medioPagoID,
-        empleado:empleadoID 
+        empleado: empleadoID ,
+        estado:true
     });
+
+    if (solicitudP){
+        newPresupuesto.solicitudPresupuesto = solicitudP
+    }
+
     await newPresupuesto.save()
         .then( () => {
             res.status(201).json({
@@ -40,7 +49,7 @@ const setPresupuesto = async (req,res) => {
 }
 
 const getPresupuesto = async(req, res) => {
-    const presupuestos = await Presupuesto.find();
+    const presupuestos = await Presupuesto.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -82,6 +91,7 @@ const updatePresupuesto = async(req,res) => {
     const proveedorID = req.body.proveedor;
     const empleadoID = req.body.empleado;
     const medioPagoID = req.body.medioPago;
+    const solicitudP = req.body.solicitudPresupuesto;
 
     if(!id){
         res.status(400).json({
@@ -98,6 +108,7 @@ const updatePresupuesto = async(req,res) => {
             fecha: fechaP , 
             proveedor: proveedorID,
             empleado:empleadoID,
+            solicitudPresupuesto:solicitudP,
             medioPago: medioPagoID
         },
         { new: true , runValidators: true }
@@ -127,7 +138,14 @@ const deletePresupuesto = async(req,res) => {
         return
     }
 
-    const deletedPresupuesto = await Presupuesto.findByIdAndDelete(id);
+    const deletedPresupuesto = await Presupuesto.findByIdAndUpdate(
+        id,
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
+;
     if(!deletedPresupuesto){
         res.status(400).json({
             ok:false,
@@ -135,7 +153,14 @@ const deletePresupuesto = async(req,res) => {
         })
         return
     }
-    const deletedPresupuestoDetalle = await PresupuestoDetalle.deleteMany({presupuesto:id});
+    const deletedPresupuestoDetalle = await PresupuestoDetalle.updateMany(
+        {presupuesto:id},
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
+    
     if(!deletedPresupuestoDetalle){
         res.status(400).json({
             ok:false,

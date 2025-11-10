@@ -14,6 +14,7 @@ const Remito_Schema = mongoose.Schema({
             ref: 'Transporte',
         },
     entregado: {type: Boolean , require:true},
+    estado: {type: Boolean , require:true},
 },
     
     {

@@ -19,7 +19,7 @@ const setSolicitudPresupuesto = async (req,res) => {
     }
     const newSolicitudPresupuesto = new SolicitudPresupuesto ({
         _id: newId,
-        fecha: fechaP , proveedor: provedorP, empleado:empleadoID 
+        fecha: fechaP , proveedor: provedorP, empleado:empleadoID  , estado:true
     });
     await newSolicitudPresupuesto.save()
         .then( () => {
@@ -34,7 +34,7 @@ const setSolicitudPresupuesto = async (req,res) => {
 }
 
 const getSolicitudPresupuesto = async(req, res) => {
-    const presupuestos = await SolicitudPresupuesto.find();
+    const presupuestos = await SolicitudPresupuesto.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -65,6 +65,32 @@ const getSolicitudPresupuestoID = async(req,res) => {
     res.status(200).json({
         ok:true,
         data:presupuesto,
+    })
+}
+
+const getSolicitudPresupuestoByProveedor = async(req,res) => {
+    const id = req.params.id;
+
+    if(!id){
+        res.status(400).json({
+            ok:false,
+            message:'El id no llego al controlador correctamente',
+        })
+        return
+    }
+
+    const presupuestos = await SolicitudPresupuesto.find({proveedor:id});
+    if(!presupuestos){
+        res.status(400).json({
+            ok:false,
+            message:'El id no corresponde a un proveedor que tenga solicitudes de presupuestos.'
+        })
+        return
+    }
+
+    res.status(200).json({
+        ok:true,
+        data:presupuestos,
     })
 }
 
@@ -115,7 +141,13 @@ const deleteSolicitudPresupuesto = async(req,res) => {
         return
     }
 
-    const deletedPresupuesto = await SolicitudPresupuesto.findByIdAndDelete(id);
+    const deletedPresupuesto = await SolicitudPresupuesto.findByIdAndUpdate(
+        id,
+        {   
+            estado: false
+        },
+        { new: true , runValidators: true }
+    )
     if(!deletedPresupuesto){
         res.status(400).json({
             ok:false,
@@ -123,7 +155,11 @@ const deleteSolicitudPresupuesto = async(req,res) => {
         })
         return
     }
-    const deletedPresupuestoDetalle = await SolicitudPresupuestoDetalle.deleteMany({solicitudPresupuesto:id});
+    const deletedPresupuestoDetalle = await SolicitudPresupuestoDetalle.updateMany(
+        { solicitudPresupuesto: id }, 
+        { estado: false }, 
+        { new: true, runValidators: true }
+    );
     if(!deletedPresupuestoDetalle){
         res.status(400).json({
             ok:false,
@@ -137,4 +173,4 @@ const deleteSolicitudPresupuesto = async(req,res) => {
     })
 }
 
-module.exports = { setSolicitudPresupuesto , getSolicitudPresupuesto , getSolicitudPresupuestoID , updateSolicitudPresupuesto , deleteSolicitudPresupuesto };
+module.exports = { setSolicitudPresupuesto , getSolicitudPresupuesto , getSolicitudPresupuestoID , getSolicitudPresupuestoByProveedor , updateSolicitudPresupuesto , deleteSolicitudPresupuesto };

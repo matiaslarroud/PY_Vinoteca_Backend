@@ -14,7 +14,7 @@ const setLocalidad = async(req,res) => {
         return
     }
     const newLocalidad = await new Localidad({
-        _id: newId,name:nombreLocalidad, provincia:provinciaID});
+        _id: newId,name:nombreLocalidad, provincia:provinciaID , estado:true});
     
     if(!newLocalidad){
         res.status(400).json({
@@ -40,7 +40,7 @@ const setLocalidad = async(req,res) => {
 }
 
 const getLocalidad = async(req,res) => {
-    const localidades = await Localidad.find();
+    const localidades = await Localidad.find({estado:true});
     if(!localidades){
         res.status(400).json({
             ok:false,
@@ -132,7 +132,11 @@ const deleteLocalidad = async(req,res) => {
         })
         return
     }
-    const deletedLocalidad = await Localidad.findByIdAndDelete(localidadID);
+    const deletedLocalidad = await Localidad.findByIdAndUpdate(
+        localidadID,
+        {estado:false},
+        { new: true , runValidators: true }
+    );
     
     if(!deletedLocalidad){
         res.status(400).json({

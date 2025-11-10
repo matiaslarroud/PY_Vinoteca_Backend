@@ -8,6 +8,7 @@ const Calle_Schema = mongoose.Schema({
             ref: 'Barrio',
             required: true
         },
+    estado: {type: Boolean , require:true},
     },
     
     {

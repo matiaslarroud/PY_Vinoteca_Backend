@@ -34,6 +34,7 @@ const BodegaParaje_Schema = mongoose.Schema({
             required: true
         },
     altura: {type: Number , require:true},
+    estado: {type: Boolean , require:true},
 },
     {
         timestamps: true

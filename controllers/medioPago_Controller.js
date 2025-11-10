@@ -11,7 +11,7 @@ const setMedioPago = async (req,res) => {
         return
     }
     const newMedioPago = new MedioPago ({
-        _id: newId,name: name , interes: interes});
+        _id: newId,name: name , interes: interes , estado:true});
     await newMedioPago.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Medio de pago agregado correctamente.'})
@@ -21,7 +21,7 @@ const setMedioPago = async (req,res) => {
 }
 
 const getMedioPago = async(req, res) => {
-    const mediosPago = await MedioPago.find();
+    const mediosPago = await MedioPago.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -98,7 +98,11 @@ const deleteMedioPago = async(req,res) => {
         return
     }
 
-    const deletedMedioPago = await MedioPago.findByIdAndDelete(id);
+    const deletedMedioPago = await MedioPago.findByIdAndUpdate(
+        id,
+        {estado:false},
+        { new: true , runValidators: true }
+    )
     if(!deletedMedioPago){
         res.status(400).json({
             ok:false,

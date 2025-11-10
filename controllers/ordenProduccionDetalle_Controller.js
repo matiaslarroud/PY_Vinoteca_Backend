@@ -15,7 +15,8 @@ const setOrdenProduccionDetalle = async (req,res) => {
         _id: newId,
         picada: picadaOrden,
         cantidad: cantidadOrden,
-        ordenProduccion : ordenProduccion
+        ordenProduccion : ordenProduccion,
+        estado:true
     });
     await newOrdenDetalle.save()
         .then( () => {
@@ -26,7 +27,7 @@ const setOrdenProduccionDetalle = async (req,res) => {
 }
 
 const getOrdenDetalle = async(req, res) => {
-    const detallesOrden = await OrdenProduccionDetalle.find();
+    const detallesOrden = await OrdenProduccionDetalle.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -135,7 +136,14 @@ const deleteOrdenDetalle = async(req,res) => {
         return
     }
 
-    const deletedOrdenDetalle = await OrdenProduccionDetalle.deleteMany({ordenProduccion:id});
+    const deletedOrdenDetalle = await OrdenProduccionDetalle.updateMany(
+        {ordenProduccion:id},
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
+    
     if(!deletedOrdenDetalle){
         res.status(400).json({
             ok:false,

@@ -24,7 +24,8 @@ const setOrdenProduccion =  async (req , res ) => {
         fecha: fechaOrden,
         fechaElaboracion: fechaElaboracionOrden,
         fechaEntrega: fechaEntregaOrden,
-        empleado: empleadoOrden
+        empleado: empleadoOrden,
+        estado:true
     });
 
     if(!newOrden){
@@ -47,7 +48,7 @@ const setOrdenProduccion =  async (req , res ) => {
 }
 
 const getOrdenProduccion = async(req,res) => {
-    const ordenes = await OrdenProduccion.find();
+    const ordenes = await OrdenProduccion.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -112,7 +113,13 @@ const updateOrdenProduccion =  async (req , res ) => {
 
 const deleteOrdenProduccion = async (req , res) => {
     const id = req.params.id;
-    const deletedOrden = await OrdenProduccion.findByIdAndDelete(id)
+    const deletedOrden = await OrdenProduccion.findByIdAndUpdate(
+            id, 
+            {
+                estado:false
+            },
+            { new: true , runValidators: true }
+        )
     if(!deletedOrden) {
         res.status(400).json({ok:false,message:"Error al eliminar orden de produccion."});
         return

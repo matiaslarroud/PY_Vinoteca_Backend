@@ -4,6 +4,8 @@ const controller = require('../controllers/productVino_Controller.js')
 
 router.post('/' , controller.setProduct )
 
+router.post('/buscar' , controller.buscarProducto )
+
 router.get('/' , controller.getProduct)
 
 router.get('/:id' , controller.getProductID)

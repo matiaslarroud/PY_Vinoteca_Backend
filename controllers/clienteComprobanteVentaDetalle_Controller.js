@@ -19,7 +19,8 @@ const setComprobanteVentaDetalle = async (req,res) => {
         comprobanteVenta: comprobanteVentaP , 
         producto: productoID , 
         precio:precioP , 
-        cantidad:cantidadP
+        cantidad:cantidadP,
+        estado:true
     });
     await newComprobanteVentaDetalle.save()
         .then( () => {
@@ -30,7 +31,7 @@ const setComprobanteVentaDetalle = async (req,res) => {
 }
 
 const getComprobanteVentaDetalle = async(req, res) => {
-    const detallesNotaPedido = await ComprobanteVentaDetalle.find();
+    const detallesNotaPedido = await ComprobanteVentaDetalle.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -145,7 +146,14 @@ const deleteComprobanteVentaDetalle = async(req,res) => {
         return
     }
 
-    const deletedComprobanteVentaDetalle = await ComprobanteVentaDetalle.deleteMany({comprobanteVenta:id});
+    const deletedComprobanteVentaDetalle = await ComprobanteVentaDetalle.updateMany(
+        {comprobanteVenta:id},
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
+    
     if(!deletedComprobanteVentaDetalle){
         res.status(400).json({
             ok:false,

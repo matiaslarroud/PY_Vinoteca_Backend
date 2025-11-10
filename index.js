@@ -45,6 +45,15 @@ const routerProveedor_Presupuesto = require('./routes/proveedorPresupuesto_Route
 const routerProveedor_PresupuestoDetalle = require('./routes/proveedorPresupuestoDetalle_Router.js');
 const routerProveedor_SolicitudPresupuesto = require('./routes/proveedorSolicitudPresupuesto_Router.js');
 const routerProveedor_SolicitudPresupuestoDetalle = require('./routes/proveedorSolicitudPresupuestoDetalle_Router.js');
+const routerCliente_ReciboPago = require('./routes/clienteReciboPago_Router.js');
+const routerProveedor_OrdenCompra = require('./routes/proveedorOrdenCompra_Router.js');
+const routerProveedor_OrdenCompraDetalle = require('./routes/proveedorOrdenCompraDetalle_Router.js');
+const routerProveedor_ComprobanteCompra = require('./routes/proveedorComprobanteCompra_Router.js');
+const routerProveedor_ComprobanteCompraDetalle = require('./routes/proveedorComprobanteCompraDetalle_Router.js');
+const routerProveedor_ComprobantePago = require('./routes/proveedorComprobantePago_Router.js');
+const routerProveedor_Remito = require('./routes/proveedorRemito_Router.js');
+const routerProveedor_RemitoDetalle = require('./routes/proveedorRemitoDetalle_Router.js');
+const routerUsuario = require('./routes/usuario_Router.js');
 
 const app = express();
 
@@ -52,7 +61,9 @@ connectDB(app);
 
 app.use(express.json());
 app.use(cors());
-    
+
+app.use(`${process.env.ROUTE}/usuario`, routerUsuario);
+
 app.use(`${process.env.ROUTE}/products/productVino`, routerProductVino);
 app.use(`${process.env.ROUTE}/products/productVinoDetalle`, routerProductVinoDetalle);
 app.use(`${process.env.ROUTE}/products/productPicada`, routerPicadas);
@@ -83,16 +94,24 @@ app.use(`${process.env.ROUTE}/gestion/tipoComprobante` , routerTipoComprobante);
 app.use(`${process.env.ROUTE}/gestion/transporte` , routerTransporte);
 app.use(`${process.env.ROUTE}/gestion/proveedor` , routerProveedor); 
 
+app.use(`${process.env.ROUTE}/cliente/presupuesto` , routerCliente_Presupuesto);
+app.use(`${process.env.ROUTE}/cliente/presupuestoDetalle` , routerCliente_PresupuestoDetalle);
 app.use(`${process.env.ROUTE}/cliente/notaPedido` , routerCliente_NotaPedido);
 app.use(`${process.env.ROUTE}/cliente/notaPedidoDetalle` , routerCliente_NotaPedidoDetalle);
 app.use(`${process.env.ROUTE}/cliente/comprobanteVenta` , routerCliente_ComprobanteVenta);
 app.use(`${process.env.ROUTE}/cliente/comprobanteVentaDetalle` , routerCliente_ComprobanteVentaDetalle);
 app.use(`${process.env.ROUTE}/cliente/remito` , routerCliente_Remito);
 app.use(`${process.env.ROUTE}/cliente/remitoDetalle` , routerCliente_RemitoDetalle);
-app.use(`${process.env.ROUTE}/cliente/presupuesto` , routerCliente_Presupuesto);
-app.use(`${process.env.ROUTE}/cliente/presupuestoDetalle` , routerCliente_PresupuestoDetalle);
+app.use(`${process.env.ROUTE}/cliente/reciboPago` , routerCliente_ReciboPago);
 
-app.use(`${process.env.ROUTE}/proveedor/presupuesto` , routerProveedor_Presupuesto);
-app.use(`${process.env.ROUTE}/proveedor/presupuestoDetalle` , routerProveedor_PresupuestoDetalle);
 app.use(`${process.env.ROUTE}/proveedor/solicitudPresupuesto` , routerProveedor_SolicitudPresupuesto);
 app.use(`${process.env.ROUTE}/proveedor/solicitudPresupuestoDetalle` , routerProveedor_SolicitudPresupuestoDetalle);
+app.use(`${process.env.ROUTE}/proveedor/presupuesto` , routerProveedor_Presupuesto);
+app.use(`${process.env.ROUTE}/proveedor/presupuestoDetalle` , routerProveedor_PresupuestoDetalle);
+app.use(`${process.env.ROUTE}/proveedor/ordenCompra` , routerProveedor_OrdenCompra);
+app.use(`${process.env.ROUTE}/proveedor/ordenCompraDetalle` , routerProveedor_OrdenCompraDetalle);
+app.use(`${process.env.ROUTE}/proveedor/comprobanteCompra` , routerProveedor_ComprobanteCompra);
+app.use(`${process.env.ROUTE}/proveedor/comprobanteCompraDetalle` , routerProveedor_ComprobanteCompraDetalle);
+app.use(`${process.env.ROUTE}/proveedor/comprobantePago` , routerProveedor_ComprobantePago);
+app.use(`${process.env.ROUTE}/proveedor/remito` , routerProveedor_Remito);
+app.use(`${process.env.ROUTE}/proveedor/remitoDetalle` , routerProveedor_RemitoDetalle);

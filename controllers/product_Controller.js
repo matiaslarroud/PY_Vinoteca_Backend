@@ -22,7 +22,8 @@ const setProduct =  async (req , res ) => {
         precioCosto: precioProducto , 
         stock: stockProducto ,  
         ganancia: gananciaProducto , 
-        deposito: depositoProducto
+        deposito: depositoProducto,
+        estado:true
     });
     await newProduct.save()
         .then(() => { 
@@ -33,7 +34,7 @@ const setProduct =  async (req , res ) => {
 }
 
 const getProduct = async(req,res) => {
-    const productos = await Product.find();
+    const productos = await Product.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -167,7 +168,13 @@ const updateProduct =  async (req , res ) => {
 
 const deleteProduct = async (req , res) => {
     const id = req.params.id;
-    const deletedProduct = await Product.findByIdAndDelete(id)
+    const deletedProduct = await Product.findByIdAndUpdate(
+            id, 
+            {
+               estado:false
+            },
+            { new: true , runValidators: true }
+        )
     if(!deletedProduct) {
         res.status(400).json({ok:false,message:"Error al eliminar producto."});
         return
@@ -191,4 +198,5 @@ const getProduct_query = async (req , res) => {
         message:"Productos encontrados correctamente.",
     });
 }
+
 module.exports = {setProduct , getProduct , getProductID , lowStockProducts , updateProduct , deleteProduct , getProduct_query , getProductTipos , getProductTipoID , stockUpdate};

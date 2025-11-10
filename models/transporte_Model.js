@@ -36,7 +36,8 @@ const Transporte_Schema = mongoose.Schema({
         type: Number,
         ref: 'CondicionIva',
         required: true
-    }
+    },
+    estado: {type: Boolean , require:true},
 
     },
     

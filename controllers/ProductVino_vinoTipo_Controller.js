@@ -10,7 +10,7 @@ const setVinoTipo = async (req,res) => {
         return
     }
     const newVinoTipo = new VinoTipo ({
-        _id: newId,name: name});
+        _id: newId, name: name , estado:true});
     await newVinoTipo.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Tipo de vino agregado correctamente.'})
@@ -20,7 +20,7 @@ const setVinoTipo = async (req,res) => {
 }
 
 const getVinoTipo = async(req, res) => {
-    const vinoTipos = await VinoTipo.find();
+    const vinoTipos = await VinoTipo.find({estado:true});
     if(!vinoTipos){
         res.status(400).json({ok:false , message:'Error al obtener datos.'})
         return
@@ -98,7 +98,11 @@ const deleteVinoTipo = async(req,res) => {
         return
     }
 
-    const deletedVinoTipo = await VinoTipo.findByIdAndDelete(id);
+    const deletedVinoTipo = await VinoTipo.findByIdAndUpdate(
+        id,
+        {estado:false},
+        { new: true , runValidators: true }
+    )
     if(!deletedVinoTipo){
         res.status(400).json({
             ok:false,

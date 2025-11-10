@@ -15,6 +15,7 @@ const ComprobanteVenta_Schema = mongoose.Schema({
         },
     facturado: {type: Boolean , require:true},
     remitoCreado: {type: Boolean , require:true},
+    estado: {type: Boolean , require:true},
 },
     
     {

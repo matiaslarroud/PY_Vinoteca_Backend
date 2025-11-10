@@ -6,6 +6,7 @@ const controller = require('../controllers/proveedorSolicitudPresupuesto_Control
 router.post('/', controller.setSolicitudPresupuesto);
 router.get('/', controller.getSolicitudPresupuesto);
 router.get('/:id',controller.getSolicitudPresupuestoID);
+router.get('/proveedor/:id' , controller.getSolicitudPresupuestoByProveedor);
 // router.get("/imprimir/:id" , imprimir.imprimir);
 router.put('/:id', controller.updateSolicitudPresupuesto);
 router.delete('/:id', controller.deleteSolicitudPresupuesto);

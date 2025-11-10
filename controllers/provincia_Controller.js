@@ -24,7 +24,7 @@ const setProvincia = async(req,res) => {
     }
 
     const newProvincia = new Provincia({
-        _id: newId ,name: nombreProvincia , pais: pais});
+        _id: newId ,name: nombreProvincia , pais: pais , estado: true});
     await newProvincia.save()
         .then(() => {
             res.status(201).json({
@@ -38,7 +38,7 @@ const setProvincia = async(req,res) => {
 }
 
 const getProvincia = async(req,res) => {
-    const provincias = await Provincia.find();
+    const provincias = await Provincia.find({estado:true});
     
     res.status(200).json({
         ok:true,
@@ -137,7 +137,14 @@ const deleteProvincia = async(req,res) => {
         })
         return
     }
-    const deletedProvincia = await Provincia.findByIdAndDelete(id);
+    const deletedProvincia = await Provincia.findByIdAndUpdate(
+        id,
+        {
+            estado : false
+        },
+        { new: true , runValidators: true }
+    )
+
     
     if(!deletedProvincia){
         res.status(400).json({

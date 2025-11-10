@@ -13,6 +13,7 @@ const RemitoDetalle_Schema = mongoose.Schema({
                 required: true
         },
         cantidad: {type: Number , require:true},
+        estado: {type: Boolean , require:true},
     },
     
     {

@@ -15,7 +15,7 @@ const setPresupuestoDetalle = async (req,res) => {
     }
     const newPresupuestoDetalle = new PresupuestoDetalle ({
         _id: newId,
-        importe: importeP , presupuesto: presupuestoP , producto: productoID , precio:precioP , cantidad:cantidadP
+        importe: importeP , presupuesto: presupuestoP , producto: productoID , precio:precioP , cantidad:cantidadP , estado:true
     });
     await newPresupuestoDetalle.save()
         .then( () => {
@@ -26,7 +26,7 @@ const setPresupuestoDetalle = async (req,res) => {
 }
 
 const getPresupuestoDetalle = async(req, res) => {
-    const detallesPresupuesto = await PresupuestoDetalle.find();
+    const detallesPresupuesto = await PresupuestoDetalle.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -45,7 +45,7 @@ const getPresupuestoDetalleByPresupuesto = async(req,res) => {
         return
     }
 
-    const presupuestoDetalle = await PresupuestoDetalle.find({presupuesto:id});
+    const presupuestoDetalle = await PresupuestoDetalle.find({presupuesto:id, estado:true});
     if(!presupuestoDetalle){
         res.status(400).json({
             ok:false,
@@ -135,7 +135,14 @@ const deletePresupuestoDetalle = async(req,res) => {
         return
     }
 
-    const deletedPresupuestoDetalle = await PresupuestoDetalle.deleteMany({presupuesto:id});
+    const deletedPresupuestoDetalle = await PresupuestoDetalle.updateMany(
+        {presupuesto:id},
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
+    
     if(!deletedPresupuestoDetalle){
         res.status(400).json({
             ok:false,

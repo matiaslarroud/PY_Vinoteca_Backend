@@ -15,6 +15,7 @@ const NotaPedidoDetalle_Schema = mongoose.Schema({
         },
         precio: {type: Number , require:true},
         cantidad: {type: Number , require:true},
+        estado: {type: Boolean , require:true},
     },
     
     {

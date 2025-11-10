@@ -8,6 +8,7 @@ const Barrio_Schema = mongoose.Schema({
             ref: 'Localidad',
             required: true
         },
+    estado: {type: Boolean , require:true},
     },
     
     {

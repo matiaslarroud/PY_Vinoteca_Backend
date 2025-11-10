@@ -21,7 +21,7 @@ const setPresupuesto = async (req,res) => {
     const newPresupuesto = new Presupuesto ({
         _id: newId,
         total: totalP , fecha: fechaP , cliente: clienteID,
-        empleado:empleadoID 
+        empleado:empleadoID , estado:true
     });
     await newPresupuesto.save()
         .then( () => {
@@ -36,7 +36,7 @@ const setPresupuesto = async (req,res) => {
 }
 
 const getPresupuesto = async(req, res) => {
-    const presupuestos = await Presupuesto.find();
+    const presupuestos = await Presupuesto.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -119,7 +119,14 @@ const deletePresupuesto = async(req,res) => {
         return
     }
 
-    const deletedPresupuesto = await Presupuesto.findByIdAndDelete(id);
+    const deletedPresupuesto = await Presupuesto.findByIdAndUpdate(
+        id,
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
+
     if(!deletedPresupuesto){
         res.status(400).json({
             ok:false,
@@ -127,7 +134,13 @@ const deletePresupuesto = async(req,res) => {
         })
         return
     }
-    const deletedPresupuestoDetalle = await PresupuestoDetalle.deleteMany({presupuesto:id});
+    const deletedPresupuestoDetalle = await PresupuestoDetalle.updateMany(
+        {presupuesto:id},
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
     if(!deletedPresupuestoDetalle){
         res.status(400).json({
             ok:false,
@@ -141,4 +154,47 @@ const deletePresupuesto = async(req,res) => {
     })
 }
 
-module.exports = { setPresupuesto , getPresupuesto , getPresupuestoID , updatePresupuesto , deletePresupuesto };
+const buscarPresupuesto = async (req, res) => {
+    const { presupuestoID , cliente, empleado, total, detalles } = req.body;
+    // 1️⃣ Obtenemos todos los productos que vienen en los detalles
+    const productosBuscados = detalles && detalles.length > 0
+      ? detalles.map(d => d.producto)
+      : [];
+
+    // 2️⃣ Buscamos los PresupuestoDetalle que contengan alguno de esos productos
+    let detallesFiltrados = [];
+    if (productosBuscados.length > 0) {
+      detallesFiltrados = await PresupuestoDetalle.find({
+        producto: { $in: productosBuscados },
+      });
+    } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
+        res.status(500).json({ ok: false, message: "Error al buscar presupuestos" });       
+    } else if (!detalles) {
+      detallesFiltrados = await PresupuestoDetalle.find();
+    }
+
+    // 3️⃣ Obtenemos los IDs únicos de los presupuestos asociados
+    const presupuestosIDs = [...new Set(detallesFiltrados.map(d => String(d.presupuesto)))];
+
+    // 4️⃣ Buscamos los presupuestos relacionados
+    let presupuestos = await Presupuesto.find(
+      presupuestosIDs.length > 0 ? { _id: { $in: presupuestosIDs } } : {}
+    );
+
+    // 5️⃣ Filtramos adicionalmente por cliente, empleado o total si existen
+    const presupuestosFiltrados = presupuestos.filter(p => {
+      const coincidePresupuesto = presupuestoID ? (p._id) === Number(presupuestoID) : true;
+      const coincideCliente = cliente ? String(p.cliente) === String(cliente) : true;
+      const coincideEmpleado = empleado ? String(p.empleado) === String(empleado) : true;
+      const coincideTotal = total ? Number(p.total) === Number(total) : true;
+      return coincideCliente && coincideEmpleado && coincideTotal && coincidePresupuesto;
+    });
+
+    if(presupuestosFiltrados.length > 0){
+        res.status(200).json({ ok: true, data: presupuestosFiltrados });
+    } else {
+        res.status(500).json({ ok: false, message: "Error al buscar presupuestos" });
+    }
+};
+
+module.exports = { setPresupuesto , getPresupuesto , getPresupuestoID , updatePresupuesto , deletePresupuesto , buscarPresupuesto };

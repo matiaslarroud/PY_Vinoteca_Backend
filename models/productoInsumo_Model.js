@@ -18,6 +18,7 @@ const productoInsumoSchema = new mongoose.Schema({
         require:true , 
         min: [0, 'La ganancia no puede ser negativa']
     },
+    estado: {type: Boolean , require:true},
     },
     
     {

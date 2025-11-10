@@ -16,6 +16,7 @@ const setRemitoDetalle = async (req,res) => {
         remitoID: remitoID,
         producto: productoID,
         cantidad: cantidad,
+        estado:true
     });
     await newRemitoDetalle.save()
         .then( () => {
@@ -29,7 +30,7 @@ const setRemitoDetalle = async (req,res) => {
 }
 
 const getRemitoDetalle = async(req, res) => {
-    const detallesRemito= await RemitoDetalle.find();
+    const detallesRemito= await RemitoDetalle.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -140,7 +141,14 @@ const deleteRemitoDetalle = async(req,res) => {
         return
     }
 
-    const deletedRemitoDetalle = await RemitoDetalle.deleteMany({remitoID:id});
+    const deletedRemitoDetalle = await RemitoDetalle.updateMany(
+        {remitoID:id},
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
+    
     if(!deletedRemitoDetalle){
         res.status(400).json({
             ok:false,

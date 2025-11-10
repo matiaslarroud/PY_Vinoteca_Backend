@@ -15,7 +15,7 @@ const setCalle = async(req,res) => {
     }
     
     const newCalle = new Calle({
-        _id: newId,name: nombreCalle , barrio:barrioID})
+        _id: newId,name: nombreCalle , barrio:barrioID , estado:true})
     await newCalle.save()
         .then(()=>{
             res.status(201).json({
@@ -34,7 +34,7 @@ const setCalle = async(req,res) => {
 }
 
 const getCalle = async(req,res) => {
-    const calles = await Calle.find();
+    const calles = await Calle.find({estado:true});
     if(!calles){
         res.status(400).json({
             ok:false,
@@ -121,7 +121,11 @@ const deleteCalle = async(req,res) => {
         return
     }
 
-    const deletedCalle = await Calle.findByIdAndDelete(calleID);
+    const deletedCalle = await Calle.findByIdAndUpdate(
+        calleID,
+        {estado:false},
+        { new: true , runValidators: true }
+    )
 
     if(!deletedCalle){
         res.status(400).json({

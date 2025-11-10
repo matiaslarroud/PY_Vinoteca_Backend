@@ -29,7 +29,7 @@ const setCliente = async (req,res) => {
         _id: newId,
         name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
         pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC, cuentaCorriente: cuentaCorrienteC ,
-        altura: altura , deptoNumero: deptoNumero , deptoLetra: deptoLetra
+        altura: altura , deptoNumero: deptoNumero , deptoLetra: deptoLetra , estado:true
     });
     await newCliente.save()
         .then( () => {
@@ -40,7 +40,7 @@ const setCliente = async (req,res) => {
 }
 
 const getCliente = async(req, res) => {
-    const clientes = await Cliente.find();
+    const clientes = await Cliente.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -141,7 +141,13 @@ const deleteCliente = async(req,res) => {
         return
     }
 
-    const deletedCliente = await Cliente.findByIdAndDelete(id);
+    const deletedCliente = await Cliente.findByIdAndUpdate(
+        id,
+        {
+           estado:false
+        },
+        { new: true , runValidators: true }
+    )
     if(!deletedCliente){
         res.status(400).json({
             ok:false,
@@ -155,4 +161,71 @@ const deleteCliente = async(req,res) => {
     })
 }
 
-module.exports = { setCliente , getCliente , getClienteID , updateCliente , deleteCliente };
+const buscarCliente = async(req,res) => {
+  try {
+    const nombreC = req.body.name;
+    const apellidoC = req.body.lastname;
+    const telefonoC = req.body.telefono;
+    const emailC = req.body.email;
+    const cuitC = req.body.cuit;
+    const paisC = req.body.pais;
+    const provinciaC = req.body.provincia;
+    const localidadC = req.body.localidad;
+    const barrioC = req.body.barrio;
+    const calleC = req.body.calle;
+    const alturaC = req.body.altura;
+    const deptoNumeroC = req.body.deptoNumero;
+    const deptoLetraC = req.body.deptoLetra;
+    const condicionIvaC = req.body.condicionIva;
+    const cuentaCorrienteC = req.body.cuentaCorriente;
+// Primero traemos todos los clientes
+const clientes = await Cliente.find();
+
+// Luego filtramos dinámicamente
+const clientesFiltrados = clientes.filter(c => {
+  // Cada condición solo se evalúa si el campo tiene valor
+  const coincideNombre = nombreC ? c.name?.toLowerCase().includes(nombreC.toLowerCase()) : true;
+  const coincideApellido = apellidoC ? c.lastname?.toLowerCase().includes(apellidoC.toLowerCase()) : true;
+  const coincideTelefono = telefonoC ? c.telefono?.toLowerCase().includes(telefonoC.toLowerCase()) : true;
+  const coincideEmail = emailC ? c.email?.toLowerCase().includes(emailC.toLowerCase()) : true;
+  const coincideCuit = cuitC ? c.cuit?.toLowerCase().includes(cuitC.toLowerCase()) : true;
+  const coincidePais = paisC ? String(c.pais) === String(paisC) : true;
+  const coincideProvincia = provinciaC ? String(c.provincia) === String(provinciaC) : true;
+  const coincideLocalidad = localidadC ? String(c.localidad) === String(localidadC) : true;
+  const coincideBarrio = barrioC ? String(c.barrio) === String(barrioC) : true;
+  const coincideCalle = calleC ? String(c.calle) === String(calleC) : true;
+  const coincideAltura = alturaC ? Number(c.altura) === Number(alturaC) : true;
+  const coincideDeptoNumero = deptoNumeroC ? Number(c.deptoNumero) === Number(deptoNumeroC) : true;
+  const coincideDeptoLetra = deptoLetraC ? c.deptoLetra?.toLowerCase() === deptoLetraC.toLowerCase() : true;
+  const coincideCondicionIva = condicionIvaC ? String(c.condicionIva) === String(condicionIvaC) : true;
+  const coincideCuentaCorriente = typeof cuentaCorrienteC === "boolean" ? p.cuentaCorriente === cuentaCorrienteC : true;
+
+  // Si todos los criterios activos coinciden => mantener cliente
+  return (
+    coincideNombre &&
+    coincideApellido &&
+    coincideTelefono &&
+    coincideEmail &&
+    coincideCuit &&
+    coincidePais &&
+    coincideProvincia &&
+    coincideLocalidad &&
+    coincideBarrio &&
+    coincideCalle &&
+    coincideAltura &&
+    coincideDeptoNumero &&
+    coincideDeptoLetra &&
+    coincideCondicionIva &&
+    coincideCuentaCorriente
+  );
+});
+
+
+    res.status(200).json({ ok: true, data: clientesFiltrados });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ ok: false, message: "Error al buscar clientes" });
+  }
+}
+
+module.exports = { setCliente , getCliente , getClienteID , updateCliente , deleteCliente , buscarCliente };

@@ -34,6 +34,7 @@ const setDeposito = async(req,res) => {
             altura: alturaD , 
             deptoNumero: deptoNumeroD , 
             deptoLetra: deptoLetraD , 
+            estado:true
         })
 
     await newDeposito.save()
@@ -49,7 +50,7 @@ const setDeposito = async(req,res) => {
 }
 
 const getDeposito = async(req,res) => {
-    const depositos = await Deposito.find();
+    const depositos = await Deposito.find({estado:true});
     
     res.status(200).json({
         ok:true,
@@ -130,7 +131,7 @@ const updateDeposito = async(req,res) => {
         { new: true , runValidators: true }
     )
 
-    if(!updateDeposito){
+    if(!updatedDeposito){
         res.status(400).json({
             ok:false,
             message:'Error al actualizar la deposito.'
@@ -153,7 +154,13 @@ const deleteDeposito = async(req,res) => {
         })
         return
     }
-    const deletedDeposito = await Deposito.findByIdAndDelete(id);
+    const deletedDeposito = await Deposito.findByIdAndUpdate(
+        id,
+        {
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
     
     if(!deletedDeposito){
         res.status(400).json({

@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const Pais_Schema = mongoose.Schema({
     _id: Number,
     name: {type: String , require:true},
+    estado: {type: Boolean , require:true},
 },
     
     {

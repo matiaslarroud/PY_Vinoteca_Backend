@@ -26,7 +26,8 @@ const setParaje = async (req , res ) => {
         localidad: localidadParaje ,  
         barrio: barrioParaje ,  
         calle: calleParaje,
-        altura: alturaParaje
+        altura: alturaParaje,
+        estado:true
     });
     
     if(!newParaje){
@@ -50,7 +51,7 @@ const setParaje = async (req , res ) => {
 }
 
 const getParaje = async(req,res) => {
-    const parajes = await Paraje.find();
+    const parajes = await Paraje.find({estado:true});
 
     if(!parajes){
         res.status(400).json({
@@ -156,7 +157,13 @@ const deleteParaje = async(req,res) => {
         })
         return
     }
-    const deletedParaje = await Paraje.findByIdAndDelete(parajeID);
+    const deletedParaje = await Paraje.findByIdAndUpdate(
+        parajeID,
+        {
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
     if(!deletedParaje){
         res.status(400).json({
             ok:false,

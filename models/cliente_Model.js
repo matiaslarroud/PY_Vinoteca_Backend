@@ -51,7 +51,8 @@ const Cliente_Schema = mongoose.Schema({
         required: function () {
             return this.cuentaCorriente === true;
         }
-    }
+    },
+    estado: {type: Boolean , require:true},
     },
     
     {

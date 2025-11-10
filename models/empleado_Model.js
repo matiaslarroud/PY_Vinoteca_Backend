@@ -36,6 +36,7 @@ const Empleado_Schema = mongoose.Schema({
     altura: {type: Number , require:true},
     deptoNumero: {type: Number , require:false},
     deptoLetra: {type: String , require:false},  
+    estado: {type: Boolean , require:true},
     },
     
     {

@@ -13,6 +13,7 @@ const OrdenProduccionDetalle_Schema = mongoose.Schema({
             ref: 'OrdenProduccion',
             required: true
         },
+    estado: {type: Boolean , require:true},
     },
     
     {

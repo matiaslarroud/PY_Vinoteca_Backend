@@ -11,7 +11,8 @@ const VinoDetalle_Schema = mongoose.Schema({
                 type: Number,
                 ref: 'Vino_Uva',
                 required: true
-        }
+        },
+        estado: {type: Boolean , require:true},
     },
     
     {

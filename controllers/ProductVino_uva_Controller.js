@@ -10,7 +10,7 @@ const setUva = async (req,res) => {
         return
     }
     const newUva = new Uva ({
-        _id: newId,name: name});
+        _id: newId,name: name , estado:true});
     await newUva.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Uva agregada correctamente.'})
@@ -20,7 +20,7 @@ const setUva = async (req,res) => {
 }
 
 const getUva = async(req, res) => {
-    const uvas = await Uva.find();
+    const uvas = await Uva.find({estado:true});
     if(!uvas){
         res.status(400).json({ok:false , message:'Error al obtener datos.'})
         return
@@ -97,7 +97,11 @@ const deleteUva = async(req,res) => {
         return
     }
 
-    const deletedUva = await Uva.findByIdAndDelete(id);
+    const deletedUva = await Uva.findByIdAndUpdate(
+        id,
+        {estado:false},
+        { new: true , runValidators: true }
+    )
     if(!deletedUva){
         res.status(400).json({
             ok:false,

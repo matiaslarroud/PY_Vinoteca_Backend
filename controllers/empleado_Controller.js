@@ -25,7 +25,7 @@ const setEmpleado = async (req,res) => {
     }
     const newEmpleado = new Empleado ({
         _id: newId,
-        name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC, telefono: telefonoC , email: emailC , cuit: cuitC ,
+        name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC, telefono: telefonoC , email: emailC , cuit: cuitC , estado:true,
         pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , altura: alturaC , deptoNumero: deptoNumC , deptoLetra: deptoLetraC
     });
     await newEmpleado.save()
@@ -37,7 +37,7 @@ const setEmpleado = async (req,res) => {
 }
 
 const getEmpleado = async(req, res) => {
-    const empleados = await Empleado.find();
+    const empleados = await Empleado.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -135,7 +135,13 @@ const deleteEmpleado = async(req,res) => {
         return
     }
 
-    const deletedEmpleado = await Empleado.findByIdAndDelete(id);
+    const deletedEmpleado = await Empleado.findByIdAndUpdate(
+        id,
+        {
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
     if(!deletedEmpleado){
         res.status(400).json({
             ok:false,

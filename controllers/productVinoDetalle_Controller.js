@@ -12,7 +12,7 @@ const setVinoDetalle = async (req,res) => {
     }
     const newVinoDetalle = new VinoDetalle ({
         _id: newId,
-        vino: vinoP , uva: uvaID
+        vino: vinoP , uva: uvaID , estado:true
     });
     await newVinoDetalle.save()
         .then( () => {
@@ -23,7 +23,7 @@ const setVinoDetalle = async (req,res) => {
 }
 
 const getVinoDetalle = async(req, res) => {
-    const detallesVino = await VinoDetalle.find();
+    const detallesVino = await VinoDetalle.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -131,7 +131,14 @@ const deleteVinoDetalle = async(req,res) => {
         return
     }
 
-    const deletedVinoDetalle = await VinoDetalle.deleteMany({vino:id});
+    const deletedVinoDetalle = await VinoDetalle.updateMany(
+        {vino:id},
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
+    
     if(!deletedVinoDetalle){
         res.status(400).json({
             ok:false,

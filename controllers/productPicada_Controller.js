@@ -1,4 +1,5 @@
 const Product = require('../models/productoPicada_Model')
+const PicadaDetalle = require("../models/productoPicadaDetalle_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setProduct =  async (req , res ) => {
@@ -21,7 +22,8 @@ const setProduct =  async (req , res ) => {
         precioVenta: precioProducto , 
         stock: stockProducto ,  
         deposito: depositoProducto,
-        tipoProducto: productType
+        tipoProducto: productType,
+        estado:true
     });
 
     if (stockMinimoProducto){
@@ -41,7 +43,7 @@ const setProduct =  async (req , res ) => {
 }
 
 const getProduct = async(req,res) => {
-    const productos = await Product.find();
+    const productos = await Product.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -109,12 +111,63 @@ const updateProduct =  async (req , res ) => {
 
 const deleteProduct = async (req , res) => {
     const id = req.params.id;
-    const deletedProduct = await Product.findByIdAndDelete(id)
-    if(!deletedProduct) {
+    const deletedProduct = await Product.findByIdAndUpdate(
+            id, 
+            {
+                estado:false
+            },
+            { new: true , runValidators: true }
+        )
+
+    const deletedPicadaDetalle = await PicadaDetalle.updateMany(
+        {picada:id},
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
+    if(!deletedProduct || !deletedPicadaDetalle) {
         res.status(400).json({ok:false,message:"Error al eliminar producto."});
         return
     }
     res.status(200).json({ok:true , message:"Producto eliminado correctamente."});
 }
 
-module.exports = {setProduct , getProduct , getProductID , updateProduct , deleteProduct};
+const buscarProducto = async(req,res) => {
+  try {
+    const stockP = req.body.stock;
+    const stockMinimoP = req.body.stockMinimo;
+    const depositoP = req.body.deposito;
+    const nombreP = req.body.name;
+    const precioVentaP = req.body.precioVenta;
+    
+// Primero traemos todos los clientes
+const productos = await Product.find({estado:true});
+
+const productosFiltrados = productos.filter(c => {
+  // Cada condición solo se evalúa si el campo tiene valor
+  const coincideNombre = nombreP ? c.name?.toLowerCase().includes(nombreP.toLowerCase()) : true;
+  const coincideStock = stockP ? Number(c.stock) === Number(stockP) : true;
+  const coincideStockMinimo = stockMinimoP ? Number(c.stockMinimo) === Number(stockMinimoP) : true;
+  const coincideDeposito = depositoP ? Number(c.deposito) === Number(depositoP) : true;
+  const coincidePrecio = precioVentaP ? Number(c.precioVenta) === Number(precioVentaP) : true; 
+
+  // Si todos los criterios activos coinciden => mantener cliente
+  return (
+    coincideNombre &&
+    coincideStock &&
+    coincideStockMinimo &&
+    coincideDeposito &&
+    coincidePrecio 
+  );
+});
+
+res.status(200).json({ ok: true, data: productosFiltrados });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ ok: false, message: "Error al buscar productos" });
+  }
+}
+
+module.exports = {setProduct , getProduct , getProductID , updateProduct , deleteProduct , buscarProducto};

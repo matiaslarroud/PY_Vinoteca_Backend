@@ -14,7 +14,8 @@ const ProveedorPresupuestoDetalle_Schema = mongoose.Schema({
             type: Number,
             ref: 'Producto',
             required: true
-        }
+        },
+    estado: {type: Boolean , require:true},
     },
     
     {

@@ -2,7 +2,8 @@ const mongoose = require("mongoose");
 
 const UvaTipo_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true}
+    name: {type: String , require:true},
+    estado: {type: Boolean , require:true},
     },
     {
         timestamps: true

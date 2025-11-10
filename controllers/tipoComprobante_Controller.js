@@ -14,7 +14,7 @@ const setTipoComprobante = async(req,res) => {
         return
     }
     const newTipoComprobante = await new TipoComprobante({
-        _id: newId,name:nombreTipoComprobante, condicionIva:condicionIvaID});
+        _id: newId,name:nombreTipoComprobante, condicionIva:condicionIvaID , estado:true});
     
     if(!newTipoComprobante){
         res.status(400).json({
@@ -40,7 +40,7 @@ const setTipoComprobante = async(req,res) => {
 }
 
 const getTipoComprobante = async(req,res) => {
-    const tiposComprobante = await TipoComprobante.find();
+    const tiposComprobante = await TipoComprobante.find({estado:true});
     if(!tiposComprobante){
         res.status(400).json({
             ok:false,
@@ -132,7 +132,11 @@ const deleteTipoComprobante = async(req,res) => {
         })
         return
     }
-    const deletedTipoComprobante = await TipoComprobante.findByIdAndDelete(tipoComprobanteID);
+    const deletedTipoComprobante = await TipoComprobante.findByIdAndUpdate(
+        tipoComprobanteID,
+        {estado:false},
+        { new: true , runValidators: true }
+    );
     
     if(!deletedTipoComprobante){
         res.status(400).json({

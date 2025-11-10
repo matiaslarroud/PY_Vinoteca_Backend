@@ -8,6 +8,7 @@ const Provincia_Schema = mongoose.Schema({
             ref: 'Pais',
             required: true
         },
+    estado: {type: Boolean , require:true},
     },
     
     {

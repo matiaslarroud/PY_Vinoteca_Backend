@@ -22,6 +22,7 @@ const setTransporte =  async (req , res ) => {
 
     const newTransporte = new Transporte({
         _id: newId,
+        estado:true,
         name: razonSocial,
         telefono: telefonoTransporte,
         email: emailTransporte, 
@@ -46,7 +47,7 @@ const setTransporte =  async (req , res ) => {
 }
 
 const getTransporte = async(req,res) => {
-    const transportes = await Transporte.find();
+    const transportes = await Transporte.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -124,7 +125,13 @@ const updateTransporte =  async (req , res ) => {
 
 const deleteTransporte = async (req , res) => {
     const id = req.params.id;
-    const deletedTransporte = await Transporte.findByIdAndDelete(id)
+    const deletedTransporte = await Transporte.findByIdAndUpdate(
+        id, 
+        {
+            estado: false
+        },
+        { new: true , runValidators: true }
+    )
     if(!deletedTransporte) {
         res.status(400).json({ok:false,message:"Error al eliminar transporte."});
         return

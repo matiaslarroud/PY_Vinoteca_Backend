@@ -5,6 +5,8 @@ const controller = require("../controllers/proveedor_Controller");
 
 router.post('/', controller.setProveedor);
 
+router.post('/buscar', controller.buscarProveedor);
+
 router.get('/' , controller.getProveedor)
 
 router.get('/:id' , controller.getProveedorID)

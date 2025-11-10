@@ -15,6 +15,7 @@ const setBodega = async (req , res ) => {
         _id: newId,
         name: nombreBodega , 
         familia: familiaBodega ,
+        estado:true
     });
 
     await newBodega.save()
@@ -29,7 +30,7 @@ const setBodega = async (req , res ) => {
 }
 
 const getBodega = async(req,res) => {
-    const bodegas = await Bodega.find();
+    const bodegas = await Bodega.find({estado:true});
     if (!bodegas) {
         res.status(400).json({
             ok:false , 
@@ -118,7 +119,13 @@ const deleteBodega = async(req,res) => {
         });
         return
     }
-    const deletedBodega = await Bodega.findByIdAndDelete(bodegaID);
+    const deletedBodega = await Bodega.findByIdAndUpdate(
+        bodegaID,
+        {
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
     if (!deletedBodega) {
         res.status(400).json({
             ok:false , 

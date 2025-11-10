@@ -13,7 +13,7 @@ const setPicadaDetalle = async (req,res) => {
     }
     const newPicadaDetalle = new PicadaDetalle ({
         _id: newId,
-        picada: picadaP , cantidad: cantidadP , insumo: insumoID
+        picada: picadaP , cantidad: cantidadP , insumo: insumoID , estado:true
     });
     await newPicadaDetalle.save()
         .then( () => {
@@ -24,7 +24,8 @@ const setPicadaDetalle = async (req,res) => {
 }
 
 const getPicadaDetalle = async(req, res) => {
-    const detallesPicada = await PicadaDetalle.find();
+    const detallesPicada = await PicadaDetalle.find({estado:true});
+
 
     res.status(200).json({
         ok:true,
@@ -69,7 +70,7 @@ const getPicadaDetalle_ByPicada = async(req,res) => {
         return
     }
 
-    const picadaDetalle = await PicadaDetalle.find({picada:id});
+    const picadaDetalle = await PicadaDetalle.find({picada:id, estado:true});
     if(!picadaDetalle || picadaDetalle.length === 0){
         res.status(400).json({
             ok:false,
@@ -133,7 +134,14 @@ const deletePicadaDetalle = async(req,res) => {
         return
     }
 
-    const deletedPicadaDetalle = await PicadaDetalle.deleteMany({picada:id});
+    const deletedPicadaDetalle = await PicadaDetalle.updateMany(
+        {picada:id},
+        {   
+            estado:false
+        },
+        { new: true , runValidators: true }
+    )
+    
     if(!deletedPicadaDetalle){
         res.status(400).json({
             ok:false,
@@ -147,4 +155,29 @@ const deletePicadaDetalle = async(req,res) => {
     })
 }
 
-module.exports = { setPicadaDetalle , getPicadaDetalle , getPicadaDetalleID, getPicadaDetalle_ByPicada , updatePicadaDetalle , deletePicadaDetalle };
+const buscarProducto = async(req,res) => {
+  try {
+    const insumoP = req.body.insumo;
+    
+// Primero traemos todos los clientes
+const productos = await PicadaDetalle.find({estado:true});
+
+const productosFiltrados = productos.filter(c => {
+  // Cada condición solo se evalúa si el campo tiene valor
+  const coincideInsumo = insumoP ? Number(c.insumo) === Number(insumoP) : true;
+
+  // Si todos los criterios activos coinciden => mantener cliente
+  return (
+    coindiceInsumo
+  );
+});
+
+res.status(200).json({ ok: true, data: productosFiltrados });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ ok: false, message: "Error al buscar productos" });
+  }
+}
+
+module.exports = { setPicadaDetalle , getPicadaDetalle , getPicadaDetalleID, getPicadaDetalle_ByPicada , buscarProducto , updatePicadaDetalle , deletePicadaDetalle };

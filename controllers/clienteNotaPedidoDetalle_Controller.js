@@ -15,7 +15,7 @@ const setNotaPedidoDetalle = async (req,res) => {
     }
     const newNotaPedidoDetalle = new NotaPedidoDetalle ({
         _id: newId,
-        importe: importeP , notaPedido: notaPedidoP , producto: productoID , precio:precioP , cantidad:cantidadP
+        importe: importeP , notaPedido: notaPedidoP , producto: productoID , precio:precioP , cantidad:cantidadP , estado:true
     });
     await newNotaPedidoDetalle.save()
         .then( () => {
@@ -26,7 +26,7 @@ const setNotaPedidoDetalle = async (req,res) => {
 }
 
 const getNotaPedidoDetalle = async(req, res) => {
-    const detallesNotaPedido = await NotaPedidoDetalle.find();
+    const detallesNotaPedido = await NotaPedidoDetalle.find({estado:true});
 
     res.status(200).json({
         ok:true,
@@ -137,7 +137,14 @@ const deleteNotaPedidoDetalle = async(req,res) => {
         return
     }
 
-    const deletedNotaPedidoDetalle = await NotaPedidoDetalle.deleteMany({notaPedido:id});
+    const deletedNotaPedidoDetalle = await NotaPedidoDetalle.updateMany(
+        {notaPedido:id},
+        {   
+            estado: false
+        },
+        { new: true , runValidators: true }
+    )
+    
     if(!deletedNotaPedidoDetalle){
         res.status(400).json({
             ok:false,

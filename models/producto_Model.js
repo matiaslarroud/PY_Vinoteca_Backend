@@ -18,7 +18,8 @@ const productSchema = mongoose.Schema({
             ref: 'Deposito',
             required: false
         } ,
-    tipoProducto:{type: String , require:true}
+    tipoProducto:{type: String , require:true},
+    estado: {type: Boolean , require:true},
     },
     {
         timestamps: true

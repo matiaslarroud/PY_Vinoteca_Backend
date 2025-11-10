@@ -8,6 +8,7 @@ const tipoComprobante_Schema = mongoose.Schema({
         ref: 'CondicionIva',
         required: true
     },
+    estado: {type: Boolean , require:true},
     
     },
     {
