@@ -54,6 +54,7 @@ const routerProveedor_ComprobantePago = require('./routes/proveedorComprobantePa
 const routerProveedor_Remito = require('./routes/proveedorRemito_Router.js');
 const routerProveedor_RemitoDetalle = require('./routes/proveedorRemitoDetalle_Router.js');
 const routerUsuario = require('./routes/usuario_Router.js');
+const pingServer = require('./routes/pingServer.js');
 
 const app = express();
 
@@ -61,6 +62,8 @@ connectDB(app);
 
 app.use(express.json());
 app.use(cors());
+
+app.use(`${process.env.ROUTE}/ping`,pingServer);
 
 app.use(`${process.env.ROUTE}/usuario`, routerUsuario);
 
