@@ -68,7 +68,7 @@ const getVinoDetalle_ByVino = async(req,res) => {
         return
     }
 
-    const vinoDetalle = await VinoDetalle.find({vino:id});
+    const vinoDetalle = await VinoDetalle.find({vino:id , estado:true});
     if(!vinoDetalle || vinoDetalle.length === 0){
         res.status(400).json({
             ok:false,

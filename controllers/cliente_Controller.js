@@ -1,4 +1,6 @@
 const Cliente = require("../models/cliente_Model");
+const Presupuesto = require("../models/clientePresupuesto_Model");
+const NotaPedido = require("../models/clienteNotaPedido_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setCliente = async (req,res) => {
@@ -139,6 +141,22 @@ const deleteCliente = async(req,res) => {
             message:'El id no llego al controlador correctamente.'
         })
         return
+    }
+
+    const tienePresupuestos = await Presupuesto.exists({ cliente: id });
+    if (tienePresupuestos) {
+      return res.status(400).json({
+        ok: false,
+        message: 'No se puede eliminar al cliente porque posee sericios asociados.'
+      });
+    }
+
+    const tieneNotasPedido = await NotaPedido.exists({ cliente: id });
+    if (tieneNotasPedido) {
+      return res.status(400).json({
+        ok: false,
+        message: 'No se puede eliminar al cliente porque posee servicios asociados.'
+      });
     }
 
     const deletedCliente = await Cliente.findByIdAndUpdate(

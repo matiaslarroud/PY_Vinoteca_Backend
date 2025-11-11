@@ -1,5 +1,6 @@
 const Presupuesto = require("../models/clientePresupuesto_Model");
 const PresupuestoDetalle = require("../models/clientePresupuestoDetalle_Model");
+const NotaPedido = require("../models/clienteNotaPedido_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -118,6 +119,14 @@ const deletePresupuesto = async(req,res) => {
         })
         return
     }
+    
+    const tieneNotasPedido = await NotaPedido.exists({ presupuesto: id });
+    if (tieneNotasPedido) {
+      return res.status(400).json({
+        ok: false,
+        message: 'No se puede eliminar el presupuesto porque posee servicios asociados.'
+      });
+    }    
 
     const deletedPresupuesto = await Presupuesto.findByIdAndUpdate(
         id,

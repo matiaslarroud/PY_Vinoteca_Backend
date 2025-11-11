@@ -24,7 +24,6 @@ const NotaPedido_Schema = mongoose.Schema({
             type: Number,
             ref: 'Cliente_Presupuesto'
         },
-    facturado: {type: Boolean , require:true},
     envio: {type: Boolean , require:true},
     provincia: {
         type: Number,
@@ -68,6 +67,7 @@ const NotaPedido_Schema = mongoose.Schema({
         type: String,
         require:false
     },
+    descuento: {type: Number , require:true},
     estado: {type: Boolean , require:true},
 },
     

@@ -7,7 +7,6 @@ const ComprobanteVenta_Schema = mongoose.Schema({
         type: String , 
         ref: 'TipoComprobante',
         require:true},
-    descuento: {type: Number},
     fecha: {type: Date , require:true},
     notaPedido: {
             type: Number,

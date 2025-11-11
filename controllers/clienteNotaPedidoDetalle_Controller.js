@@ -45,7 +45,7 @@ const getNotaPedidoDetalleByNotaPedido = async(req,res) => {
         return
     }
 
-    const notaPedidoDetalle = await NotaPedidoDetalle.find({notaPedido:id});
+    const notaPedidoDetalle = await NotaPedidoDetalle.find({notaPedido:id , estado:true});
     if(!notaPedidoDetalle){
         res.status(400).json({
             ok:false,

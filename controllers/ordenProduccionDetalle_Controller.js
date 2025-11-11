@@ -72,7 +72,7 @@ const getOrdenDetalle_ByOrden = async(req,res) => {
         return
     }
 
-    const ordenDetalle = await OrdenProduccionDetalle.find({ordenProduccion:id});
+    const ordenDetalle = await OrdenProduccionDetalle.find({ordenProduccion:id , estado:true});
     if(!ordenDetalle || ordenDetalle.length === 0){
         res.status(400).json({
             ok:false,

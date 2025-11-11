@@ -1,6 +1,7 @@
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
 const ComprobanteVentaDetalle = require("../models/clienteComprobanteVentaDetalle_Model");
 const NotaPedido = require("../models/clienteNotaPedido_Model");
+const Cliente = require("../models/cliente_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -14,7 +15,6 @@ const setComprobanteVenta = async (req, res) => {
         const totalP = req.body.total;
         const fechaP = obtenerFechaHoy();
         const tipoComprobanteP = req.body.tipoComprobante;
-        const descuentoP = req.body.descuento;
         const notaPedidoP = req.body.notaPedido;
 
         // Validar datos obligatorios
@@ -31,31 +31,11 @@ const setComprobanteVenta = async (req, res) => {
             total: totalP,
             fecha: fechaP,
             tipoComprobante: tipoComprobanteP,
-            descuento: descuentoP || 0,
             facturado: true,
             remitoCreado: false,
             notaPedido: notaPedidoP,
             estado:true
         });
-
-        // Si hay descuento, recalcular total
-        if (descuentoP) {
-            newComprobanteVenta.total = totalP - ((totalP * descuentoP) / 100);
-        }
-
-        // Actualizar el pedido a facturado
-        const updatePedidoState = await NotaPedido.findByIdAndUpdate(
-            notaPedidoP,
-            { facturado: true },
-            { new: true, runValidators: true }
-        );
-
-        if (!updatePedidoState) {
-            return res.status(400).json({
-                ok: false,
-                message: 'Error al actualizar el estado del pedido.'
-            });
-        }
 
         // Guardar comprobante
         await newComprobanteVenta.save();
@@ -86,31 +66,72 @@ const getComprobanteVenta = async(req, res) => {
     })
 }
 
-const getComprobanteVentaID = async(req,res) => {
-    const id = req.params.id;
+const getComprobanteVentaID = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'El id no llego al controlador correctamente',
-        })
-        return
+    if (!id) {
+      return res.status(400).json({
+        ok: false,
+        message: "El ID no llegó correctamente al controlador.",
+      });
     }
 
-    const comprobanteVentaEncontrado = await ComprobanteVenta.findById(id);
-    if(!comprobanteVentaEncontrado){
-        res.status(400).json({
-            ok:false,
-            message:'El id no corresponde a un comprobante de venta.'
-        })
-        return
+    // Buscar comprobante principal
+    const comprobanteVenta = await ComprobanteVenta.findById(id);
+    if (!comprobanteVenta) {
+      return res.status(404).json({
+        ok: false,
+        message: "No se encontró el comprobante de venta solicitado.",
+      });
     }
 
+    // Buscar nota de pedido asociada
+    const notaPedido = await NotaPedido.findById(comprobanteVenta.notaPedido);
+    if (!notaPedido) {
+      return res.status(404).json({
+        ok: false,
+        message: "La nota de pedido asociada no fue encontrada.",
+      });
+    }
+
+    // Buscar cliente asociado a la nota de pedido
+    const cliente = await Cliente.findById(notaPedido.cliente);
+
+    // Buscar detalles del comprobante
+    const detalles = await ComprobanteVentaDetalle.find({
+      comprobanteVentaID: comprobanteVenta._id,
+    }).populate("productoID", "nombre precioVenta");
+
+
+    // Construir respuesta
+    const body = {
+      _id: comprobanteVenta._id,
+      tipoComprobante: Number(comprobanteVenta.tipoComprobante),
+      fecha: comprobanteVenta.fecha,
+      notaPedido: Number(comprobanteVenta.notaPedido),
+      total: comprobanteVenta.total,
+      cliente: cliente
+        ? {
+            _id: Number(cliente._id),
+            name: cliente.name,
+          }
+        : null,
+    };
     res.status(200).json({
-        ok:true,
-        data:comprobanteVentaEncontrado,
-    })
-}
+      ok: true,
+      data: body,
+    });
+  } catch (err) {
+    console.error("❌ Error al obtener comprobante de venta:", err);
+    res.status(500).json({
+      ok: false,
+      message: "Error interno del servidor al obtener el comprobante de venta.",
+      error: err.message,
+    });
+  }
+};
+
 
 const updateComprobanteVenta = async(req,res) => {
     const id = req.params.id;
@@ -118,7 +139,6 @@ const updateComprobanteVenta = async(req,res) => {
     const totalP = req.body.total;
     const fechaP = obtenerFechaHoy();
     const tipoComprobanteP = req.body.tipoComprobante;
-    const descuentoP = req.body.descuento;
     const notaPedidoP = req.body.notaPedido;
 
     if(!id){
@@ -133,8 +153,6 @@ const updateComprobanteVenta = async(req,res) => {
         total: totalP , 
         fecha: fechaP , 
         tipoComprobante: tipoComprobanteP,
-        descuento: descuentoP,
-        facturado: true, 
         remitoCreado: false,
     };
     
@@ -213,7 +231,6 @@ const buscarComprobanteVenta = async (req, res) => {
   try {
     const comprobanteID = req.body.comprobanteVentaID;
     const clienteP = req.body.cliente;
-    const descuentoP = Number(req.body.descuento) || 0;
     const detallesP = req.body.detalles || [];
     const notaPedidoP = req.body.notaPedido;
     const totalP = Number(req.body.total) || 0;
@@ -261,7 +278,6 @@ const buscarComprobanteVenta = async (req, res) => {
       !clienteP &&
       !notaPedidoP &&
       !fechaP &&
-      (descuentoP === 0 || descuentoP === "") &&
       (totalP === 0 || totalP === "") &&
       detallesP.length === 0;
 
@@ -273,7 +289,6 @@ const buscarComprobanteVenta = async (req, res) => {
     // 4️⃣ Aplicar filtros
     const comprobantesFiltrados = comprobantes.filter(p => {
       const coincideComprobante = comprobanteID ? (p._id) === Number(comprobanteID) : true;
-      const coincideDescuento = descuentoP ? Number(p.descuento) === descuentoP : true;
       const coincideTotal = totalP ? Number(p.total) === totalP : true;
       const coincideFecha = fechaP
         ? String(new Date(p.fecha).toISOString().split("T")[0]) ===
@@ -286,7 +301,7 @@ const buscarComprobanteVenta = async (req, res) => {
         ? p.notaPedido && idsNotasCliente.includes(String(p.notaPedido))
         : true;
 
-      return coincideCliente && coincideDescuento && coincideTotal &&
+      return coincideCliente && coincideTotal &&
              coincideFecha && coincidePedido && coincideComprobante;
     });
 

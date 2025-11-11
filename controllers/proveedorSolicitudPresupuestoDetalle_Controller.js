@@ -6,6 +6,7 @@ const setSolicitudPresupuestoDetalle = async (req,res) => {
     const cantidadP = req.body.cantidad;
     const solicitudPresupuestoP = req.body.solicitudPresupuesto;
     const productoID = req.body.producto;
+    const importe = req.body.importe;
 
     if(!solicitudPresupuestoP || !productoID || !cantidadP ){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
@@ -13,7 +14,8 @@ const setSolicitudPresupuestoDetalle = async (req,res) => {
     }
     const newPresupuestoDetalle = new SolicitudPresupuestoDetalle ({
         _id: newId,
-        solicitudPresupuesto: solicitudPresupuestoP , producto: productoID , cantidad:cantidadP , estado:true
+        solicitudPresupuesto: solicitudPresupuestoP , producto: productoID , 
+        cantidad:cantidadP , importe:importe , estado:true
     });
     await newPresupuestoDetalle.save()
         .then( () => {
@@ -43,7 +45,7 @@ const getSolicitudPresupuestoDetalleBySolicitudPresupuesto = async(req,res) => {
         return
     }
 
-    const presupuestoDetalle = await SolicitudPresupuestoDetalle.find({solicitudPresupuesto:id});
+    const presupuestoDetalle = await SolicitudPresupuestoDetalle.find({solicitudPresupuesto:id, estado:true});
     if(!presupuestoDetalle){
         res.status(400).json({
             ok:false,
@@ -91,6 +93,7 @@ const updateSolicitudPresupuestoDetalle = async(req,res) => {
     const cantidadP = req.body.cantidad;
     const solicitudPresupuestoP = req.body.solicitudPresupuesto;
     const productoID = req.body.producto;
+    const importe = req.body.importe;
 
     if(!id){
         res.status(400).json({
@@ -103,7 +106,8 @@ const updateSolicitudPresupuestoDetalle = async(req,res) => {
     const updatedPresupuestoDetalle = await SolicitudPresupuestoDetalle.findByIdAndUpdate(
         id,
         {   
-            cantidad: cantidadP , solicitudPresupuesto: solicitudPresupuestoP , producto: productoID
+            cantidad: cantidadP , solicitudPresupuesto: solicitudPresupuestoP , 
+            producto: productoID , importe: importe
         },
         { new: true , runValidators: true }
     )

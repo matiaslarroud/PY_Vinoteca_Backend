@@ -49,7 +49,7 @@ const getRemitoDetalleByRemito = async(req,res) => {
         return
     }
 
-    const remitoDetalleEncontrado = await RemitoDetalle.find({remito:id});
+    const remitoDetalleEncontrado = await RemitoDetalle.find({remito:id , estado:true});
     if(!remitoDetalleEncontrado){
         res.status(400).json({
             ok:false,

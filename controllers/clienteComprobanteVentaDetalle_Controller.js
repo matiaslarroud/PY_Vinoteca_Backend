@@ -50,7 +50,7 @@ const getComprobanteVentaDetalleByComprobanteVenta = async(req,res) => {
         return
     }
 
-    const comprobanteVentaDetalleEncontrado = await ComprobanteVentaDetalle.find({comprobanteVenta:id});
+    const comprobanteVentaDetalleEncontrado = await ComprobanteVentaDetalle.find({comprobanteVenta:id , estado:true});
     if(!comprobanteVentaDetalleEncontrado){
         res.status(400).json({
             ok:false,

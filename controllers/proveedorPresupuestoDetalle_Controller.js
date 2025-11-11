@@ -45,7 +45,7 @@ const getPresupuestoDetalleByPresupuesto = async(req,res) => {
         return
     }
 
-    const presupuestoDetalle = await PresupuestoDetalle.find({presupuesto:id});
+    const presupuestoDetalle = await PresupuestoDetalle.find({presupuesto:id , estado:true});
     if(!presupuestoDetalle){
         res.status(400).json({
             ok:false,

@@ -13,6 +13,7 @@ const ProveedorSolicitudPresupuestoDetalle_Schema = mongoose.Schema({
             ref: 'Producto',
             required: true
         },
+    importe: {type:Number , require:true},
     estado: {type: Boolean , require:true},
     },
     

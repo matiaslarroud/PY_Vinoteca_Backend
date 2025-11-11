@@ -1,5 +1,7 @@
 const NotaPedido = require("../models/clienteNotaPedido_Model");
 const NotaPedidoDetalle = require("../models/clienteNotaPedidoDetalle_Model");
+const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
+const Producto = require("../models/producto_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -23,26 +25,31 @@ const setNotaPedido = async (req,res) => {
     const calle = req.body.calle;
     const altura = req.body.altura;
     const deptoNumero = req.body.deptoNumero;
-    const deptoLetra = req.body.deptoLetra;
+    const deptoLetra = req.body.deptoLetra;    
+    const descuento = req.body.descuento;
 
     if(!totalP || !fechaP || !clienteID || !empleadoID || !medioPagoID || !fechaEntregaP){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
     const newNotaPedido = new NotaPedido ({
-        _id: newId,
-        total: totalP , 
+        _id: newId, 
         fecha: fechaP , 
         cliente: clienteID,
         empleado:empleadoID , 
         medioPago:medioPagoID , 
         fechaEntrega:fechaEntregaP , 
         envio:envioP,
-        facturado: false,
         estado:true
     });
     if (presupuestoID) {
         newNotaPedido.presupuesto = presupuestoID;
+    }
+    if (descuento > 0) {
+        newNotaPedido.descuento = descuento;
+        newNotaPedido.total = totalP - ((totalP*descuento)/100)
+    } else {
+        newNotaPedido.total = totalP
     }
 
     if (envioP) {
@@ -70,14 +77,38 @@ const setNotaPedido = async (req,res) => {
 
 }
 
-const getNotaPedido = async(req, res) => {
-    const notaPedidos = await NotaPedido.find({estado:true});
+const getNotaPedido = async (req, res) => {
+  try {
+    // 1️⃣ Traer todas las notas activas
+    const notaPedidos = await NotaPedido.find({ estado: true }).lean();
 
+    // 2️⃣ Traer todos los comprobantes de venta (solo el campo que nos interesa)
+    const comprobantes = await ComprobanteVenta.find({}, "notaPedido").lean();
+
+    // 3️⃣ Extraer los IDs de notas de pedido facturadas
+    const notasFacturadas = new Set(comprobantes.map(c => String(c.notaPedido)));
+
+    // 4️⃣ Agregar el campo 'facturado' a cada nota
+    const notasConEstado = notaPedidos.map(np => ({
+      ...np,
+      facturado: notasFacturadas.has(String(np._id))
+    }));
+
+    // 5️⃣ Devolver la respuesta
     res.status(200).json({
-        ok:true,
-        data: notaPedidos,
-    })
-}
+      ok: true,
+      data: notasConEstado
+    });
+
+  } catch (error) {
+    console.error("Error al obtener notas de pedido:", error);
+    res.status(500).json({
+      ok: false,
+      message: "Error interno al obtener las notas de pedido."
+    });
+  }
+};
+
 
 const getNotaPedidoID = async(req,res) => {
     const id = req.params.id;
@@ -114,7 +145,7 @@ const getNotaPedidoByCliente = async(req,res) => {
         })
         return
     }
-    const notaPedidos = await NotaPedido.find({ cliente: clienteID });
+    const notaPedidos = await NotaPedido.find({ cliente: clienteID , estado:true });
     if(!notaPedidos || notaPedidos.length === 0){
         res.status(404).json({
             ok:false,
@@ -153,6 +184,7 @@ const updateNotaPedido = async(req,res) => {
     const altura = req.body.altura;
     const deptoNumero = req.body.deptoNumero;
     const deptoLetra = req.body.deptoLetra;
+    const descuento = req.body.descuento;
 
     if(!id){
         res.status(400).json({
@@ -175,6 +207,13 @@ const updateNotaPedido = async(req,res) => {
     
     if (presupuestoID) {
         updatedPedidoData.presupuesto = presupuestoID;
+    }
+    
+    if (descuento > 0) {
+        updatedPedidoData.descuento = descuento;
+        updatedPedidoData.total = totalP - ((totalP*descuento)/100)
+    } else {
+        updatedPedidoData.total = totalP
     }
 
     if (envioP) {
@@ -211,47 +250,70 @@ const updateNotaPedido = async(req,res) => {
     })
 }
 
-const deleteNotaPedido = async(req,res) => {
-    const id = req.params.id;
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'El id no llego al controlador correctamente.'
-        })
-        return
+const deleteNotaPedido = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        ok: false,
+        message: 'El ID no llegó correctamente al controlador.'
+      });
     }
 
-    const deletedNotaPedido = await NotaPedido.findByIdAndUpdate(
-        id,
-        {estado:false},
-        { new: true , runValidators: true }
-    )
-    if(!deletedNotaPedido){
-        res.status(400).json({
-            ok:false,
-            message: 'Error durante el borrado.'
-        })
-        return
+    const nota = await NotaPedido.findById(id);
+    if (!nota) {
+      return res.status(404).json({
+        ok: false,
+        message: 'La nota de pedido no fue encontrada.'
+      });
     }
-    const deletedNotaPedidoDetalle = await NotaPedidoDetalle.updateMany(
-        {notaPedido:id},
-        {   
-            estado: false
-        },
-        { new: true , runValidators: true }
-    )
-    if(!deletedNotaPedidoDetalle){
-        res.status(400).json({
-            ok:false,
-            message: 'Error durante el borrado.'
-        })
-        return
+
+    const comprobanteAsociado = await ComprobanteVenta.exists({ notaPedido: id , estado:true});
+    if (comprobanteAsociado) {
+      return res.status(400).json({
+        ok: false,
+        message: 'No se puede eliminar la nota de pedido porque posee servicios asociados.'
+      });
     }
+
+    const detalles = await NotaPedidoDetalle.find({ notaPedido: id, estado: true });
+    
+    for (const detalle of detalles) {
+      await Producto.findByIdAndUpdate(
+        detalle.producto,
+        { $inc: { stock: detalle.cantidad } }, // suma la cantidad al stock
+        { new: true }
+      );
+    }
+
+    await NotaPedido.findByIdAndUpdate(
+      id,
+      { estado: false },
+      { new: true, runValidators: true }
+    );
+
+    await NotaPedidoDetalle.updateMany(
+      { notaPedido: id },
+      { estado: false },
+      { new: true, runValidators: true }
+    );
+
     res.status(200).json({
-        ok:true,
-        message:'Nota de pedido eliminado correctamente.'
-    })
-}
+      ok: true,
+      message: 'Nota de pedido eliminada correctamente y stock reintegrado.'
+    });
+
+  } catch (error) {
+    console.error('Error en deleteNotaPedido:', error);
+    res.status(500).json({
+      ok: false,
+      message: 'Error interno del servidor.',
+      error: error.message
+    });
+  }
+};
+
 
 const buscarNotaPedido = async (req, res) => {
     const { 
