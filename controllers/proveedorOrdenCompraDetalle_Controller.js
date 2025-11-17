@@ -72,6 +72,32 @@ const getOrdenCompraDetalleID = async(req,res) => {
     })
 }
 
+const getOrdenCompraDetalleByOrdenCompra = async(req,res) => {
+    const id = req.params.id;
+
+    if(!id){
+        res.status(400).json({
+            ok:false,
+            message:'El id no llego al controlador correctamente',
+        })
+        return
+    }
+
+    const ordenCompraDetalle = await OrdenCompraDetalle.find({ordenCompra:id , estado:true});
+    if(!ordenCompraDetalle){
+        res.status(400).json({
+            ok:false,
+            message:'El id no corresponde al detalle de una orden de compra.'
+        })
+        return
+    }
+
+    res.status(200).json({
+        ok:true,
+        data:ordenCompraDetalle,
+    })
+}
+
 const updateOrdenCompraDetalle = async(req,res) => {
     const id = req.params.id;
     
@@ -161,4 +187,4 @@ const deleteOrdenCompraDetalle = async(req,res) => {
     })
 }
 
-module.exports = { setOrdenCompraDetalle , getOrdenCompraDetalle , getOrdenCompraDetalleID , updateOrdenCompraDetalle , deleteOrdenCompraDetalle };
+module.exports = { setOrdenCompraDetalle ,getOrdenCompraDetalleByOrdenCompra  , getOrdenCompraDetalle , getOrdenCompraDetalleID , updateOrdenCompraDetalle , deleteOrdenCompraDetalle };

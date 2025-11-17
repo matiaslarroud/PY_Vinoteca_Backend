@@ -174,4 +174,51 @@ const deletePresupuesto = async(req,res) => {
     })
 }
 
-module.exports = { setPresupuesto , getPresupuesto , getPresupuestoID , updatePresupuesto , deletePresupuesto };
+const buscarPresupuesto = async (req, res) => {
+    const { presupuestoID , proveedor, empleado , medioPago , solicitudPresupuesto , total , detalles } = req.body;
+    // 1️⃣ Obtenemos todos los productos que vienen en los detalles
+    const productosBuscados = detalles && detalles.length > 0
+      ? detalles.map(d => d.producto)
+      : [];
+
+    // 2️⃣ Buscamos los PresupuestoDetalle que contengan alguno de esos productos
+    let detallesFiltrados = [];
+    if (productosBuscados.length > 0) {
+      detallesFiltrados = await PresupuestoDetalle.find({
+        producto: { $in: productosBuscados },
+      });
+    } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
+        res.status(500).json({ ok: false, message: "Error al buscar presupuestos" });       
+    } else if (!detalles) {
+      detallesFiltrados = await PresupuestoDetalle.find();
+    }
+
+    // 3️⃣ Obtenemos los IDs únicos de los presupuestos asociados
+    const presupuestosIDs = [...new Set(detallesFiltrados.map(d => d.presupuesto))];
+
+    // 4️⃣ Buscamos los presupuestos relacionados
+    let presupuestos = await Presupuesto.find(
+      presupuestosIDs.length > 0 ? { _id: { $in: presupuestosIDs } } : {}
+    );
+
+    // 5️⃣ Filtramos adicionalmente por cliente, empleado o total si existen
+    const presupuestosFiltrados = presupuestos.filter(p => {
+      const coincideEstado = p.estado === true;
+      const coincidePresupuesto = presupuestoID ? (p._id) === Number(presupuestoID) : true;
+      const coincideMedioPago = medioPago ? (p.medioPago) === Number(medioPago) : true;
+      const coincideTotal = total ? (p.total) === Number(total) : true;
+      const coincideSolicitudPresupuesto = solicitudPresupuesto ? (p.solicitudPresupuesto) === Number(solicitudPresupuesto) : true;
+      const coincideProveedor = proveedor ? String(p.proveedor) === String(proveedor) : true;
+      const coincideEmpleado = empleado ? String(p.empleado) === String(empleado) : true;
+      return coincideProveedor && coincideEmpleado && coincidePresupuesto && coincideEstado &&
+                coincideMedioPago && coincideTotal && coincideSolicitudPresupuesto;
+    });
+
+    if(presupuestosFiltrados.length > 0){
+        res.status(200).json({ ok: true, data: presupuestosFiltrados });
+    } else {
+        res.status(500).json({ ok: false, message: "Error al buscar presupuestos." });
+    }
+};
+
+module.exports = { setPresupuesto , getPresupuesto , getPresupuestoID , updatePresupuesto , deletePresupuesto , buscarPresupuesto };

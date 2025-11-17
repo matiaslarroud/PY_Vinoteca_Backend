@@ -270,6 +270,7 @@ const buscarRemito = async (req, res) => {
 
     // 4️⃣ Aplicar filtros
     const remitosFiltrados = remitos.filter(p => {
+        const coincideEstado = p.estado === true;
       const coincideRemito = remitoID ? (p._id) === Number(remitoID) : true;
       const coincideTotalBultos = totalBultosP ? Number(p.totalBultos) === totalBultosP : true;
       const coincideTotalPrecio = totalPrecioP ? Number(p.totalPrecio) === totalPrecioP : true;
@@ -285,7 +286,7 @@ const buscarRemito = async (req, res) => {
       const coincideTransporte = transporteP ? String(p.transporteID) === String(transporteP) : true;
 
       return coincideCliente && coincideTotalBultos && coincideTotalPrecio && coincideComprobante &&
-             coincideFecha && coincideEntregado && coincideTransporte && coincideRemito;
+             coincideFecha && coincideEntregado && coincideTransporte && coincideRemito && coincideEstado;
     });
 
     console.log("✅ Remitos filtrados:", remitosFiltrados.length);

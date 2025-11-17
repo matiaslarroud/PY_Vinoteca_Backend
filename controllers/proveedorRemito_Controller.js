@@ -1,5 +1,7 @@
 const Remito = require("../models/proveedorRemito_Model");
 const RemitoDetalle = require("../models/proveedorRemitoDetalle_Model");
+const ComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
+const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
 const getNextSequence = require("./counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -62,31 +64,93 @@ const getRemito = async(req, res) => {
     })
 }
 
-const getRemitoID = async(req,res) => {
-    const id = req.params.id;
+// const getRemitoID = async(req,res) => {
+//     const id = req.params.id;
 
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'El id no llego al controlador correctamente',
-        })
-        return
+//     if(!id){
+//         res.status(400).json({
+//             ok:false,
+//             message:'El id no llego al controlador correctamente',
+//         })
+//         return
+//     }
+
+//     const remitoEncontrado = await Remito.findById(id);
+//     if(!remitoEncontrado){
+//         res.status(400).json({
+//             ok:false,
+//             message:'El id no corresponde a un remito.'
+//         })
+//         return
+//     }
+
+//     res.status(200).json({
+//         ok:true,
+//         data:remitoEncontrado,
+//     })
+// }
+
+const getRemitoID = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        ok: false,
+        message: "El ID no llegó correctamente al controlador.",
+      });
     }
 
-    const remitoEncontrado = await Remito.findById(id);
-    if(!remitoEncontrado){
-        res.status(400).json({
-            ok:false,
-            message:'El id no corresponde a un remito.'
-        })
-        return
+    // 1️⃣ Buscamos el remito
+    const remito = await Remito.findById(id);
+    if (!remito) {
+      return res.status(404).json({
+        ok: false,
+        message: "El ID no corresponde a un remito.",
+      });
     }
 
+    // 2️⃣ Buscamos el comprobante de compra
+    const comprobante = await ComprobanteCompra.findById(remito.comprobanteCompra);
+    if (!comprobante) {
+      return res.status(404).json({
+        ok: false,
+        message: "No se encontró el comprobante de compra asociado al remito.",
+      });
+    }
+
+    // 3️⃣ Buscamos la orden de compra
+    const orden = await OrdenCompra.findById(comprobante.ordenCompra);
+    if (!orden) {
+      return res.status(404).json({
+        ok: false,
+        message: "No se encontró la orden de compra asociada al comprobante.",
+      });
+    }
+
+    // 4️⃣ Obtenemos el proveedor desde la orden
+    const proveedorID = orden.proveedor;
+
+    // 5️⃣ Respondemos
     res.status(200).json({
-        ok:true,
-        data:remitoEncontrado,
-    })
-}
+      ok: true,
+      data: {
+        remito,
+        comprobante: comprobante._id,
+        proveedor: proveedorID,
+      },
+    });
+
+  } catch (error) {
+    console.error("Error al obtener datos de remito:", error);
+    res.status(500).json({
+      ok: false,
+      message: "Error interno del servidor al obtener los datos del remito.",
+      error: error.message,
+    });
+  }
+};
+
 
 const updateRemito = async(req,res) => {
     const id = req.params.id;
@@ -176,4 +240,84 @@ const deleteRemito = async(req,res) => {
     })
 }
 
-module.exports = { setRemito , getRemito , getRemitoID , updateRemito , deleteRemito };
+const buscarRemito = async (req, res) => {
+  try {
+    const remitoID = req.body.remitoID;
+    const proveedor = req.body.proveedor;
+    const detalles = req.body.detalles || [];
+    const comprobanteCompra = req.body.comprobanteCompra;
+    const transporte = req.body.transporte;
+    const totalPrecio = Number(req.body.totalPrecio) || 0;
+    const totalBultos = Number(req.body.totalBultos) || 0;
+    const fecha = req.body.fecha ? new Date(req.body.fecha) : null;
+
+    let ordenesCompra = [];
+    let comprobantesCompra = [];
+    let idsOrdenesCompra = [];
+    if (proveedor) {
+      ordenesCompra = await OrdenCompra.find({ proveedor: proveedor }).select("_id");
+      idsOrdenesCompra = ordenesCompra.map(np => String(np._id));
+      comprobantesCompra = await ComprobanteCompra.find({ ordenCompra: { $in : idsOrdenesCompra} }).select("_id");
+    }
+
+    const idsComprobantes = comprobantesCompra.map(np => String(np._id));
+
+    // 2️⃣ Buscar los comprobantes según productos (si hay detalles)
+    const productosBuscados = detalles.length > 0
+      ? detalles.map(d => d.producto)
+      : [];
+
+    let detallesFiltrados = [];
+    if (productosBuscados.length > 0) {
+      detallesFiltrados = await RemitoDetalle.find({
+        producto: { $in: productosBuscados },
+      });
+    } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
+        res.status(500).json({ ok: false, message: "Error al buscar remitos" });       
+    } else {
+      detallesFiltrados = await RemitoDetalle.find();
+    }
+
+    const remitosIDs = [
+      ...new Set(
+        detallesFiltrados
+          .map(d => d.remito)
+          .filter(id => id !== undefined && id !== null)
+      ),
+    ];
+    let remitos = await Remito.find(
+      remitosIDs.length > 0 ? { _id: { $in: remitosIDs } } : {}
+    );
+
+    // ⚠️ 3️⃣ Verificar si no hay ningún filtro activo
+   const remitosFiltrados = remitos.filter(p => {
+        const coincideEstado = p.estado === true;
+      const coincideRemito = remitoID ? (p._id) === Number(remitoID) : true;
+      const coincideTotalBultos = totalBultos ? Number(p.totalBultos) === totalBultos : true;
+      const coincideTotalPrecio = totalPrecio ? Number(p.totalPrecio) === totalPrecio : true;
+      const coincideFecha = fecha
+        ? String(new Date(p.fecha).toISOString().split("T")[0]) ===
+          String(fecha.toISOString().split("T")[0])
+        : true;
+      const coincideComprobante = comprobanteCompra ? String(p.comprobanteCompra) === String(comprobanteCompra) : true;
+      const coincideProveedor = proveedor
+        ? p.comprobanteCompra && idsComprobantes.includes(String(p.comprobanteCompra))
+        : true;
+      const coincideTransporte = transporte ? String(p.transporte) === String(transporte) : true;
+
+      return coincideEstado && coincideRemito && coincideTotalBultos && coincideTotalPrecio && coincideFecha &&
+              coincideComprobante && coincideProveedor && coincideTransporte;
+    });
+
+    if (remitosFiltrados.length > 0) {
+      res.status(200).json({ ok: true, data: remitosFiltrados });
+    } else {
+      res.status(200).json({ ok: false, message: "No se encontraron remitos con esos filtros" });
+    }
+
+  } catch (error) {
+    res.status(500).json({ ok: false, message: "Error interno del servidor" });
+  }
+};
+
+module.exports = { setRemito , buscarRemito , getRemito , getRemitoID , updateRemito , deleteRemito };

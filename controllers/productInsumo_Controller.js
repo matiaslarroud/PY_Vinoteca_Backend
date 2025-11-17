@@ -136,6 +136,7 @@ const productos = await Product.find();
 
 // Luego filtramos dinámicamente
 const productosFiltrados = productos.filter(c => {
+    const coincideEstado = c.estado === true;
   // Cada condición solo se evalúa si el campo tiene valor
   const coincideNombre = nombreP ? c.name?.toLowerCase().includes(nombreP.toLowerCase()) : true;
   const coincideStock = stockP ? Number(c.stock) === Number(stockP) : true;
@@ -147,6 +148,7 @@ const productosFiltrados = productos.filter(c => {
 
   // Si todos los criterios activos coinciden => mantener cliente
   return (
+    coincideEstado &&
     coincideNombre &&
     coincideStock &&
     coincideStockMinimo &&

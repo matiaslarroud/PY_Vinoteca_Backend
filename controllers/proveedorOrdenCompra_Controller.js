@@ -11,7 +11,7 @@ const setOrdenCompra = async (req,res) => {
     const newId = await getNextSequence("Proveedor_OrdenCompra");
     const total = req.body.total;
     const fecha = obtenerFechaHoy();
-    const fechaEntrega = req.body.fechaEntrega;
+    const fechaEntrega = new Date(req.body.fechaEntrega);
     const proveedorID = req.body.proveedor;
     const empleadoID = req.body.empleado;
     const medioPagoID = req.body.medioPago;
@@ -175,4 +175,51 @@ const deleteOrdenCompra = async(req,res) => {
     })
 }
 
-module.exports = { setOrdenCompra , getOrdenCompra , getOrdenCompraID , updateOrdenCompra , deleteOrdenCompra };
+const buscarOrdenCompra = async (req, res) => {
+    const { ordenCompraID , fechaEntrega, proveedor, empleado , medioPago , presupuesto , total , detalles } = req.body;
+    // 1️⃣ Obtenemos todos los productos que vienen en los detalles
+    const productosBuscados = detalles && detalles.length > 0
+      ? detalles.map(d => d.producto)
+      : [];
+
+    // 2️⃣ Buscamos los PresupuestoDetalle que contengan alguno de esos productos
+    let detallesFiltrados = [];
+    if (productosBuscados.length > 0) {
+      detallesFiltrados = await OrdenCompraDetalle.find({
+        producto: { $in: productosBuscados },
+      });
+    } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
+        res.status(500).json({ ok: false, message: "Error al buscar presupuestos" });       
+    } else if (!detalles) {
+      detallesFiltrados = await OrdenCompraDetalle.find();
+    }
+
+    // 3️⃣ Obtenemos los IDs únicos de los presupuestos asociados
+    const ordenesIDs = [...new Set(detallesFiltrados.map(d => d.ordenCompra))];
+
+    // 4️⃣ Buscamos los presupuestos relacionados
+    let ordenes = await OrdenCompra.find(
+      ordenesIDs.length > 0 ? { _id: { $in: ordenesIDs } } : {}
+    );
+    
+    // 5️⃣ Filtramos adicionalmente por cliente, empleado o total si existen
+    const ordenesFiltrados = ordenes.filter(p => {
+      const coincideEstado = p.estado === true;
+      const coincideOrden = ordenCompraID ? (p._id) === Number(ordenCompraID) : true;
+      const coincideMedioPago = medioPago ? (p.medioPago) === Number(medioPago) : true;
+      const coincideTotal = total ? (p.total) === Number(total) : true;
+      const coincidePresupuesto = presupuesto ? (p.presupuesto) === Number(presupuesto) : true;
+      const coincideProveedor = proveedor ? String(p.proveedor) === String(proveedor) : true;
+      const coincideFechaEntrega = fechaEntrega ? new Date(p.fechaEntrega).toISOString().slice(0, 10) === fechaEntrega : true;
+      const coincideEmpleado = empleado ? String(p.empleado) === String(empleado) : true;
+      return coincideProveedor && coincideEmpleado && coincideOrden && coincideEstado &&
+                coincideMedioPago && coincideTotal && coincidePresupuesto && coincideFechaEntrega;
+    });
+    if(ordenesFiltrados.length > 0){
+        res.status(200).json({ ok: true, data: ordenesFiltrados });
+    } else {
+        res.status(500).json({ ok: false, message: "Error al buscar ordenes de compra." });
+    }
+};
+
+module.exports = { setOrdenCompra , buscarOrdenCompra , getOrdenCompra , getOrdenCompraID , updateOrdenCompra , deleteOrdenCompra };

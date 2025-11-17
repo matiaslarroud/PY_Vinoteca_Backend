@@ -4,6 +4,7 @@ const controller = require('../controllers/proveedorRemito_Controller');
 // const imprimir = require('../src/remitoCliente_imprimir');
 
 router.post('/', controller.setRemito);
+router.post('/buscar', controller.buscarRemito);
 router.get('/', controller.getRemito);
 router.get('/:id',controller.getRemitoID);
 // router.get('/imprimir/:id', imprimir.imprimir);

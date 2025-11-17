@@ -167,6 +167,7 @@ const proveedores = await Proveedor.find();
 
 // Luego filtramos dinámicamente
 const proveedoresFiltrados = proveedores.filter(c => {
+    const coincideEstado = c.estado === true;
   // Cada condición solo se evalúa si el campo tiene valor
   const coincideNombre = nombreC ? c.name?.toLowerCase().includes(nombreC.toLowerCase()) : true;
   const coincideTelefono = telefonoC ? c.telefono?.toLowerCase().includes(telefonoC.toLowerCase()) : true;
@@ -183,6 +184,7 @@ const proveedoresFiltrados = proveedores.filter(c => {
 
   // Si todos los criterios activos coinciden => mantener cliente
   return (
+    coincideEstado &&
     coincideNombre &&
     coincideTelefono &&
     coincideEmail &&

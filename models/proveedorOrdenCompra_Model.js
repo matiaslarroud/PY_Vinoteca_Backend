@@ -18,13 +18,13 @@ const ProveedorOrdenCompra_Schema = mongoose.Schema({
     presupuesto: {
             type: Number,
             ref: 'Proveedor_Presupuesto',
-            required: false
+            required: true
         },
     empleado: {
             type: Number,
             ref: 'Empleado',
             required: true
-        },
+        },    
     estado: {type: Boolean , require:true},
     },
     

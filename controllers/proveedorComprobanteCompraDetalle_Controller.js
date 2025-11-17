@@ -46,6 +46,17 @@ const getComprobanteCompraDetalle = async(req, res) => {
     })
 }
 
+const getComprobanteCompraDetalleByComprobanteCompra = async(req, res) => {
+    const id = req.params.id;
+
+    const comprobantes = await ComprobanteCompraDetalle.find({comprobanteCompra: id , estado:true});
+
+    res.status(200).json({
+        ok:true,
+        data: comprobantes,
+    })
+}
+
 const getComprobanteCompraDetalleID = async(req,res) => {
     const id = req.params.id;
 
@@ -124,22 +135,7 @@ const deleteComprobanteCompraDetalle = async(req,res) => {
         })
         return
     }
-
-    const deletedComprobanteCompraDetalle = await ComprobanteCompraDetalle.findByIdAndUpdate(
-        id,
-        {   
-            estado:false
-        },
-        { new: true , runValidators: true }
-    )
-;
-    if(!deletedComprobanteCompraDetalle){
-        res.status(400).json({
-            ok:false,
-            message: 'Error durante el borrado.'
-        })
-        return
-    }
+    
     const deletedByComprobanteCompra = await ComprobanteCompraDetalle.updateMany(
         {comprobanteCompra:id},
         {   
@@ -161,4 +157,4 @@ const deleteComprobanteCompraDetalle = async(req,res) => {
     })
 }
 
-module.exports = { setComprobanteCompraDetalle , getComprobanteCompraDetalle , getComprobanteCompraDetalleID , updateComprobanteCompraDetalle , deleteComprobanteCompraDetalle };
+module.exports = { setComprobanteCompraDetalle , getComprobanteCompraDetalleByComprobanteCompra , getComprobanteCompraDetalle , getComprobanteCompraDetalleID , updateComprobanteCompraDetalle , deleteComprobanteCompraDetalle };

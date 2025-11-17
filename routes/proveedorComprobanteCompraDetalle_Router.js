@@ -6,6 +6,7 @@ const controller = require('../controllers/proveedorComprobanteCompraDetalle_Con
 router.post('/', controller.setComprobanteCompraDetalle);
 router.get('/', controller.getComprobanteCompraDetalle);
 router.get('/:id',controller.getComprobanteCompraDetalleID);
+router.get('/ComprobanteCompra/:id',controller.getComprobanteCompraDetalleByComprobanteCompra);
 // router.get("/imprimir/:id" , imprimir.imprimir);
 router.put('/:id', controller.updateComprobanteCompraDetalle);
 router.delete('/:id', controller.deleteComprobanteCompraDetalle);

@@ -288,6 +288,7 @@ const buscarComprobanteVenta = async (req, res) => {
 
     // 4️⃣ Aplicar filtros
     const comprobantesFiltrados = comprobantes.filter(p => {
+      const coincideEstado = p.estado === true;
       const coincideComprobante = comprobanteID ? (p._id) === Number(comprobanteID) : true;
       const coincideTotal = totalP ? Number(p.total) === totalP : true;
       const coincideFecha = fechaP
@@ -301,7 +302,7 @@ const buscarComprobanteVenta = async (req, res) => {
         ? p.notaPedido && idsNotasCliente.includes(String(p.notaPedido))
         : true;
 
-      return coincideCliente && coincideTotal &&
+      return coincideCliente && coincideTotal && coincideEstado &&
              coincideFecha && coincidePedido && coincideComprobante;
     });
 

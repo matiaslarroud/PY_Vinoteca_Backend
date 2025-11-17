@@ -355,6 +355,7 @@ const buscarNotaPedido = async (req, res) => {
 
     // 5️⃣ Filtramos adicionalmente por cliente, empleado o total si existen
     const pedidosFiltrados = pedidos.filter(p => {
+      const coincideEstado = p.estado === true;
       const coincideNotaPedido = notaPedidoID ? (p._id) === Number(notaPedidoID) : true;
       const coincideCliente = cliente ? String(p.cliente) === String(cliente) : true;
       const coincideEmpleado = empleado ? String(p.empleado) === String(empleado) : true;
@@ -373,7 +374,7 @@ const buscarNotaPedido = async (req, res) => {
       return coincideNotaPedido && coincideCliente && coincideEmpleado && coincideTotal && coincideMedioPago &&
              coincideFechaEntrega && coincideEnvio && coincidePresupuesto && coincideProvincia &&
              coincideLocalidad && coincideBarrio && coincideBarrio && coincideCalle &&
-             coincideDeptoLetra && coincideDeptoNumero && coincideAltura;
+             coincideDeptoLetra && coincideDeptoNumero && coincideAltura && coincideEstado;
     });
     
     if(pedidosFiltrados.length > 0){

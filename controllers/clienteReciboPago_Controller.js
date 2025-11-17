@@ -164,6 +164,7 @@ const buscarReciboPago = async (req, res) => {
     const recibos = await ReciboPago.find({estado:true});
     
     const recibosFiltrados = recibos.filter(p => {
+      const coincideEstado = p.estado === true;
       const coincideRecibo = reciboID ? (p._id) === Number(reciboID) : true;
       const coincideMedioPago = medioPagoID ? Number(p.medioPagoID) === medioPagoID : true;
       const coincideCliente = clienteID ? Number(p.clienteID) === clienteID : true;
@@ -172,7 +173,7 @@ const buscarReciboPago = async (req, res) => {
         ? String(p.fecha.toISOString().split("T")[0]) ===
           String(new Date(fechaP).toISOString().split("T")[0])
         : true;
-      return coincideCliente && coincideRecibo && coincideTotal && coincideFecha && coincideMedioPago;
+      return coincideEstado && coincideCliente && coincideRecibo && coincideTotal && coincideFecha && coincideMedioPago;
     });
 
     if(recibosFiltrados.length > 0){

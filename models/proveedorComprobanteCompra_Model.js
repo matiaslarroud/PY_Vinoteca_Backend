@@ -8,7 +8,8 @@ const ProveedorComprobanteCompra_Schema = mongoose.Schema({
             type: Number,
             ref: 'Proveedor_OrdenCompra',
             required: true
-        },
+        },    
+    completo: {type: Boolean , require:true},
     estado: {type: Boolean , require:true},
     },
     

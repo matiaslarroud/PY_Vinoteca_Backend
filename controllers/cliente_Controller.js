@@ -202,6 +202,7 @@ const clientes = await Cliente.find();
 // Luego filtramos dinámicamente
 const clientesFiltrados = clientes.filter(c => {
   // Cada condición solo se evalúa si el campo tiene valor
+  const coincideEstado = c.estado === true;
   const coincideNombre = nombreC ? c.name?.toLowerCase().includes(nombreC.toLowerCase()) : true;
   const coincideApellido = apellidoC ? c.lastname?.toLowerCase().includes(apellidoC.toLowerCase()) : true;
   const coincideTelefono = telefonoC ? c.telefono?.toLowerCase().includes(telefonoC.toLowerCase()) : true;
@@ -220,6 +221,7 @@ const clientesFiltrados = clientes.filter(c => {
 
   // Si todos los criterios activos coinciden => mantener cliente
   return (
+    coincideEstado &&
     coincideNombre &&
     coincideApellido &&
     coincideTelefono &&

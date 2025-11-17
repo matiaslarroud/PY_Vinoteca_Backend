@@ -192,11 +192,12 @@ const buscarPresupuesto = async (req, res) => {
 
     // 5️⃣ Filtramos adicionalmente por cliente, empleado o total si existen
     const presupuestosFiltrados = presupuestos.filter(p => {
+        const coincideEstado = p.estado === true;
       const coincidePresupuesto = presupuestoID ? (p._id) === Number(presupuestoID) : true;
       const coincideCliente = cliente ? String(p.cliente) === String(cliente) : true;
       const coincideEmpleado = empleado ? String(p.empleado) === String(empleado) : true;
       const coincideTotal = total ? Number(p.total) === Number(total) : true;
-      return coincideCliente && coincideEmpleado && coincideTotal && coincidePresupuesto;
+      return coincideCliente && coincideEmpleado && coincideTotal && coincidePresupuesto && coincideEstado;
     });
 
     if(presupuestosFiltrados.length > 0){
