@@ -1,4 +1,8 @@
+const mongoose = require("mongoose");
+
 const Product = require('../models/producto_Model')
+const ProductoVino = require("../models/productoVino_Model");
+const ProductoInsumo = require("../models/productoInsumo_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setProduct =  async (req , res ) => {
@@ -76,22 +80,127 @@ const getProductTipos = async(req,res) => {
     })
 }
 
+// const lowStockProducts = async (req, res) => {
+//   try {
+//     const listProducts = await Product.find({
+//         $expr: { $lte: ["$stock", "$stockMinimo"] } // stock <= stockMinimo
+//     });
+
+
+//     res.status(200).json({
+//       ok: true,
+//       data: listProducts,
+//     });
+//   } catch (error) {
+//     console.error("Error al obtener productos con stock bajo:", error);
+//     res.status(500).json({
+//       ok: false,
+//       message: "Error al obtener productos con stock bajo",
+//     });
+//   }
+// };
+
 const lowStockProducts = async (req, res) => {
   try {
-    const listProducts = await Product.find({
-        $expr: { $lte: ["$stock", "$stockMinimo"] } // stock <= stockMinimo
+
+    // 🔹 Productos VINO con bajo stock
+    const lowStockVinosDocs = await ProductoVino.find({
+      estado: true,
+      $expr: { $lte: ["$stock", "$stockMinimo"] }
     });
 
+    const lowStockVinos = lowStockVinosDocs.map(s => ({
+      _id: s._id,
+      name: s.name,
+      proveedor:s.proveedor,
+      tipoProducto: s.tipoProducto,
+      stock: s.stock,
+      stockMinimo: s.stockMinimo
+    }));
 
-    res.status(200).json({
+
+    // 🔹 Productos INSUMO con bajo stock
+    const lowStockInsumosDocs = await ProductoInsumo.find({
+      estado: true,
+      $expr: { $lte: ["$stock", "$stockMinimo"] }
+    });
+
+    const lowStockInsumos = lowStockInsumosDocs.map(s => ({
+      _id: s._id,
+      name: s.name,
+      proveedor:s.proveedor,
+      tipoProducto: s.tipoProducto,
+      stock: s.stock,
+      stockMinimo: s.stockMinimo
+    }));
+
+
+    // 🔹 Unificar ambos listados
+    const lowStockProducts = [...lowStockVinos, ...lowStockInsumos];
+
+    return res.status(200).json({
       ok: true,
-      data: listProducts,
+      data: lowStockProducts
     });
+
   } catch (error) {
     console.error("Error al obtener productos con stock bajo:", error);
-    res.status(500).json({
+    return res.status(500).json({
       ok: false,
-      message: "Error al obtener productos con stock bajo",
+      message: "Error al obtener productos con stock bajo"
+    });
+  }
+};
+
+const lowStockProductsByProveedor = async (req, res) => {
+  try {
+    const proveedorIDParam = req.params.id;
+
+    // 🔹 Productos VINO con bajo stock
+    const lowStockVinosDocs = await ProductoVino.find({
+      estado: true,
+      proveedor: proveedorIDParam,
+      $expr: { $lte: ["$stock", "$stockMinimo"] }
+    });
+
+    const lowStockVinos = lowStockVinosDocs.map(s => ({
+      _id: s._id,
+      name: s.name,
+      tipoProducto: s.tipoProducto,
+      stock: s.stock,
+      stockMinimo: s.stockMinimo
+    }));
+
+
+    // 🔹 Productos INSUMO con bajo stock
+    const lowStockInsumosDocs = await ProductoInsumo.find({
+      estado: true,
+      proveedor: proveedorIDParam,
+      $expr: { $lte: ["$stock", "$stockMinimo"] }
+    });
+
+    const lowStockInsumos = lowStockInsumosDocs.map(s => ({
+      _id: s._id,
+      name: s.name,
+      tipoProducto: s.tipoProducto,
+      stock: s.stock,
+      stockMinimo: s.stockMinimo
+    }));
+
+
+    // 🔹 Unificar ambos listados
+    const lowStockProducts = [...lowStockVinos, ...lowStockInsumos];
+
+    return res.status(200).json({
+      ok: true,
+      data: lowStockProducts
+    });
+
+  } catch (error) {
+    console.error("Error al obtener productos con stock bajo:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Error al obtener productos con stock bajo"
     });
   }
 };
@@ -199,4 +308,4 @@ const getProduct_query = async (req , res) => {
     });
 }
 
-module.exports = {setProduct , getProduct , getProductID , lowStockProducts , updateProduct , deleteProduct , getProduct_query , getProductTipos , getProductTipoID , stockUpdate};
+module.exports = {setProduct , getProduct , getProductID , lowStockProducts , lowStockProductsByProveedor , updateProduct , deleteProduct , getProduct_query , getProductTipos , getProductTipoID , stockUpdate};

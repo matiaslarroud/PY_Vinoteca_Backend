@@ -25,6 +25,7 @@ const ProveedorOrdenCompra_Schema = mongoose.Schema({
             ref: 'Empleado',
             required: true
         },    
+    completo: {type: Boolean , require:true},
     estado: {type: Boolean , require:true},
     },
     

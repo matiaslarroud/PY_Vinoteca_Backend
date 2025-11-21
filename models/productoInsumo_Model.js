@@ -3,11 +3,6 @@ const Producto = require('./producto_Model.js');
 
 const productoInsumoSchema = new mongoose.Schema({
     _id: Number,
-    proveedor: {
-            type: Number,
-            ref: 'Proveedor',
-            required: true
-        },
     precioCosto: {
         type: Number , 
         require:true , 
@@ -18,6 +13,11 @@ const productoInsumoSchema = new mongoose.Schema({
         require:true , 
         min: [0, 'La ganancia no puede ser negativa']
     },
+    proveedor: {
+            type: Number,
+            ref: 'Proveedor',
+            required: true
+        },
     estado: {type: Boolean , require:true},
     },
     

@@ -1,6 +1,7 @@
 const ComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
 const ComprobanteCompraDetalle = require("../models/proveedorComprobanteCompraDetalle_Model");
 const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
+const Remito = require("../models/proveedorRemito_Model");
 const Proveedor = require("../models/proveedor_Model");
 const getNextSequence = require("./counter_Controller");
 
@@ -26,7 +27,6 @@ const setComprobanteCompra = async (req,res) => {
         total: total , 
         fecha: fecha , 
         ordenCompra : ordenCompra ,
-        completo : false ,
         estado:true
     });
 
@@ -42,14 +42,35 @@ const setComprobanteCompra = async (req,res) => {
 
 }
 
-const getComprobanteCompra = async(req, res) => {
-    const comprobantes = await ComprobanteCompra.find({estado:true});
+const getComprobanteCompra = async (req, res) => {
+  try {
+    const comprobantes = await ComprobanteCompra.find({ estado: true }).lean();
+
+    const remitos = await Remito.find().lean();
+
+    const comprobantesConRemito = new Set(
+      remitos.map(c => String(c.comprobanteCompra))
+    );
+
+    const comprobantesConEstado = comprobantes.map(oc => ({
+      ...oc,
+      tieneRemito: comprobantesConRemito.has(String(oc._id))
+    }));
 
     res.status(200).json({
-        ok:true,
-        data: comprobantes,
-    })
-}
+      ok: true,
+      data: comprobantesConEstado
+    });
+
+  } catch (error) {
+    console.error("Error al obtener comprobantes de compra:", error);
+
+    res.status(500).json({
+      ok: false,
+      message: "Error interno al obtener las comprobantes de compra."
+    });
+  }
+};
 
 const getComprobanteCompraID = async (req, res) => {
   try {

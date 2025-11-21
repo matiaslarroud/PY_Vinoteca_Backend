@@ -10,6 +10,8 @@ router.get('/tipos' , controller.getProductTipos)
 
 router.get('/lowStock' , controller.lowStockProducts)
 
+router.get('/lowStock/proveedor/:id' , controller.lowStockProductsByProveedor)
+
 router.put('/stock/:id', controller.stockUpdate)
 
 router.get('/tipos/:id' , controller.getProductTipoID)

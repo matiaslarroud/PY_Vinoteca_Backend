@@ -1,5 +1,6 @@
 const SolicitudPresupuesto = require("../models/proveedorSolicitudPresupuesto_Model");
 const SolicitudPresupuestoDetalle = require("../models/proveedorSolicitudPresupuestoDetalle_Model");
+const Presupuesto = require("../models/proveedorPresupuesto_Model");
 const getNextSequence = require("./counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -137,6 +138,15 @@ const deleteSolicitudPresupuesto = async(req,res) => {
         res.status(400).json({
             ok:false,
             message:'El id no llego al controlador correctamente.'
+        })
+        return
+    }
+
+    const presupuestos = await Presupuesto.find({estado:true , solicitudPresupuesto:id}).lean();
+    if(presupuestos.length > 0){
+        res.status(400).json({
+            ok:false,
+            message:'La solicitud de presupuesto no puede eliminarse porque pertenece a un presupuesto.'
         })
         return
     }

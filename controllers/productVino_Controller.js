@@ -15,10 +15,11 @@ const setProduct =  async (req , res ) => {
     const varietalProducto = req.body.varietal;
     const volumenProducto = req.body.volumen;
     const depositoProducto = req.body.deposito;
+    const proveedor = req.body.proveedor;
     const productType = 'ProductoVino'
 
     
-    if (!nombreProducto || !productType || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoVino || !varietalProducto || !volumenProducto || !depositoProducto) {
+    if (!nombreProducto || !proveedor || !productType || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoVino || !varietalProducto || !volumenProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
         return
     }
@@ -37,6 +38,7 @@ const setProduct =  async (req , res ) => {
         volumen: volumenProducto , 
         deposito: depositoProducto,
         tipoProducto: productType ,
+        proveedor: proveedor,
         estado:true
     });
 
@@ -97,8 +99,9 @@ const updateProduct =  async (req , res ) => {
     const varietalProducto = req.body.varietal;
     const volumenProducto = req.body.volumen;
     const depositoProducto = req.body.deposito;
+    const proveedor = req.body.proveedor;
     
-    if (!nombreProducto || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
+    if (!nombreProducto || !proveedor || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede actualizar el producto sin todos los datos.'});
         return
     }
@@ -118,6 +121,7 @@ const updateProduct =  async (req , res ) => {
                 varietal:varietalProducto,
                 volumen:volumenProducto,
                 deposito: depositoProducto,
+                proveedor:proveedor
             },
             { new: true , runValidators: true }
         )
@@ -159,6 +163,7 @@ const buscarProducto = async(req,res) => {
     const depositoP = req.body.deposito;
     const nombreP = req.body.name;
     const bodegaP = req.body.bodega;
+    const proveedorP = req.body.proveedor;
     const parajeP = req.body.paraje;
     const crianzaP = req.body.crianza;
     const tipoP = req.body.tipo;
@@ -174,9 +179,10 @@ const productos = await Product.find();
 const productosFiltrados = productos.filter(c => {
     const coincideEstado = c.estado === true;
   // Cada condición solo se evalúa si el campo tiene valor
-  const coincideNombre = nombreP ? c.name?.toLowerCase().includes(nombreP.toLowerCase()) : true;
+  const coincideNombre = nombreP ? c.name?.toLowerCase().includes(nombreP.toLowerCase()) : true;proveedorP
   const coincideStock = stockP ? Number(c.stock) === Number(stockP) : true;
   const coincideStockMinimo = stockMinimoP ? Number(c.stockMinimo) === Number(stockMinimoP) : true;
+  const coincideProveedor = proveedorP ? Number(c.proveedor) === Number(proveedorP) : true;
   const coincideDeposito = depositoP ? Number(c.deposito) === Number(depositoP) : true;
   const coincideBodega = bodegaP ? Number(c.bodega) === Number(bodegaP) : true;
   const coincideParaje = parajeP ? Number(c.paraje) === Number(parajeP) : true;
@@ -201,7 +207,8 @@ const productosFiltrados = productos.filter(c => {
     coincideVarietal &&
     coincideVolumen &&
     coincidePrecioCosto &&
-    coincideGanancia
+    coincideGanancia &&
+    coincideProveedor
   );
 });
 

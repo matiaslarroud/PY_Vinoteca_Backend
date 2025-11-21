@@ -33,6 +33,11 @@ const productoVinoSchema = new mongoose.Schema({
             ref: 'Vino_Volumen',
             required: false
         },
+    proveedor: {
+            type: Number,
+            ref: 'Proveedor',
+            required: true
+        },
     precioCosto: {
         type: Number , 
         require:true , 

@@ -1,5 +1,6 @@
 const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
 const OrdenCompraDetalle = require("../models/proveedorOrdenCompraDetalle_Model");
+const ComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
 const getNextSequence = require("./counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -32,6 +33,7 @@ const setOrdenCompra = async (req,res) => {
         medioPago : medioPagoID,
         empleado: empleadoID ,
         presupuesto : presupuesto ,
+        completo : false ,
         estado:true
     });
 
@@ -47,14 +49,41 @@ const setOrdenCompra = async (req,res) => {
 
 }
 
-const getOrdenCompra = async(req, res) => {
-    const ordenes = await OrdenCompra.find({estado:true});
+const getOrdenCompra = async (req, res) => {
+  try {
+    // 1️⃣ Traer todas las órdenes activas
+    const ordenes = await OrdenCompra.find({ estado: true }).lean();
 
+    // 2️⃣ Traer todos los comprobantes de compra (solo el campo ordenCompraID)
+    const comprobantes = await ComprobanteCompra.find().lean();
+
+    // 3️⃣ Crear un Set con las órdenes que YA tienen comprobantes
+    const ordenesConComprobante = new Set(
+      comprobantes.map(c => String(c.ordenCompra))
+    );
+
+    // 4️⃣ Agregar campo 'tieneComprobante' a cada orden
+    const ordenesConEstado = ordenes.map(oc => ({
+      ...oc,
+      tieneComprobante: ordenesConComprobante.has(String(oc._id))
+    }));
+
+    // 5️⃣ Devolver el resultado
     res.status(200).json({
-        ok:true,
-        data: ordenes,
-    })
-}
+      ok: true,
+      data: ordenesConEstado
+    });
+
+  } catch (error) {
+    console.error("Error al obtener órdenes de compra:", error);
+
+    res.status(500).json({
+      ok: false,
+      message: "Error interno al obtener las órdenes de compra."
+    });
+  }
+};
+
 
 const getOrdenCompraID = async(req,res) => {
     const id = req.params.id;

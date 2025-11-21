@@ -9,41 +9,93 @@ const obtenerFechaHoy = () => {
   return hoy.toISOString().split("T")[0];
 }
 
+async function recalcularOrdenDesdeRemito(remito) {
+
+    // 1. Obtener el comprobanteCompra
+    const comprobante = await ComprobanteCompra.findById(remito.comprobanteCompraID).lean();
+    if (!comprobante) return;
+
+    const ordenCompraId = comprobante.ordenCompraID;
+    if (!ordenCompraId) return;
+
+    // 2. Obtener la orden de compra
+    const orden = await OrdenCompra.findById(ordenCompraId).lean();
+
+    // 3. Obtener TODOS los comprobantes de esta orden
+    const comprobantes = await ComprobanteCompra.find({ ordenCompraID: ordenCompraId }).lean();
+    const comprobanteIds = comprobantes.map(c => c._id);
+
+    // 4. Obtener TODOS los remitos de esos comprobantes
+    const remitos = await RemitoProveedor.find({
+        comprobanteCompraID: { $in: comprobanteIds }
+    }).lean();
+
+    // 5. Acumular cantidades recibidas por producto
+    const recibidos = {};
+
+    remitos.forEach(r => {
+        r.detalles.forEach(item => {
+            const key = item.producto.toString();
+            recibidos[key] = (recibidos[key] || 0) + item.cantidadRecibida;
+        });
+    });
+
+    // 6. Verificar si todos los productos están completos
+    const completo = orden.detalles.every(det => {
+        const key = det.producto.toString();
+        const totalRecibido = recibidos[key] || 0;
+        const pedido = det.cantidadPedida;
+
+        return totalRecibido >= pedido;  // ← **tu condición exacta**
+    });
+
+    // 7. Actualizar la orden de compra
+    await OrdenCompra.findByIdAndUpdate(ordenCompraId, { completo:true });
+
+    return completo;
+}
+
+
 const setRemito = async (req, res) => {
-    
     try {
         const newId = await getNextSequence("Proveedor_Remito");
-        const totalPrecio = req.body.totalPrecio;
-        const totalBultos = req.body.totalBultos;
+        const { totalPrecio, totalBultos, comprobanteCompra, transporte, detalles } = req.body;
         const fecha = obtenerFechaHoy();
-        const comprobanteCompra = req.body.comprobanteCompra;
-        const transporte = req.body.transporte;
 
-        // Validar datos obligatorios
-        if (!totalPrecio || !totalBultos || !fecha || !comprobanteCompra || !transporte) {
+        // Validación mínima
+        if (!totalPrecio || !totalBultos || !comprobanteCompra || !transporte) {
             return res.status(400).json({
                 ok: false,
                 message: 'Error al cargar los datos.'
             });
         }
 
+        // Crear remito
         const newRemito = new Remito({
             _id: newId,
-            totalPrecio: totalPrecio,
-            totalBultos: totalBultos,
-            fecha: fecha,
-            comprobanteCompra: comprobanteCompra,
-            transporte: transporte,
-            estado:true
+            totalPrecio,
+            totalBultos,
+            fecha,
+            comprobanteCompra,     // <-- este es el ID del comprobanteCompra
+            transporte,
+            detalles,              // IMPORTANTE: asegúrate que lo estás enviando
+            estado: true
         });
 
         await newRemito.save();
+
+        // 🔥 Llamar al recalculo (acá es donde corresponde)
+        try {
+              await recalcularOrdenDesdeRemito(newRemito);
+          } catch (err) {
+              console.error("Error recalculando orden de compra:", err);
+          }
 
         return res.status(201).json({
             ok: true,
             message: 'Remito agregado correctamente.',
             data: newRemito
-        })
+        });
 
     } catch (err) {
         console.error(err);
@@ -53,6 +105,7 @@ const setRemito = async (req, res) => {
         });
     }
 };
+
 
 
 const getRemito = async(req, res) => {
