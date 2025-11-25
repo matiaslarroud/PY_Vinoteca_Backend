@@ -10,6 +10,7 @@ const OrdenProduccion_Schema = mongoose.Schema({
             ref: 'Empleado',
             required: true
         },
+    estadoProduccion: {type: Boolean , require:true},
     estado: {type: Boolean , require:true},
     },
     

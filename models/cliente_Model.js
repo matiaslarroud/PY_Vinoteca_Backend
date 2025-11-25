@@ -44,7 +44,7 @@ const Cliente_Schema = mongoose.Schema({
     
     cuentaCorriente:{
             type:Boolean,
-            required:true
+            require:true
         },
     saldoCuentaCorriente: {
         type: Number,
@@ -52,6 +52,7 @@ const Cliente_Schema = mongoose.Schema({
             return this.cuentaCorriente === true;
         }
     },
+    saldoActualCuentaCorriente: {type: Number , require:true},
     estado: {type: Boolean , require:true},
     },
     

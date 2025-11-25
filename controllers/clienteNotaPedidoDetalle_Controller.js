@@ -1,4 +1,5 @@
 const NotaPedidoDetalle = require("../models/clienteNotaPedidoDetalle_Model");
+const Product = require("../models/producto_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setNotaPedidoDetalle = async (req,res) => {
@@ -126,36 +127,47 @@ const updateNotaPedidoDetalle = async(req,res) => {
     })
 }
 
-const deleteNotaPedidoDetalle = async(req,res) => {
+const deleteNotaPedidoDetalle = async (req, res) => {
     const id = req.params.id;
-    
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'El id no llego al controlador correctamente.'
-        })
-        return
+
+    if (!id) {
+        return res.status(400).json({
+            ok: false,
+            message: 'El id no llegó al controlador correctamente.'
+        });
     }
 
-    const deletedNotaPedidoDetalle = await NotaPedidoDetalle.updateMany(
-        {notaPedido:id},
-        {   
-            estado: false
-        },
-        { new: true , runValidators: true }
-    )
-    
-    if(!deletedNotaPedidoDetalle){
-        res.status(400).json({
-            ok:false,
-            message: 'Error durante el borrado.'
-        })
-        return
+    // ⭐ 1. Traer todos los detalles activos de la nota
+    const detalles = await NotaPedidoDetalle.find({ notaPedido: id, estado: true });
+
+    // ⭐ 2. Reintegrar el stock de cada producto
+     for (const detalle of detalles) {
+      await Product.findByIdAndUpdate(
+        detalle.producto,
+        { $inc: { stock: detalle.cantidad } }, // suma la cantidad al stock
+        { new: true }
+      );
     }
+
+    // ⭐ 3. Marcar los detalles como eliminados (estado = false)
+    const deletedNotaPedidoDetalle = await NotaPedidoDetalle.updateMany(
+      { notaPedido: id },
+      { estado: false },
+      { new: true, runValidators: true }
+    );
+
+    if (!deletedNotaPedidoDetalle) {
+        return res.status(400).json({
+            ok: false,
+            message: 'Error durante el borrado.'
+        });
+    }
+
     res.status(200).json({
-        ok:true,
-        message:'Detalle de nota de pedido eliminado correctamente.'
-    })
-}
+        ok: true,
+        message: 'Detalles eliminados y stock restaurado correctamente.'
+    });
+};
+
 
 module.exports = { setNotaPedidoDetalle , getNotaPedidoDetalle , getNotaPedidoDetalleID , updateNotaPedidoDetalle , deleteNotaPedidoDetalle , getNotaPedidoDetalleByNotaPedido };

@@ -10,6 +10,8 @@ router.get('/:id' , controller.getOrdenProduccionID)
 
 router.put('/:id' , controller.updateOrdenProduccion)
 
+router.put('/finalizar/:id' , controller.updateStock_Picada_Insumos)
+
 router.delete('/:id' , controller.deleteOrdenProduccion)
 
 module.exports = router

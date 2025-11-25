@@ -1,4 +1,5 @@
 const ReciboPago = require("../models/clienteReciboPago_Model");
+const Cliente = require("../models/cliente_Model");
 const getNextSequence = require("./counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -7,29 +8,51 @@ const obtenerFechaHoy = () => {
 }
 
 const setReciboPago = async (req, res) => {
-    
     try {
         const newId = await getNextSequence("Cliente_ReciboPago");
-        const total = req.body.total;
+        const total = Number(req.body.total);
         const fecha = obtenerFechaHoy();
         const clienteID = req.body.clienteID;
         const medioPagoID = req.body.medioPagoID;
 
-        // Validar datos obligatorios
-        if (!total || !fecha || !clienteID || !medioPagoID) {
+        // ✔ Validación corregida (total = 0 es válido)
+        if (total === undefined || total === null || !clienteID || !medioPagoID) {
             return res.status(400).json({
                 ok: false,
                 message: 'Error al cargar los datos.'
             });
         }
 
+        const cliente = await Cliente.findById(clienteID);
+        if (!cliente) {
+            return res.status(400).json({
+                ok: false,
+                message: 'Cliente no encontrado.'
+            });
+        }
+
+        // ✔ Validación de límites
+        const sumaSaldo = cliente.saldoActualCuentaCorriente + total;
+        if (sumaSaldo > cliente.saldoCuentaCorriente) {
+            return res.status(400).json({
+                ok: false,
+                message: `El total del recibo supera el límite de saldo del cliente.\n Su maximo a agregar es: ${cliente.saldoCuentaCorriente-cliente.saldoActualCuentaCorriente} `
+            });
+        }
+
+        // ✔ Actualizar el saldo del cliente
+        cliente.saldoActualCuentaCorriente = sumaSaldo;
+        await cliente.save();  // ⬅️ IMPORTANTE
+
+
+        // Crear el recibo
         const newReciboPago = new ReciboPago({
             _id: newId,
             total: total,
             fecha: fecha,
             clienteID: clienteID,
             medioPagoID: medioPagoID,
-            estado:true
+            estado: true
         });
 
         await newReciboPago.save();
@@ -38,16 +61,17 @@ const setReciboPago = async (req, res) => {
             ok: true,
             message: 'Recibo de pago agregado correctamente.',
             data: newReciboPago
-        })
+        });
 
     } catch (err) {
-        console.error(err);
+        console.error("❌ Error en setReciboPago:", err);
         return res.status(500).json({
             ok: false,
             message: 'Error interno del servidor.'
         });
     }
 };
+
 
 
 const getReciboPago = async(req, res) => {
@@ -85,48 +109,95 @@ const getReciboPagoID = async(req,res) => {
     })
 }
 
-const updateReciboPago = async(req,res) => {
-    const id = req.params.id;
-    
-    const total = req.body.total;
-    const fecha = obtenerFechaHoy();
-    const clienteID = req.body.clienteID;
-    const medioPagoID = req.body.medioPagoID;
+const updateReciboPago = async (req, res) => {
+    try {
+        const id = req.params.id;
 
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'El id no llego al controlador correctamente.',
-        })
-        return
+        const totalNuevo = Number(req.body.total);
+        const fecha = obtenerFechaHoy();
+        const clienteID = req.body.clienteID;
+        const medioPagoID = req.body.medioPagoID;
+
+        if (!id) {
+            return res.status(400).json({
+                ok: false,
+                message: 'El id no llegó al controlador correctamente.'
+            });
+        }
+
+        // 1️⃣ Buscar recibo original
+        const reciboOriginal = await ReciboPago.findById(id);
+        if (!reciboOriginal) {
+            return res.status(400).json({
+                ok: false,
+                message: 'Recibo no encontrado.'
+            });
+        }
+
+        const totalAnterior = reciboOriginal.total;
+
+        // 2️⃣ Buscar cliente
+        const cliente = await Cliente.findById(clienteID);
+        if (!cliente) {
+            return res.status(400).json({
+                ok: false,
+                message: 'Cliente no encontrado.'
+            });
+        }
+
+
+        // 3️⃣ Calcular saldo corregido
+        const saldoActual = cliente.saldoActualCuentaCorriente;
+
+        const saldoCorregido = saldoActual - totalAnterior + totalNuevo;
+
+        // 4️⃣ Validar límites
+        if (saldoCorregido > cliente.saldoCuentaCorriente) {
+            return res.status(400).json({
+                ok: false,
+                message: `El nuevo total supera el límite de saldo del cliente.\n Su maximo a agregar es: ${cliente.saldoCuentaCorriente-cliente.saldoActualCuentaCorriente} `
+            });
+        }
+
+        // 5️⃣ Aplicar saldo modificado
+        cliente.saldoActualCuentaCorriente = saldoCorregido;
+        await cliente.save();
+
+
+        // 6️⃣ Actualizar recibo
+        const updatedReciboPago = await ReciboPago.findByIdAndUpdate(
+            id,
+            {
+                total: totalNuevo,
+                fecha: fecha,
+                clienteID: clienteID,
+                medioPagoID: medioPagoID
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedReciboPago) {
+            return res.status(400).json({
+                ok: false,
+                message: 'Error al actualizar el recibo de pago.'
+            });
+        }
+
+        return res.status(200).json({
+            ok: true,
+            data: updatedReciboPago,
+            message: 'Recibo de pago actualizado correctamente.'
+        });
+
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({
+            ok: false,
+            message: 'Error interno del servidor.'
+        });
     }
+};
 
-    const updatedReciboPagoData = {
-        total: total,
-        fecha: fecha,
-        clienteID: clienteID,
-        medioPagoID: medioPagoID,
-    };
-
-    const updatedReciboPago = await ReciboPago.findByIdAndUpdate(
-        id,
-        updatedReciboPagoData,
-        { new: true , runValidators: true }
-    )
-
-    if(!updatedReciboPago){
-        res.status(400).json({
-            ok:false,
-            message:'Error al actualizar el recibo de pago.'
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        data:updatedReciboPago,
-        message:'Recibo de pago actualizado correctamente.',
-    })
-}
 
 const deleteReciboPago = async(req,res) => {
     const id = req.params.id;

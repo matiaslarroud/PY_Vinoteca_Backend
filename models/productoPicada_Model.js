@@ -8,6 +8,7 @@ const productoPicadaSchema = new mongoose.Schema({
         require:true , 
         min: [0, 'El precio de venta no puede ser negativo']
     },
+    estadoProduccion: {type: Boolean , require:true},
     estado: {type: Boolean , require:true},
 
     },    

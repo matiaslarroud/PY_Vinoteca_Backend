@@ -1,3 +1,6 @@
+const ProductoInsumo = require('../models/productoInsumo_Model');
+const ProductoPicada = require('../models/productoPicada_Model');
+const ProductoPicadaDetalle = require('../models/productoPicadaDetalle_Model');
 const OrdenProduccion = require('../models/ordenProduccion_Model');
 const OrdenProduccionDetalle = require("../models/ordenProduccionDetalle_Model");
 const getNextSequence = require("../controllers/counter_Controller");
@@ -25,6 +28,7 @@ const setOrdenProduccion =  async (req , res ) => {
         fechaElaboracion: fechaElaboracionOrden,
         fechaEntrega: fechaEntregaOrden,
         empleado: empleadoOrden,
+        estadoProduccion : false,
         estado:true
     });
 
@@ -35,6 +39,7 @@ const setOrdenProduccion =  async (req , res ) => {
         })
         return
     }
+
     await newOrden.save()
         .then(() => { 
             res.status(201).json({
@@ -135,4 +140,126 @@ const deleteOrdenProduccion = async (req , res) => {
     res.status(200).json({ok:true , message:"Orden de produccion eliminada correctamente."});
 }
 
-module.exports = {setOrdenProduccion , getOrdenProduccion , getOrdenProduccionID , updateOrdenProduccion , deleteOrdenProduccion};
+const updateStock_Picada_Insumos = async (req, res) => {
+  try {
+    const ordenID = req.params.id;
+
+    // Buscar la orden
+    const orden = await OrdenProduccion.findById(ordenID);
+    if (!orden) {
+      return res.status(404).json({ ok: false, message: "Orden no encontrada." });
+    }
+
+    // Buscar los detalles
+    const detalles = await OrdenProduccionDetalle.find({ 
+      ordenProduccion: ordenID,
+      estado: true
+    });
+
+    if (detalles.length === 0) {
+      return res.status(404).json({ ok: false, message: "La orden no tiene detalles." });
+    }
+
+    // ======================================================
+    // VALIDACIÓN PREVIA: AGRUPAR INSUMOS Y SUMAR REQUERIDOS
+    // ======================================================
+    const requeridosTotales = {};  // insumoID -> { nombre, requerido }
+
+    for (const det of detalles) {
+
+      const picada = await ProductoPicada.findById(det.picada);
+      if (!picada) continue;
+
+      const picadaDetalles = await ProductoPicadaDetalle.find({
+        picada: picada._id,
+        estado: true,
+      });
+
+      for (const pd of picadaDetalles) {
+        const insumo = await ProductoInsumo.findById(pd.insumo);
+        if (!insumo) continue;
+
+        const cantidadNecesaria = det.cantidad * pd.cantidad;
+
+        if (!requeridosTotales[insumo._id]) {
+          requeridosTotales[insumo._id] = {
+            insumoID: insumo._id,
+            insumoNombre: insumo.name,
+            requerido: 0,
+            disponible: insumo.stock
+          };
+        }
+
+        // Sumar total requerido
+        requeridosTotales[insumo._id].requerido += cantidadNecesaria;
+      }
+    }
+
+    // Verificar faltantes
+    const faltantes = Object.values(requeridosTotales).filter(i => i.disponible < i.requerido);
+
+    if (faltantes.length > 0) {
+      return res.status(400).json({
+        ok: false,
+        message: "Stock insuficiente para finalizar la orden de producción.",
+        faltantes: faltantes.map(f => ({
+          insumoID: f.insumoID,
+          insumoNombre: f.insumoNombre,
+          requerido: f.requerido,
+          disponible: f.disponible,
+          faltante: f.requerido - f.disponible,
+        })),
+      });
+    }
+
+    // ======================================================
+    // 2️⃣ SI HAY STOCK → ACTUALIZAR STOCK
+    // ======================================================
+    for (const det of detalles) {
+
+      const picada = await ProductoPicada.findById(det.picada);
+      if (!picada) continue;
+
+      // Actualizar stock de la picada
+      picada.stock += det.cantidad;
+      await picada.save();
+
+      const picadaDetalles = await ProductoPicadaDetalle.find({
+        picada: picada._id,
+        estado: true
+      });
+
+      for (const pd of picadaDetalles) {
+
+        const insumo = await ProductoInsumo.findById(pd.insumo);
+        if (!insumo) continue;
+
+        const cantidadConsumida = det.cantidad * pd.cantidad;
+
+        insumo.stock -= cantidadConsumida;
+        await insumo.save();
+      }
+    }
+
+    // Marcar orden como finalizada
+    orden.estadoProduccion = true;
+    await orden.save();
+
+    return res.json({
+      ok: true,
+      message: "Orden finalizada. Stock de picadas incrementado y stock de insumos descontado.",
+      data: orden,
+    });
+
+  } catch (error) {
+    console.error("Error al procesar producción:", error);
+    res.status(500).json({ ok: false, message: "Error al procesar la orden de producción." });
+  }
+};
+
+
+
+
+
+
+module.exports = {setOrdenProduccion , getOrdenProduccion , getOrdenProduccionID , updateOrdenProduccion, updateStock_Picada_Insumos , deleteOrdenProduccion};

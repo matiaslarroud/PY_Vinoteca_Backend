@@ -6,12 +6,12 @@ const setProduct =  async (req , res ) => {
     const newId = await getNextSequence("ProductoPicada");
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioVenta;
-    const stockProducto = req.body.stock;
+    const stockProducto = 0;
     const stockMinimoProducto = req.body.stockMinimo;
     const depositoProducto = req.body.deposito;
     const productType = 'ProductoPicada';
     
-    if (!nombreProducto || !productType || !precioProducto || !stockProducto || !depositoProducto) {
+    if (!nombreProducto || !productType || !precioProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
         return
     }
@@ -73,11 +73,10 @@ const updateProduct =  async (req , res ) => {
     
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioVenta;
-    const stockProducto = req.body.stock;
     const stockMinimoProducto = req.body.stockMinimo;
     const depositoProducto = req.body.deposito;
     
-    if (!nombreProducto || !precioProducto || !stockProducto || !depositoProducto) {
+    if (!nombreProducto || !precioProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede actualizar el producto sin todos los datos.'});
         return
     }
@@ -86,8 +85,7 @@ const updateProduct =  async (req , res ) => {
             id, 
             {
                 name: nombreProducto , 
-                precioVenta: precioProducto , 
-                stock: stockProducto ,  
+                precioVenta: precioProducto ,
                 stockMinimo: stockMinimoProducto,
                 deposito: depositoProducto
             },

@@ -2,6 +2,8 @@ const NotaPedido = require("../models/clienteNotaPedido_Model");
 const NotaPedidoDetalle = require("../models/clienteNotaPedidoDetalle_Model");
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
 const Producto = require("../models/producto_Model");
+const MedioPago = require("../models/medioPago_Model")
+const Cliente = require("../models/cliente_Model")
 const getNextSequence = require("../controllers/counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -32,6 +34,7 @@ const setNotaPedido = async (req,res) => {
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
     }
+
     const newNotaPedido = new NotaPedido ({
         _id: newId, 
         fecha: fechaP , 
@@ -65,6 +68,46 @@ const setNotaPedido = async (req,res) => {
         newNotaPedido.deptoNumero = deptoNumero;
         newNotaPedido.deptoLetra = deptoLetra;
     }
+
+    // TRAER CLIENTE Y MEDIO DE PAGO
+    const cliente = await Cliente.findById(clienteID);
+    const medioPago = await MedioPago.findById(medioPagoID);
+
+    if (!cliente || !medioPago) {
+        return res.status(400).json({ ok: false, message: "Cliente o medio de pago inválido." });
+    }
+
+    // ⭐ VALIDAR CUENTA CORRIENTE
+    if (medioPago.name === "Cuenta Corriente") {
+
+        // 1️⃣ ¿El cliente tiene CC habilitada?
+        if (!cliente.cuentaCorriente) {
+            return res.status(400).json({
+                ok: false,
+                message: "El cliente no tiene habilitada la Cuenta Corriente."
+            });
+        }
+
+        // 2️⃣ ¿Tiene saldo suficiente?
+        if (cliente.saldoActualCuentaCorriente < totalP) {
+            return res.status(400).json({
+                ok: false,
+                message: `Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`
+            });
+        }
+
+        // 3️⃣ Descontar el saldo
+        if(descuento){
+          cliente.saldoActualCuentaCorriente -= totalP - ((totalP*descuento)/100);
+        } else if (!descuento){
+          cliente.saldoActualCuentaCorriente -= totalP;
+        }
+        
+
+        // 4️⃣ Guardar el nuevo saldo antes de continuar
+        await cliente.save();
+    }
+
     await newNotaPedido.save()
         .then( () => {
             res.status(201).json({
@@ -160,17 +203,22 @@ const getNotaPedidoByCliente = async(req,res) => {
 }
 
 
-const updateNotaPedido = async(req,res) => {
+const updateNotaPedido = async (req, res) => {
     const id = req.params.id;
-    
+
+    if (!id) {
+        return res.status(400).json({
+            ok: false,
+            message: 'El id no llegó al controlador correctamente.'
+        });
+    }
+
     const estadoP = req.body.facturado;
     if (estadoP === true) {
-        res.status(400).json({ok:false , message:'El pedido ya esta cerrado.'})
-        return
+        return res.status(400).json({ ok: false, message: 'El pedido ya está cerrado.' });
     }
 
     const totalP = req.body.total;
-    const fechaP = obtenerFechaHoy();
     const envioP = req.body.envio;
     const fechaEntregaP = req.body.fechaEntrega;
     const clienteID = req.body.cliente;
@@ -186,40 +234,39 @@ const updateNotaPedido = async(req,res) => {
     const deptoLetra = req.body.deptoLetra;
     const descuento = req.body.descuento;
 
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'El id no llego al controlador correctamente.',
-        })
-        return
+    // ✨ Obtener el pedido y cliente
+    const pedido = await NotaPedido.findById(id);
+    const cliente = await Cliente.findById(clienteID);
+
+    if (!pedido || !cliente) {
+        return res.status(400).json({ ok: false, message: "Pedido o cliente inválido." });
     }
 
+    const medioPagoAnterior = await MedioPago.findById(pedido.medioPago);
+    const medioPagoActual = await MedioPago.findById(medioPagoID);
 
-     const updatedPedidoData = {
-        total: totalP , 
-        fecha: fechaP , 
+    // ✨ Datos a actualizar
+    const updatedPedidoData = {
+        total: totalP,
         cliente: clienteID,
-        empleado:empleadoID , 
-        medioPago:medioPagoID , 
-        fechaEntrega:fechaEntregaP , 
-        envio:envioP
+        empleado: empleadoID,
+        medioPago: medioPagoID,
+        fechaEntrega: fechaEntregaP,
+        envio: envioP
     };
-    
-    if (presupuestoID) {
-        updatedPedidoData.presupuesto = presupuestoID;
-    }
-    
+
+    if (presupuestoID) updatedPedidoData.presupuesto = presupuestoID;
+
+    // ✨ Recalcular total con descuento
     if (descuento > 0) {
         updatedPedidoData.descuento = descuento;
-        updatedPedidoData.total = totalP - ((totalP*descuento)/100)
-    } else {
-        updatedPedidoData.total = totalP
+        updatedPedidoData.total = totalP - ((totalP * descuento) / 100);
     }
 
+    // ✨ Dirección si aplica
     if (envioP) {
-        if(!provincia || !localidad || !barrio || !calle || !altura){
-            res.status(400).json({ok:false , message:'Error al cargar los datos de entrega.'})
-            return
+        if (!provincia || !localidad || !barrio || !calle || !altura) {
+            return res.status(400).json({ ok: false, message: 'Datos de entrega incompletos.' });
         }
         updatedPedidoData.provincia = provincia;
         updatedPedidoData.localidad = localidad;
@@ -230,25 +277,79 @@ const updateNotaPedido = async(req,res) => {
         updatedPedidoData.deptoLetra = deptoLetra;
     }
 
+    // ===============================================================
+    // ⭐⭐⭐ MANEJO CORRECTO DE CUENTA CORRIENTE ⭐⭐⭐
+    // ===============================================================
+
+    const totalPedidoAnterior = pedido.descuento
+        ? pedido.total - ((pedido.total * pedido.descuento) / 100)
+        : pedido.total;
+
+    const totalPedidoNuevo = descuento
+        ? totalP - ((totalP * descuento) / 100)
+        : totalP;
+
+    // 1️⃣ SI ANTES ERA CC Y AHORA NO → DEVUELVE SALDO
+    if (medioPagoAnterior.name === "Cuenta Corriente" &&
+        medioPagoActual.name !== "Cuenta Corriente") {
+
+        cliente.saldoActualCuentaCorriente += totalPedidoAnterior;
+        await cliente.save();
+    }
+
+    // 2️⃣ SI ANTES NO ERA CC Y AHORA SÍ → DESCUENTA SALDO
+    else if (medioPagoAnterior.name !== "Cuenta Corriente" &&
+        medioPagoActual.name === "Cuenta Corriente") {
+
+        if (!cliente.cuentaCorriente) {
+            return res.status(400).json({
+                ok: false,
+                message: "El cliente no tiene habilitada la Cuenta Corriente."
+            });
+        }
+
+        if (cliente.saldoActualCuentaCorriente < totalPedidoNuevo) {
+            return res.status(400).json({
+                ok: false,
+                message: `Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`
+            });
+        }       
+
+        cliente.saldoActualCuentaCorriente -= totalPedidoNuevo;
+        await cliente.save();
+    }
+    
+    // SI ANTES ERA CC Y AHORA SÍ → DESCUENTA SALDO
+    else if (medioPagoAnterior.name === "Cuenta Corriente" &&
+        medioPagoActual.name === "Cuenta Corriente") {
+        
+        cliente.saldoActualCuentaCorriente = cliente.saldoActualCuentaCorriente + totalPedidoAnterior - totalPedidoNuevo;
+        await cliente.save();
+    }
+
+    // ===============================================================
+
+    // ✨ Actualizar pedido
     const updatedNotaPedido = await NotaPedido.findByIdAndUpdate(
         id,
         updatedPedidoData,
-        { new: true , runValidators: true }
-    )
+        { new: true, runValidators: true }
+    );
 
-    if(!updatedNotaPedido){
-        res.status(400).json({
-            ok:false,
-            message:'Error al actualizar el Nota de pedido.'
-        })
-        return
+    if (!updatedNotaPedido) {
+        return res.status(400).json({
+            ok: false,
+            message: 'Error al actualizar la Nota de pedido.'
+        });
     }
+
     res.status(200).json({
-        ok:true,
-        data:updatedNotaPedido,
-        message:'Nota de pedido actualizada correctamente.',
-    })
-}
+        ok: true,
+        data: updatedNotaPedido,
+        message: 'Nota de pedido actualizada correctamente.'
+    });
+};
+
 
 const deleteNotaPedido = async (req, res) => {
   try {

@@ -21,6 +21,7 @@ const setCliente = async (req,res) => {
     const calleC = req.body.calle;
     const ivaC = req.body.condicionIva;
     const cuentaCorrienteC = req.body.cuentaCorriente ? true : false;
+    const saldoCuentaCorriente = req.body.saldoCuentaCorriente;
 
     if(!nombreC || !altura || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
@@ -32,7 +33,17 @@ const setCliente = async (req,res) => {
         name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
         pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC, cuentaCorriente: cuentaCorrienteC ,
         altura: altura , deptoNumero: deptoNumero , deptoLetra: deptoLetra , estado:true
-    });
+    });    
+
+    if (cuentaCorrienteC) {
+        if(!saldoCuentaCorriente){
+            res.status(400).json({ok:false , message:'Error al cargar saldo de cuenta corriente.'})
+            return
+        }
+        newCliente.saldoCuentaCorriente = saldoCuentaCorriente;
+        newCliente.saldoActualCuentaCorriente = saldoCuentaCorriente;
+    }
+
     await newCliente.save()
         .then( () => {
             res.status(201).json({ok:true, message:'Cliente agregado correctamente.'})
@@ -95,6 +106,7 @@ const updateCliente = async(req,res) => {
     const altura = req.body.altura;
     const deptoNumero = req.body.deptoNumero;
     const deptoLetra = req.body.deptoLetra;
+    const saldoCuentaCorriente = req.body.saldoCuentaCorriente;
 
     if(!id){
         res.status(400).json({
@@ -104,21 +116,47 @@ const updateCliente = async(req,res) => {
         return
     }
 
+    const updatedClienteData = {
+        name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
+        pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC , cuentaCorriente:cuentaCorrienteC ,
+        altura: altura , deptoNumero: deptoNumero , deptoLetra: deptoLetra
+    };
+
     if(!nombreC || !altura || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
         res.status(400).json({ok:false , message:'Error al cargar los datos.'})
         return
+    }  
+
+    if (cuentaCorrienteC) {
+        if (saldoCuentaCorriente == null) {
+            return res.status(400).json({
+                ok:false,
+                message:'Error al cargar saldo de cuenta corriente.'
+            });
+        }
+
+        // Traer cliente actual
+        const cliente = await Cliente.findById(id);
+
+        // Calcular diferencia
+        const diferenciaCuentaCorriente =
+            saldoCuentaCorriente - cliente.saldoCuentaCorriente;
+
+        // Actualizar ambos saldos en base al cliente actual
+        updatedClienteData.saldoCuentaCorriente =
+            cliente.saldoCuentaCorriente + diferenciaCuentaCorriente;
+
+        updatedClienteData.saldoActualCuentaCorriente =
+            cliente.saldoActualCuentaCorriente + diferenciaCuentaCorriente;
     }
+
 
     const updatedCliente = await Cliente.findByIdAndUpdate(
         id,
-        {
-            name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
-            pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC , cuentaCorriente:cuentaCorrienteC ,
-            altura: altura , deptoNumero: deptoNumero , deptoLetra: deptoLetra
-        },
+        updatedClienteData,
         { new: true , runValidators: true }
-    )
+    ) 
 
     if(!updatedCliente){
         res.status(400).json({
