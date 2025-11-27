@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const Product = require('../models/producto_Model')
 const ProductoVino = require("../models/productoVino_Model");
 const ProductoInsumo = require("../models/productoInsumo_Model");
+const ProductoPicada = require("../models/productoPicada_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setProduct =  async (req , res ) => {
@@ -135,8 +136,23 @@ const lowStockProducts = async (req, res) => {
     }));
 
 
+    // 🔹 Productos PICADA con bajo stock
+    const lowStockPicadasDocs = await ProductoPicada.find({
+      estado: true,
+      $expr: { $lte: ["$stock", "$stockMinimo"] }
+    });
+
+    const lowStockPicadas = lowStockPicadasDocs.map(s => ({
+      _id: s._id,
+      name: s.name,
+      tipoProducto: s.tipoProducto,
+      stock: s.stock,
+      stockMinimo: s.stockMinimo
+    }));
+
+
     // 🔹 Unificar ambos listados
-    const lowStockProducts = [...lowStockVinos, ...lowStockInsumos];
+    const lowStockProducts = [...lowStockVinos, ...lowStockInsumos , ...lowStockPicadas];
 
     return res.status(200).json({
       ok: true,

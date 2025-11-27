@@ -10,7 +10,7 @@ const ProveedorSolicitudPresupuesto_Schema = mongoose.Schema({
         },
     proveedor: {
             type: Number,
-            ref: 'Producto',
+            ref: 'Proveedor',
             required: true
         },
     estado: {type: Boolean , require:true},
