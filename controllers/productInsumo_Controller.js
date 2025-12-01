@@ -35,7 +35,7 @@ const setProduct =  async (req , res ) => {
 
     await newProduct.save()
         .then(() => { 
-            res.status(201).json({ok:true , message:'Insumo agregado correctamente.'})
+            res.status(201).json({ok:true , producto:newProduct , message:'Insumo agregado correctamente.'})
         })
         .catch((error) => { console.log(error) }) 
     
@@ -101,7 +101,7 @@ const updateProduct =  async (req , res ) => {
         res.status(400).json({ok:false,message:"Error al actualizar producto."});
         return
     }
-    res.status(200).json({ok:true , message:"Producto actualizado correctamente."});
+    res.status(200).json({ok:true , data: updatedProduct , message:"Producto actualizado correctamente."});
 }
 
 const deleteProduct = async (req , res) => {

@@ -55,6 +55,7 @@ const routerProveedor_Remito = require('./routes/proveedorRemito_Router.js');
 const routerProveedor_RemitoDetalle = require('./routes/proveedorRemitoDetalle_Router.js');
 const routerUsuario = require('./routes/usuario_Router.js');
 const pingServer = require('./routes/pingServer.js');
+const routerProductofoto = require('./routes/productoFoto_Router.js');
 
 const app = express();
 
@@ -68,6 +69,7 @@ app.use(`${process.env.ROUTE}/ping`,pingServer);
 app.use(`${process.env.ROUTE}/usuario`, routerUsuario);
 
 app.use(`${process.env.ROUTE}/products/productVino`, routerProductVino);
+app.use(`${process.env.ROUTE}/products/productFoto`, routerProductofoto);
 app.use(`${process.env.ROUTE}/products/productVinoDetalle`, routerProductVinoDetalle);
 app.use(`${process.env.ROUTE}/products/productPicada`, routerPicadas);
 app.use(`${process.env.ROUTE}/products/productInsumo`, routerInsumos);
