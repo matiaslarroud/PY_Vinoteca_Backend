@@ -4,22 +4,22 @@ const getNextSequence = require("../controllers/counter_Controller");
 
 
 const setBarrio = async(req,res) => {
-    const newId = await getNextSequence("Barrio");
     const nombreBarrio = req.body.name;
     const localidadBarrio = req.body.localidad;
     if(!nombreBarrio || !localidadBarrio){
         res.status(400).json({
             ok:false,
-            message:"No puede agregarse un barrio sin todos los datos."
+            message:"❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
+    const newId = await getNextSequence("Barrio");
     const newBarrio = await new Barrio({
         _id: newId,name:nombreBarrio,localidad:localidadBarrio , estado:true});
     if(!newBarrio){
         res.status(400).json({
             ok:false,
-            message:"Error al agregar nuevo barrio."
+            message:"❌ Error al agregar nuevo barrio."
         })
         return
     }
@@ -27,32 +27,22 @@ const setBarrio = async(req,res) => {
         .then(()=>{
             res.status(201).json({
                 ok:true,
-                message:"Barrio agregado correctamente."
+                message:"✔️ Barrio agregado correctamente."
             })
         })
-        .catch((err)=>{
+        .catch((err) => {
             res.status(400).json({
-                ok:true,
-                message:"Error al agregar barrio."
+                ok:false,
+                message:`❌  Error al agregar barrio. ERROR:\n${err}`
             })
-            console.log(err)
-            return
-        })    
+        }) 
 }
 
 const getBarrio = async(req,res) => {
-    const barrios = await Barrio.find({estado:true});
-    if(!barrios){
-        res.status(400).json({
-            ok:false,
-            message:"Error al obtener barrios."
-        })
-        return
-    }
+    const barrios = await Barrio.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
-        data:barrios,
-        message:"Barrios encontrados correctamente."
+        data:barrios
     })
 }
 
@@ -61,7 +51,7 @@ const getBarrioID = async(req,res) => {
     if(!barrioID){
         res.status(400).json({
             ok:false,
-            message:"Error al buscar barrio solicitado."
+            message:"❌ Error al buscar barrio solicitado."
         })
         return
     }
@@ -69,14 +59,14 @@ const getBarrioID = async(req,res) => {
     if(!barrioEncontrado){
         res.status(400).json({
             ok:false,
-            message:"Error al buscar barrio solicitado."
+            message:"❌ Error al buscar barrio solicitado."
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:barrioEncontrado,
-        message:"Barrio encontrado correctamente."
+        message:"✔️ Barrio obtenido correctamente."
     })
 }
 
@@ -84,19 +74,18 @@ const updateBarrio = async(req,res) => {
     const barrioID = req.params.id;
     const nombreBarrio = req.body.name;
     const localidadBarrio = req.body.localidad;
-    if(!barrioID || !nombreBarrio){
+    if(!barrioID){
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar barrio."
+            message: "❌ Error al validar id del barrio.",
         })
         return
     }
 
-    const verifyLocalidad = await Localidad.findById(localidadBarrio)
-    if(!verifyLocalidad){
+    if(!nombreBarrio || !localidadBarrio){
         res.status(400).json({
             ok:false,
-            message:"No se pudo verificar correctamente la localidad."
+            message: "❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
@@ -109,22 +98,41 @@ const updateBarrio = async(req,res) => {
     if(!updatedBarrio){
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar barrio."
+            message:"❌ Error al actualizar barrio."
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Barrio actualizado correctamente."
+        message:"✔️ Barrio actualizado correctamente."
     })
 }
+
+//Validaciones de eliminacion
+const Cliente = require("../models/cliente_Model.js");
+const Proveedor = require("../models/proveedor_Model.js");
+const Paraje = require("../models/bodega-paraje_Model.js");
+const NotaPedido = require("../models/clienteNotaPedido_Model.js");
 
 const deleteBarrio = async(req,res) => {
     const barrioID = req.params.id;
     if(!barrioID){
         res.status(400).json({
             ok:false,
-            message:"Error validar ID del barrio a eliminar."
+            message:"❌ Error validar ID del barrio a eliminar."
+        })
+        return
+    }
+
+    const cliente = await Cliente.find({barrio:barrioID , estado:true}).lean();
+    const proveedor = await Proveedor.find({barrio:barrioID , estado:true}).lean();
+    const paraje = await Paraje.find({barrio:barrioID , estado:true}).lean();
+    const pedido = await NotaPedido.find({barrio:barrioID , estado:true}).lean();
+    
+    if(cliente.length !== 0 || proveedor.length !== 0 || paraje.length !== 0 || pedido.length !== 0){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a este barrio."
         })
         return
     }
@@ -136,13 +144,13 @@ const deleteBarrio = async(req,res) => {
     if(!deletedBarrio){
         res.status(400).json({
             ok:false,
-            message:"Error eliminar barrio."
+            message:"❌ Error eliminar barrio."
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Barrio eliminado correctamente."
+        message:"✔️ Barrio eliminado correctamente."
     })
 }
 

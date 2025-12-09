@@ -9,17 +9,17 @@ const obtenerFechaHoy = () => {
 }
 
 const setComprobantePago = async (req,res) => {
-    const newId = await getNextSequence("Proveedor_ComprobantePago");
     const total = req.body.total;
     const medioPago = req.body.medioPago;
     const fecha = obtenerFechaHoy();
     const comprobanteCompra = req.body.comprobanteCompra;
 
     if( !total || !fecha || !medioPago || !comprobanteCompra ){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
     
+    const newId = await getNextSequence("Proveedor_ComprobantePago");
     const newComprobantePago = new ComprobantePago ({
         _id: newId,
         total: total , 
@@ -33,11 +33,16 @@ const setComprobantePago = async (req,res) => {
         .then( () => {
             res.status(201).json({
                 ok:true, 
-                message:'Comprobante de pago agregado correctamente.',
+                message:'✔️ Comprobante de pago agregado correctamente.',
                 data: newComprobantePago
             })
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err)=>{
+            res.status(400).json({
+            ok: false,
+            message: "❌ Error al agregar comprobante de pago."
+            });
+        });
 
 }
 
@@ -70,8 +75,7 @@ const getComprobantePago = async (req, res) => {
     } catch (error) {
         res.status(500).json({
             ok: false,
-            message: "Error al obtener comprobantes de pago",
-            error
+            message: "❌ Error al obtener comprobantes de pago"
         });
     }
 };
@@ -85,7 +89,7 @@ const getComprobantePagoID = async (req, res) => {
         if (!id) {
             return res.status(400).json({
                 ok: false,
-                message: "El id no llegó al controlador correctamente",
+                message: "❌ El id no llegó al controlador correctamente",
             });
         }
 
@@ -94,7 +98,7 @@ const getComprobantePagoID = async (req, res) => {
         if (!comprobantePago) {
             return res.status(400).json({
                 ok: false,
-                message: "El id no corresponde a un comprobante de pago.",
+                message: "❌ El id no corresponde a un comprobante de pago.",
             });
         }
 
@@ -129,13 +133,14 @@ const getComprobantePagoID = async (req, res) => {
                 ...comprobantePago.toObject(),
                 proveedor,
             },
+            message: "✔️ Comprobante de pago obtenido correctamente.",
         });
 
     } catch (error) {
         console.error(error);
         res.status(500).json({
             ok: false,
-            message: "Error interno del servidor",
+            message: "❌ Error al obtener comprobante de pago",
         });
     }
 };
@@ -153,8 +158,13 @@ const updateComprobantePago = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌El id no llego al controlador correctamente.',
         })
+        return
+    }
+
+    if( !total || !fecha || !medioPago || !comprobanteCompra ){
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
 
@@ -172,14 +182,14 @@ const updateComprobantePago = async(req,res) => {
     if(!updatedComprobantePago){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar la comprobante de pago.'
+            message:'❌ Error al actualizar el comprobante de pago.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedComprobantePago,
-        message:'Comprobante de pago actualizado correctamente.',
+        message:'✔️ Comprobante de pago actualizado correctamente.',
     })
 }
 
@@ -188,7 +198,7 @@ const deleteComprobantePago = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -204,83 +214,16 @@ const deleteComprobantePago = async(req,res) => {
     if(!deletedComprobantePago){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     
     res.status(200).json({
         ok:true,
-        message:'Comprobante de pago eliminado correctamente.'
+        message:'✔️ Comprobante de pago eliminado correctamente.'
     })
 }
-
-// const buscarComprobantePago = async (req, res) => {
-//   try {
-//     const comprobanteID = Number(req.body.comprobanteID);
-//     const proveedor = req.body.proveedor;
-//     const comprobanteCompra = req.body.comprobanteCompra;    
-//     const medioPago = req.body.medioPago;
-//     const total = Number(req.body.total) || 0;
-
-//     let ordenesCompraProveedor = [];
-//     if (proveedor) {
-//       ordenesCompraProveedor = await OrdenCompra.find({estado:true, proveedor: proveedor });
-//     }
-
-//     const idsOrdenesProveedor = ordenesCompraProveedor.map(np => np._id);
-    
-//     const comprobantesCompra = await ComprobanteCompra.find({
-//         estado:true,
-//         ordenCompra: {$in:idsOrdenesProveedor}
-//     });
-
-//     const idsComprobantesCompra = comprobantesCompra.map(s =>s._id)
-    
-//     const comprobantes = await ComprobantePago.find({estado:true})
-
-//     // ⚠️ 3️⃣ Verificar si no hay ningún filtro activo
-//     const sinFiltrosActivos =
-//       !comprobanteCompra &&
-//       !proveedor &&
-//       !medioPago &&
-//       !comprobanteCompra &&
-//       (total === 0 || total === "")
-
-//     if (sinFiltrosActivos) {
-//       return res.status(200).json({ ok: true, data: comprobantes });
-//     }
-
-//     // 4️⃣ Aplicar filtros
-//     const comprobantesFiltrados = comprobantes.filter(p => {
-//       const coincideEstado = p.estado === true;
-//       const coincideComprobante = comprobanteID ? Number(p._id) === comprobanteID : true;
-//       const coincideTotal = total ? Number(p.total) === total : true;
-//       const coincideComprobanteCompra = comprobanteCompra
-//         ? Number(p.comprobanteCompra) === comprobanteCompra
-//         : true;
-//       const coincideProveedor = proveedor
-//         ? p.comprobanteCompra && idsComprobantesCompra.includes(p.comprobanteCompra)
-//         : true;
-//       const coincideMedioPago = proveedor
-//         ? Number(p.medioPago) === medioPago
-//         : true;
-
-//       return coincideProveedor && coincideTotal && coincideEstado &&
-//               coincideComprobanteCompra && coincideComprobante && coincideMedioPago;
-//     });
-        
-//     if (comprobantesFiltrados.length > 0) {
-//       res.status(200).json({ ok: true, data: comprobantesFiltrados });
-//     } else {
-//       res.status(200).json({ ok: false, message: "No se encontraron comprobantes con esos filtros" });
-//     }
-
-//   } catch (error) {
-//     console.error("Error al buscar comprobantes:", error);
-//     res.status(500).json({ ok: false, message: "Error interno del servidor" });
-//   }
-// }; 
 
 const buscarComprobantePago = async (req, res) => {
   try {
@@ -352,16 +295,16 @@ const buscarComprobantePago = async (req, res) => {
     });
 
     if (comprobantesFiltrados.length > 0) {
-      res.status(200).json({ ok: true, data: comprobantesFiltrados });
+      res.status(200).json({ ok: true, message: "✔️ Comprobantes de pago obtenidos", data: comprobantesFiltrados });
     } else {
       res.status(200).json({
         ok: false,
-        message: "No se encontraron comprobantes con esos filtros"
+        message: "❌ No se encontraron comprobantes con esos filtros"
       });
     }
   } catch (error) {
-    console.error("Error al buscar comprobantes:", error);
-    res.status(500).json({ ok: false, message: "Error interno del servidor" });
+    console.error("❌ Error al buscar comprobantes:", error);
+    res.status(500).json({ ok: false, message: "❌ Error interno del servidor" });
   }
 };
 

@@ -2,16 +2,16 @@ const SolicitudPresupuestoDetalle = require("../models/proveedorSolicitudPresupu
 const getNextSequence = require("./counter_Controller");
 
 const setSolicitudPresupuestoDetalle = async (req,res) => {
-    const newId = await getNextSequence("Proveedor_SolicitudPresupuestoDetalle");
     const cantidadP = req.body.cantidad;
     const solicitudPresupuestoP = req.body.solicitudPresupuesto;
     const productoID = req.body.producto;
     const importe = req.body.importe;
 
     if(!solicitudPresupuestoP || !productoID || !cantidadP ){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
+    const newId = await getNextSequence("Proveedor_SolicitudPresupuestoDetalle");
     const newPresupuestoDetalle = new SolicitudPresupuestoDetalle ({
         _id: newId,
         solicitudPresupuesto: solicitudPresupuestoP , producto: productoID , 
@@ -19,18 +19,22 @@ const setSolicitudPresupuestoDetalle = async (req,res) => {
     });
     await newPresupuestoDetalle.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Solicitud de presupuesto detalle agregado correctamente.'})
+            res.status(201).json({ok:true, message:'✔️ Solicitud de presupuesto detalle agregado correctamente.'})
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar detalle de solicitud de presupuesto. ERROR:\n${err}`
+            })
+        }) 
 
 }
 
 const getSolicitudPresupuestoDetalle = async(req, res) => {
-    const detallesPresupuesto = await SolicitudPresupuestoDetalle.find({estado:true});
-
-    res.status(200).json({
+    const detallesPresupuesto = await SolicitudPresupuestoDetalle.find({estado:true}).lean();
+     res.status(200).json({
         ok:true,
-        data: detallesPresupuesto,
+        data: detallesPresupuesto
     })
 }
 
@@ -40,7 +44,7 @@ const getSolicitudPresupuestoDetalleBySolicitudPresupuesto = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -49,7 +53,7 @@ const getSolicitudPresupuestoDetalleBySolicitudPresupuesto = async(req,res) => {
     if(!presupuestoDetalle){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde al detalle de una solicitud de presupuesto.'
+            message:'❌ El id no corresponde al detalle de una solicitud de presupuesto.'
         })
         return
     }
@@ -57,6 +61,7 @@ const getSolicitudPresupuestoDetalleBySolicitudPresupuesto = async(req,res) => {
     res.status(200).json({
         ok:true,
         data:presupuestoDetalle,
+        message:"✔️ Detalles de solicitudes de presupuesto obtenidos correctamente."
     })
 }
 
@@ -67,7 +72,7 @@ const getSolicitudPresupuestoDetalleID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -76,7 +81,7 @@ const getSolicitudPresupuestoDetalleID = async(req,res) => {
     if(!presupuestoDetalle){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde al detalle de un presupuesto.'
+            message:'❌ El id no corresponde al detalle de un presupuesto.'
         })
         return
     }
@@ -84,6 +89,7 @@ const getSolicitudPresupuestoDetalleID = async(req,res) => {
     res.status(200).json({
         ok:true,
         data:presupuestoDetalle,
+        message:"✔️ Detalles de solicitudes de presupuesto obtenidos correctamente."
     })
 }
 
@@ -98,8 +104,13 @@ const updateSolicitudPresupuestoDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
+        return
+    }
+
+    if(!solicitudPresupuestoP || !productoID || !cantidadP || !importe){
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
 
@@ -115,14 +126,14 @@ const updateSolicitudPresupuestoDetalle = async(req,res) => {
     if(!updatedPresupuestoDetalle){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el solicitud de presupuesto detalle.'
+            message:'❌ Error al actualizar el solicitud de presupuesto detalle.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedPresupuestoDetalle,
-        message:'Solicitud de presupuesto detalle actualizado correctamente.',
+        message:'✔️ Solicitud de presupuesto detalle actualizado correctamente.',
     })
 }
 
@@ -132,7 +143,7 @@ const deleteSolicitudPresupuestoDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -146,13 +157,13 @@ const deleteSolicitudPresupuestoDetalle = async(req,res) => {
     if(!deletedPresupuestoDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Solicitud de presupuesto detalle eliminado correctamente.'
+        message:'✔️ Solicitud de presupuesto detalle eliminado correctamente.'
     })
 }
 

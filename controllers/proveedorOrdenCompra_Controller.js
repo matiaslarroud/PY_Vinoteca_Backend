@@ -9,7 +9,6 @@ const obtenerFechaHoy = () => {
 }
 
 const setOrdenCompra = async (req,res) => {
-    const newId = await getNextSequence("Proveedor_OrdenCompra");
     const total = req.body.total;
     const fecha = obtenerFechaHoy();
     const fechaEntrega = new Date(req.body.fechaEntrega);
@@ -20,10 +19,11 @@ const setOrdenCompra = async (req,res) => {
 
 
     if(!total || !fecha || !proveedorID || !medioPagoID || !empleadoID || !presupuesto || !fechaEntrega ){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
     
+    const newId = await getNextSequence("Proveedor_OrdenCompra");
     const newOrdenCompra = new OrdenCompra ({
         _id: newId,
         total: total , 
@@ -41,12 +41,16 @@ const setOrdenCompra = async (req,res) => {
         .then( () => {
             res.status(201).json({
                 ok:true, 
-                message:'Orden de compra agregada correctamente.',
+                message:'✔️ Orden de compra agregada correctamente.',
                 data: newOrdenCompra
             })
         })
-        .catch((err)=>{console.log(err)});
-
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌ Error al agregar orden de compra. ERROR:\n${err}`
+            })
+        }) 
 }
 
 const getOrdenCompra = async (req, res) => {
@@ -75,11 +79,11 @@ const getOrdenCompra = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error al obtener órdenes de compra:", error);
+    console.error("❌ Error al obtener órdenes de compra:", error);
 
     res.status(500).json({
       ok: false,
-      message: "Error interno al obtener las órdenes de compra."
+      message: "❌ Error interno al obtener las órdenes de compra."
     });
   }
 };
@@ -91,7 +95,7 @@ const getOrdenCompraID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -100,13 +104,14 @@ const getOrdenCompraID = async(req,res) => {
     if(!ordenCompra){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a una orden de compra.'
+            message:'❌ El id no corresponde a una orden de compra.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Orden de compra obtenida correctamente.",
         data:ordenCompra,
     })
 }
@@ -125,8 +130,13 @@ const updateOrdenCompra = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
+        return
+    }
+
+    if( !total || !fechaEntrega || !proveedorID || !empleadoID || !medioPagoID || !presupuesto ){
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
 
@@ -147,23 +157,36 @@ const updateOrdenCompra = async(req,res) => {
     if(!updatedOrdenCompra){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar la orden de compra.'
+            message:'❌ Error al actualizar la orden de compra.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedOrdenCompra,
-        message:'Orden de compra actualizado correctamente.',
+        message:'✔️ Orden de compra actualizada correctamente.',
     })
 }
+
+//Validaciones de eliminacion
+const ProveedorComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
 
 const deleteOrdenCompra = async(req,res) => {
     const id = req.params.id;
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
+        })
+        return
+    }
+
+    const comprobantes = await ProveedorComprobanteCompra.find({ordenCompra:id , estado:true}).lean();
+    
+    if(comprobantes.length !== 0 ){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a esta orden de compra."
         })
         return
     }
@@ -179,7 +202,7 @@ const deleteOrdenCompra = async(req,res) => {
     if(!deletedOrdenCompra){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
@@ -194,13 +217,13 @@ const deleteOrdenCompra = async(req,res) => {
     if(!deletedOrdenCompraDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado del detalle.'
+            message: '❌ Error durante el borrado del detalle.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Orden de compra eliminado correctamente.'
+        message:'✔️ Orden de compra eliminada correctamente.'
     })
 }
 
@@ -218,7 +241,7 @@ const buscarOrdenCompra = async (req, res) => {
         producto: { $in: productosBuscados },
       });
     } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "Error al buscar presupuestos" });       
+        res.status(500).json({ ok: false, message: "❌ Error al buscar presupuestos" });       
     } else if (!detalles) {
       detallesFiltrados = await OrdenCompraDetalle.find();
     }
@@ -245,9 +268,9 @@ const buscarOrdenCompra = async (req, res) => {
                 coincideMedioPago && coincideTotal && coincidePresupuesto && coincideFechaEntrega;
     });
     if(ordenesFiltrados.length > 0){
-        res.status(200).json({ ok: true, data: ordenesFiltrados });
+        res.status(200).json({ ok: true, message: "✔️ Ordenes de compra obtenidas." , data: ordenesFiltrados });
     } else {
-        res.status(500).json({ ok: false, message: "Error al buscar ordenes de compra." });
+        res.status(500).json({ ok: false, message: "❌ Error al buscar ordenes de compra." });
     }
 };
 

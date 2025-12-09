@@ -2,15 +2,15 @@ const OrdenProduccionDetalle = require("../models/ordenProduccionDetalle_Model")
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setOrdenProduccionDetalle = async (req,res) => {
-    const newId = await getNextSequence("OrdenProduccionDetalle");
     const picadaOrden = req.body.picada;
     const cantidadOrden = req.body.cantidad;
     const ordenProduccion = req.body.ordenProduccion;
 
     if( !picadaOrden || !cantidadOrden || !ordenProduccion ){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
+    const newId = await getNextSequence("OrdenProduccionDetalle");
     const newOrdenDetalle = new OrdenProduccionDetalle ({
         _id: newId,
         picada: picadaOrden,
@@ -20,15 +20,19 @@ const setOrdenProduccionDetalle = async (req,res) => {
     });
     await newOrdenDetalle.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Detalle de orden de produccion agregado correctamente.'})
+            res.status(201).json({ok:true, message:'✔️ Detalle de orden de produccion agregado correctamente.'})
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar detalle de orden de produccion. ERROR:\n${err}`
+            })
+        })
 
 }
 
 const getOrdenDetalle = async(req, res) => {
-    const detallesOrden = await OrdenProduccionDetalle.find({estado:true});
-
+    const detallesOrden = await OrdenProduccionDetalle.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
         data: detallesOrden,
@@ -41,7 +45,7 @@ const getOrdenDetalleID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -50,13 +54,14 @@ const getOrdenDetalleID = async(req,res) => {
     if(!ordenDetalle){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde al detalle de una orden de produccion.'
+            message:'❌ El id no corresponde al detalle de una orden de produccion.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Detalle de orden obtenido correctamente.",
         data:ordenDetalle,
     })
 }
@@ -67,7 +72,7 @@ const getOrdenDetalle_ByOrden = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -76,13 +81,14 @@ const getOrdenDetalle_ByOrden = async(req,res) => {
     if(!ordenDetalle || ordenDetalle.length === 0){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a los detalles de una orden de produccion.'
+            message:'❌ El id no corresponde a los detalles de una orden de produccion.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Detalles de ordenes obtenidos correctamente.",
         data:ordenDetalle,
     })
 }
@@ -97,7 +103,15 @@ const updateOrdenDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
+        })
+        return
+    }
+
+    if(!cantidadP || !picadaID || !ordenProduccion){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
@@ -113,14 +127,14 @@ const updateOrdenDetalle = async(req,res) => {
     if(!updatedOrdenDetalle){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el detalle de la orden de produccion.'
+            message:'❌ Error al actualizar el detalle de la orden de produccion.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedOrdenDetalle,
-        message:'Detalle de orden de produccion actualizado correctamente.',
+        message:'✔️ Detalle de orden de produccion actualizado correctamente.',
     })
 }
 
@@ -131,7 +145,7 @@ const deleteOrdenDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -147,13 +161,13 @@ const deleteOrdenDetalle = async(req,res) => {
     if(!deletedOrdenDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado de los detalles de la orden de produccion.'
+            message: '❌ Error durante el borrado de los detalles de la orden de produccion.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Detalle de orden de produccion eliminado correctamente.'
+        message:'✔️ Detalle de orden de produccion eliminado correctamente.'
     })
 }
 

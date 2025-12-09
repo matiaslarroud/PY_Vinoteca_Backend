@@ -2,7 +2,6 @@ const Transporte = require('../models/transporte_Model')
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setTransporte =  async (req , res ) => {
-    const newId = await getNextSequence("Transporte");
     const razonSocial = req.body.name;
     const telefonoTransporte = req.body.telefono;
     const emailTransporte = req.body.email;
@@ -16,10 +15,10 @@ const setTransporte =  async (req , res ) => {
     
     if (!razonSocial || !telefonoTransporte || !emailTransporte || !cuitTransporte || !paisTransporte || 
         !provinciaTransporte || !localidadTransporte || !barrioTransporte || !calleTransporte || !condicionIvaTransporte   ) {
-        res.status(400).json({ok:false , message:'No se puede cargar el transporte sin todos los datos.'});
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
     }
-
+    const newId = await getNextSequence("Transporte");
     const newTransporte = new Transporte({
         _id: newId,
         estado:true,
@@ -34,20 +33,25 @@ const setTransporte =  async (req , res ) => {
         calle: calleTransporte,
         condicionIva: condicionIvaTransporte
     });
+    
     await newTransporte.save()
         .then(() => { 
             res.status(201).json({
                 ok:true ,
                 data: newTransporte,
-                message:'Transporte agregado correctamente.'
+                message:'✔️ Transporte agregado correctamente.'
             })
         })
-        .catch((error) => { console.log(error) }) 
-    
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar transporte. ERROR:\n${err}`
+            })
+        })
 }
 
 const getTransporte = async(req,res) => {
-    const transportes = await Transporte.find({estado:true});
+    const transportes = await Transporte.find({estado:true}).lean();
 
     res.status(200).json({
         ok:true,
@@ -58,17 +62,18 @@ const getTransporte = async(req,res) => {
 const getTransporteID = async(req,res) => {
     const id = req.params.id;
     if(!id) {
-        res.status(400).json({ok:false, message:"El id no llego al controlador correctamente."})
+        res.status(400).json({ok:false, message:"❌ El id no llego al controlador correctamente."})
         return
     }
     
     const transporte = await Transporte.findById(id);
     if (!Transporte) {
-        res.status(400).json({ok:false, message:"El id no corresponde a un transporte."});
+        res.status(400).json({ok:false, message:"❌ El id no corresponde a un transporte."});
         return
     }
     res.status(200).json({
         ok:true,
+        message:"✔️ Transporte obtenido con exito.",
         data: transporte
     })
 }
@@ -88,7 +93,7 @@ const updateTransporte =  async (req , res ) => {
     
     if (!razonSocial || !telefonoTransporte || !emailTransporte || !cuitTransporte || !paisTransporte || 
         !provinciaTransporte || !localidadTransporte || !barrioTransporte || !calleTransporte || !condicionIvaTransporte) {
-        res.status(400).json({ok:false , message:'No se puede actualizar el transporte sin todos los datos.'});
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
     }
     
@@ -112,31 +117,55 @@ const updateTransporte =  async (req , res ) => {
     if(!updatedTransporte) {
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar transporte."
+            message:"❌ Error al actualizar transporte."
         });
         return
     }
     res.status(200).json({
         ok:true , 
         data: updatedTransporte,
-        message:"Transporte actualizado correctamente."
+        message:"✔️ Transporte actualizado correctamente."
     })    
 }
 
+
+//Validaciones de eliminacion
+const RemitoCliente = require("../models/clienteRemito_Model");
+const RemitoProveedor = require("../models/proveedorRemito_Model");
+
 const deleteTransporte = async (req , res) => {
-    const id = req.params.id;
+    const transporteID = req.params.id;
+
+    if(!transporteID){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar transporte."
+        })
+        return
+    }
+
+    const clienteRemito = await RemitoCliente.find({transporteID:transporteID , estado:true}).lean();
+    const proveedorRemito = await RemitoProveedor.find({transporte:transporteID , estado:true}).lean();
+    
+    if(clienteRemito.length !== 0 || proveedorRemito.length !== 0){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a este transporte."
+        })
+        return
+    }
     const deletedTransporte = await Transporte.findByIdAndUpdate(
-        id, 
+        transporteID, 
         {
             estado: false
         },
         { new: true , runValidators: true }
     )
     if(!deletedTransporte) {
-        res.status(400).json({ok:false,message:"Error al eliminar transporte."});
+        res.status(400).json({ok:false,message:"❌ Error al eliminar transporte."});
         return
     }
-    res.status(200).json({ok:true , message:"Transporte eliminado correctamente."});
+    res.status(200).json({ok:true , message:"✔️ Transporte eliminado correctamente."});
 }
 
 module.exports = {setTransporte , getTransporte , getTransporteID , updateTransporte , deleteTransporte};

@@ -2,29 +2,30 @@ const Uva = require("../models/tipoUva_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setUva = async (req,res) => {
-    const newId = await getNextSequence("Vino_Uva");
     const name = req.body.name;
 
     if(!name){
-        res.status(400).json({ok:false , message:'No se puede agregar sin los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
+    const newId = await getNextSequence("Vino_Uva");
     const newUva = new Uva ({
         _id: newId,name: name , estado:true});
     await newUva.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Uva agregada correctamente.'})
+            res.status(201).json({ok:true, message:'✔️ Uva agregada correctamente.'})
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar uva. ERROR:\n${err}`
+            })
+        })
 
 }
 
 const getUva = async(req, res) => {
-    const uvas = await Uva.find({estado:true});
-    if(!uvas){
-        res.status(400).json({ok:false , message:'Error al obtener datos.'})
-        return
-    }
+    const uvas = await Uva.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
         data: uvas,
@@ -37,7 +38,7 @@ const getUvaID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -46,13 +47,14 @@ const getUvaID = async(req,res) => {
     if(!uvaEncontrada){
         res.status(400).json({
             ok:false,
-            message:'Error al obtener datos.'
+            message:'❌ Error al obtener datos.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Uva obtenida correctamente.",
         data:uvaEncontrada,
     })
 }
@@ -60,10 +62,18 @@ const getUvaID = async(req,res) => {
 const updateUva = async(req,res) => {
     const id = req.params.id;
     const nombreUva = req.body.name;
-    if(!id || !nombreUva ){
+    if(!id ){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar uva.',
+            message:'❌ Error al actualizar uva.',
+        })
+        return
+    }
+    
+    if(!nombreUva ){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Faltan completar algunos campos obligatorios.",
         })
         return
     }
@@ -77,22 +87,35 @@ const updateUva = async(req,res) => {
     if(!updatedUva){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar uva.'
+            message:'❌ Error al actualizar uva.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Uva actualizada correctamente.',
+        message:'✔️ Uva actualizada correctamente.',
     })
 }
+
+//Validaciones de eliminacion
+const VinoDetalle = require("../models/productoVinoDetalle_Model");
 
 const deleteUva = async(req,res) => {
     const id = req.params.id;
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
+        })
+        return
+    }
+
+    const vinos = await VinoDetalle.find({uva:id , estado:true}).lean();
+    
+    if(vinos.length !== 0 ){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a esta uva."
         })
         return
     }
@@ -102,16 +125,17 @@ const deleteUva = async(req,res) => {
         {estado:false},
         { new: true , runValidators: true }
     )
+
     if(!deletedUva){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Uva eliminada correctamente.'
+        message:'✔️ Uva eliminada correctamente.'
     })
 }
 

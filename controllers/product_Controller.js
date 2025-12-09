@@ -39,7 +39,7 @@ const setProduct =  async (req , res ) => {
 }
 
 const getProduct = async(req,res) => {
-    const productos = await Product.find({estado:true});
+    const productos = await Product.find({estado:true}).lean();
 
     res.status(200).json({
         ok:true,
@@ -58,6 +58,14 @@ const stockUpdate = async(req,res) => {
     })}
 
     const producto = await Product.findById(id);
+    if(producto.stock - Number(cantidadVendida) < 0)
+    {
+      return res.status(400).json({
+            ok: false,
+            message: '❌ La cantidad solicitada supera al stock actual del producto.',
+        });
+    }
+      
     producto.stock -= Number(cantidadVendida);
     await producto.save();
 

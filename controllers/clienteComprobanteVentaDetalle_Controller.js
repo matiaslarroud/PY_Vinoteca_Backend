@@ -2,7 +2,6 @@ const ComprobanteVentaDetalle = require("../models/clienteComprobanteVentaDetall
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setComprobanteVentaDetalle = async (req,res) => {
-    const newId = await getNextSequence("Cliente_ComprobanteVentaDetalle");
     const importeP = req.body.importe;
     const comprobanteVentaP = req.body.comprobanteVenta;
     const productoID = req.body.producto;
@@ -10,9 +9,11 @@ const setComprobanteVentaDetalle = async (req,res) => {
     const cantidadP = req.body.cantidad;
 
     if(!importeP || !comprobanteVentaP || !productoID || !precioP || !cantidadP){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:'❌ Error al cargar los datos.'})
         return
     }
+    
+    const newId = await getNextSequence("Cliente_ComprobanteVentaDetalle");
     const newComprobanteVentaDetalle = new ComprobanteVentaDetalle ({
         _id: newId,
         importe: importeP , 
@@ -24,18 +25,23 @@ const setComprobanteVentaDetalle = async (req,res) => {
     });
     await newComprobanteVentaDetalle.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Detalle de comprobante de venta agregado correctamente.', data: newComprobanteVentaDetalle})
+            res.status(201).json({ok:true, message:'✔️ Detalle de comprobante de venta agregado correctamente.', data: newComprobanteVentaDetalle})
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar detalle de comprobante de venta. ERROR:\n${err}`
+            })
+        }) 
 
 }
 
 const getComprobanteVentaDetalle = async(req, res) => {
-    const detallesNotaPedido = await ComprobanteVentaDetalle.find({estado:true});
+    const detallesNotaPedido = await ComprobanteVentaDetalle.find({estado:true}).lean();
 
     res.status(200).json({
         ok:true,
-        data: detallesNotaPedido,
+        data: detallesNotaPedido
     })
 }
 
@@ -45,7 +51,7 @@ const getComprobanteVentaDetalleByComprobanteVenta = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -54,13 +60,14 @@ const getComprobanteVentaDetalleByComprobanteVenta = async(req,res) => {
     if(!comprobanteVentaDetalleEncontrado){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a un detalle de comprobante de venta.'
+            message:'❌ El id no corresponde a un detalle de comprobante de venta.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Detalles de comprobantes de venta obtenidos correctamente.",
         data:comprobanteVentaDetalleEncontrado,
     })
 }
@@ -72,7 +79,7 @@ const getComprobanteVentaDetalleID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'✔️ El id no llego al controlador correctamente',
         })
         return
     }
@@ -81,13 +88,14 @@ const getComprobanteVentaDetalleID = async(req,res) => {
     if(!comprobanteVentaDetalleEncontrado){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde al detalle de un comprobante de venta.'
+            message:'❌ El id no corresponde al detalle de un comprobante de venta.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Detalle de comprobante de venta obtenido correctamente.",
         data:comprobanteVentaDetalleEncontrado,
     })
 }
@@ -104,7 +112,7 @@ const updateComprobanteVentaDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
         return
     }
@@ -124,14 +132,14 @@ const updateComprobanteVentaDetalle = async(req,res) => {
     if(!updatedComprobanteVentaDetalle){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el detalle del comprobante de venta.'
+            message:'❌ Error al actualizar el detalle del comprobante de venta.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedComprobanteVentaDetalle,
-        message:'Detalle de comprobante de venta actualizado correctamente.',
+        message:'✔️ Detalle de comprobante de venta actualizado correctamente.',
     })
 }
 
@@ -141,7 +149,7 @@ const deleteComprobanteVentaDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -157,13 +165,13 @@ const deleteComprobanteVentaDetalle = async(req,res) => {
     if(!deletedComprobanteVentaDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Detalle de comprobante de venta eliminado correctamente.'
+        message:'✔️ Detalle de comprobante de venta eliminado correctamente.'
     })
 }
 

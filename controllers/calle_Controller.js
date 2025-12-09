@@ -2,49 +2,39 @@ const Calle = require("../models/calle_Model.js");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setCalle = async(req,res) => {
-    const newId = await getNextSequence("Calle");
     const nombreCalle = req.body.name;
     const barrioID = req.body.barrio;
 
-    if(!nombreCalle){
+    if(!nombreCalle || !barrioID){
         res.status(400).json({
             ok:false,
-            message:"Error al intentar agregar nueva calle."
+            message:"❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
     
+    const newId = await getNextSequence("Calle");
     const newCalle = new Calle({
         _id: newId,name: nombreCalle , barrio:barrioID , estado:true})
     await newCalle.save()
         .then(()=>{
             res.status(201).json({
                 ok:true,
-                message:"Calle agregada correctamente."
+                message:"✔️ Calle agregada correctamente."
             })
         })
-        .catch((err)=>{
-            console.log(err);
+        .catch((err) => {
             res.status(400).json({
                 ok:false,
-                message:"Error al agregar nueva calle."
+                message:`❌  Error al agregar calle. ERROR:\n${err}`
             })
-            return
         })
 }
 
 const getCalle = async(req,res) => {
-    const calles = await Calle.find({estado:true});
-    if(!calles){
-        res.status(400).json({
-            ok:false,
-            message:"Error al obtener calles."
-        })
-        return
-    }
+    const calles = await Calle.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
-        message:"Calles obtenidas con exito.",
         data: calles
     })
 }
@@ -55,7 +45,7 @@ const getCalleID = async(req,res) => {
     if(!calleID){
         res.status(400).json({
             ok:false,
-            message:"Error al obtener calle."
+            message:"❌ Error al obtener calle."
         })
         return
     }
@@ -65,14 +55,14 @@ const getCalleID = async(req,res) => {
     if(!calleEncontrada){
         res.status(400).json({
             ok:false,
-            message:"Error al obtener calle."
+            message:"❌ Error al obtener calle."
         })
         return
     }
 
     res.status(200).json({
         ok:true,
-        message:"Calle encontrada correctamente.",
+        message:"✔️ Calle encontrada correctamente.",
         data: calleEncontrada
     })
 }
@@ -81,11 +71,18 @@ const updateCalle = async(req,res) => {
     const calleID = req.params.id;
     const nombreCalle = req.body.name;
     const nombreBarrio = req.body.barrio;
-
-    if(!calleID || !nombreCalle || !nombreBarrio){
+    if(!calleID){
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar calle."
+            message: "❌ Error al validar id de la calle.",
+        })
+        return
+    }
+
+    if(!nombreCalle || !nombreBarrio){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
@@ -99,16 +96,23 @@ const updateCalle = async(req,res) => {
     if(!updatedCalle){
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar calle."
+            message:"❌ Error al actualizar calle."
         })
         return
     }
 
     res.status(200).json({
         ok:true,
-        message:"Calle actualizada correctamente."
+        message:"✔️ Calle actualizada correctamente."
     })
 }
+
+
+//Validaciones de eliminacion
+const Cliente = require("../models/cliente_Model.js");
+const Proveedor = require("../models/proveedor_Model.js");
+const Paraje = require("../models/bodega-paraje_Model.js");
+const NotaPedido = require("../models/clienteNotaPedido_Model.js");
 
 const deleteCalle = async(req,res) => {
     const calleID = req.params.id;
@@ -116,7 +120,20 @@ const deleteCalle = async(req,res) => {
     if(!calleID){
         res.status(400).json({
             ok:false,
-            message:"Error al eliminar calle."
+            message:"❌ Error al eliminar calle."
+        })
+        return
+    }
+
+    const cliente = await Cliente.find({calle:calleID , estado:true}).lean();
+    const proveedor = await Proveedor.find({calle:calleID , estado:true}).lean();
+    const paraje = await Paraje.find({calle:calleID , estado:true}).lean();
+    const pedido = await NotaPedido.find({calle:calleID , estado:true}).lean();
+    
+    if(cliente.length !== 0 || proveedor.length !== 0 || paraje.length !== 0 || pedido.length !== 0){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a esta calle."
         })
         return
     }
@@ -130,14 +147,14 @@ const deleteCalle = async(req,res) => {
     if(!deletedCalle){
         res.status(400).json({
             ok:false,
-            message:"Error al eliminar calle."
+            message:"❌ Error al eliminar calle."
         })
         return
     }
 
     res.status(200).json({
         ok:true,
-        message:"Calle eliminada correctamente."
+        message:"✔️ Calle eliminada correctamente."
     })
 }
 

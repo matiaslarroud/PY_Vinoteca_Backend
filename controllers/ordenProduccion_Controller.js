@@ -11,17 +11,17 @@ const obtenerFechaHoy = () => {
 }
 
 const setOrdenProduccion =  async (req , res ) => {
-    const newId = await getNextSequence("OrdenProduccion");
     const fechaOrden = obtenerFechaHoy();
     const fechaElaboracionOrden = req.body.fechaElaboracion;
     const fechaEntregaOrden = req.body.fechaEntrega;
     const empleadoOrden = req.body.empleado;
     
     if (!fechaOrden || !fechaElaboracionOrden || !fechaEntregaOrden || !empleadoOrden) {
-        res.status(400).json({ok:false , message:'No se puede cargar la orden de produccion sin todos los datos.'});
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
 
+    const newId = await getNextSequence("OrdenProduccion");
     const newOrden = new OrdenProduccion({
         _id: newId,
         fecha: fechaOrden,
@@ -35,7 +35,7 @@ const setOrdenProduccion =  async (req , res ) => {
     if(!newOrden){
         res.status(400).json({
             ok:false,
-            message:"Error al cargar la orden de produccion."
+            message:"❌ Error al cargar la orden de produccion."
         })
         return
     }
@@ -45,16 +45,20 @@ const setOrdenProduccion =  async (req , res ) => {
             res.status(201).json({
                 ok:true ,
                 data: newOrden,
-                message:'Orden de produccion agregada correctamente.'
+                message:'✔️ Orden de produccion agregada correctamente.'
             })
         })
-        .catch((error) => { console.log(error) }) 
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar orden de produccion. ERROR:\n${err}`
+            })
+        })
     
 }
 
 const getOrdenProduccion = async(req,res) => {
-    const ordenes = await OrdenProduccion.find({estado:true});
-
+    const ordenes = await OrdenProduccion.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
         data:ordenes,
@@ -64,22 +68,31 @@ const getOrdenProduccion = async(req,res) => {
 const getOrdenProduccionID = async(req,res) => {
     const id = req.params.id;
     if(!id) {
-        res.status(400).json({ok:false, message:"El id no llego al controlador correctamente."})
+        res.status(400).json({ok:false, message:"❌ El id no llego al controlador correctamente."})
         return
     }
     
     const orden = await OrdenProduccion.findById(id);
     if (!orden) {
-        res.status(400).json({ok:false, message:"El id no corresponde a una orden de produccion."});
+        res.status(400).json({ok:false, message:"❌ El id no corresponde a una orden de produccion."});
         return
     }
     res.status(200).json({
         ok:true,
+        message:"✔️ Orden obtenida correctamente.",
         data: orden
     })
 }
 const updateOrdenProduccion =  async (req , res ) => {
     const id = req.params.id;
+
+    if(!id){
+        res.status(400).json({
+            ok:false,
+            message:'❌ El id no llego al controlador correctamente.',
+        })
+        return
+    }
     
     const fechaOrden = obtenerFechaHoy();
     const fechaElaboracionOrden = req.body.fechaElaboracion;
@@ -87,7 +100,7 @@ const updateOrdenProduccion =  async (req , res ) => {
     const empleadoOrden = req.body.empleado;
     
     if ( !fechaElaboracionOrden || !fechaEntregaOrden || !empleadoOrden) {
-        res.status(400).json({ok:false , message:'No se puede actualizar una orden de produccion sin todos los datos.'});
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
     }
     
@@ -105,19 +118,49 @@ const updateOrdenProduccion =  async (req , res ) => {
     if(!updatedOrden) {
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar orden de produccion."
+            message:"❌ Error al actualizar orden de produccion."
         });
         return
     }
     res.status(200).json({
         ok:true , 
         data: updatedOrden,
-        message:"Orden de produccion actualizada correctamente."
+        message:"✔️ Orden de produccion actualizada correctamente."
     })    
 }
 
+
 const deleteOrdenProduccion = async (req , res) => {
     const id = req.params.id;
+
+    if(!id){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar orden de producción."
+        })
+        return
+    }
+
+    const orden = await OrdenProduccion.find({_id:id , estado:true}).lean();
+    
+    if(orden.length === 0){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar orden de producción."
+        })
+        return
+    }
+
+    const ordenFinalizada = await OrdenProduccion.find({_id:id , estado:true , estadoProduccion:true}).lean();
+    
+    if(ordenFinalizada.length !== 0){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Esta orden ya fue finalizada."
+        })
+        return
+    }
+
     const deletedOrden = await OrdenProduccion.findByIdAndUpdate(
             id, 
             {
@@ -126,18 +169,18 @@ const deleteOrdenProduccion = async (req , res) => {
             { new: true , runValidators: true }
         )
     if(!deletedOrden) {
-        res.status(400).json({ok:false,message:"Error al eliminar orden de produccion."});
+        res.status(400).json({ok:false,message:"❌ Error al eliminar orden de produccion."});
         return
     }
     const deletedOrdenDetalle = await OrdenProduccionDetalle.deleteMany({ordenProduccion:id});
     if(!deletedOrdenDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado de los detalles de la orden de produccion.'
+            message: '❌ Error durante el borrado de los detalles de la orden de produccion.'
         })
         return
     }
-    res.status(200).json({ok:true , message:"Orden de produccion eliminada correctamente."});
+    res.status(200).json({ok:true , message:"✔️ Orden de produccion eliminada correctamente."});
 }
 
 const updateStock_Picada_Insumos = async (req, res) => {

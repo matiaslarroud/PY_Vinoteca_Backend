@@ -1,10 +1,7 @@
 const Cliente = require("../models/cliente_Model");
-const Presupuesto = require("../models/clientePresupuesto_Model");
-const NotaPedido = require("../models/clienteNotaPedido_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setCliente = async (req,res) => {
-    const newId = await getNextSequence("Cliente");
     const nombreC = req.body.name;
     const apellidoC = req.body.lastname;
     const nacimientoC = new Date(req.body.fechaNacimiento);
@@ -25,9 +22,10 @@ const setCliente = async (req,res) => {
 
     if(!nombreC || !altura || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
+    const newId = await getNextSequence("Cliente");
     const newCliente = new Cliente ({
         _id: newId,
         name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
@@ -37,7 +35,7 @@ const setCliente = async (req,res) => {
 
     if (cuentaCorrienteC) {
         if(!saldoCuentaCorriente){
-            res.status(400).json({ok:false , message:'Error al cargar saldo de cuenta corriente.'})
+            res.status(400).json({ok:false , message:'❌ Error al cargar saldo de cuenta corriente.'})
             return
         }
         newCliente.saldoCuentaCorriente = saldoCuentaCorriente;
@@ -46,18 +44,23 @@ const setCliente = async (req,res) => {
 
     await newCliente.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Cliente agregado correctamente.'})
+            res.status(201).json({ok:true, message:'✔️ Cliente agregado correctamente.'})
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar cliente. ERROR:\n${err}`
+            })
+        })
 
 }
 
 const getCliente = async(req, res) => {
-    const clientes = await Cliente.find({estado:true});
+    const clientes = await Cliente.find({estado:true}).lean();
 
     res.status(200).json({
         ok:true,
-        data: clientes,
+        data: clientes
     })
 }
 
@@ -67,7 +70,7 @@ const getClienteID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -76,13 +79,14 @@ const getClienteID = async(req,res) => {
     if(!cliente){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a un cliente.'
+            message:'❌ El id no corresponde a un cliente.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Cliente obtenido con exito.",
         data:cliente,
     })
 }
@@ -111,7 +115,7 @@ const updateCliente = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
         return
     }
@@ -124,7 +128,7 @@ const updateCliente = async(req,res) => {
 
     if(!nombreC || !altura || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }  
 
@@ -132,7 +136,7 @@ const updateCliente = async(req,res) => {
         if (saldoCuentaCorriente == null) {
             return res.status(400).json({
                 ok:false,
-                message:'Error al cargar saldo de cuenta corriente.'
+                message:'❌ Error al cargar saldo de cuenta corriente.'
             });
         }
 
@@ -161,22 +165,27 @@ const updateCliente = async(req,res) => {
     if(!updatedCliente){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar cliente.'
+            message:'❌ Error al actualizar cliente.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Cliente actualizado correctamente.',
+        message:'✔️ Cliente actualizado correctamente.',
     })
 }
+
+//Validaciones de eliminacion
+const Presupuesto = require("../models/clientePresupuesto_Model");
+const NotaPedido = require("../models/clienteNotaPedido_Model");
+const ReciboPago = require("../models/clienteReciboPago_Model");
 
 const deleteCliente = async(req,res) => {
     const id = req.params.id;
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -185,7 +194,7 @@ const deleteCliente = async(req,res) => {
     if (tienePresupuestos) {
       return res.status(400).json({
         ok: false,
-        message: 'No se puede eliminar al cliente porque posee sericios asociados.'
+        message: "❌ Error al eliminar. Existen tablas relacionadas a este cliente."
       });
     }
 
@@ -193,7 +202,15 @@ const deleteCliente = async(req,res) => {
     if (tieneNotasPedido) {
       return res.status(400).json({
         ok: false,
-        message: 'No se puede eliminar al cliente porque posee servicios asociados.'
+        message: "❌ Error al eliminar. Existen tablas relacionadas a este cliente."
+      });
+    }
+
+    const tieneRecibosPago = await ReciboPago.exists({ clienteID: id });
+    if (tieneRecibosPago) {
+      return res.status(400).json({
+        ok: false,
+        message: "❌ Error al eliminar. Existen tablas relacionadas a este cliente."
       });
     }
 
@@ -207,13 +224,13 @@ const deleteCliente = async(req,res) => {
     if(!deletedCliente){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Cliente eliminado correctamente.'
+        message:'✔️ Cliente eliminado correctamente.'
     })
 }
 
@@ -279,10 +296,10 @@ const clientesFiltrados = clientes.filter(c => {
 });
 
 
-    res.status(200).json({ ok: true, data: clientesFiltrados });
+    res.status(200).json({ ok: true, message: "✔️ Clientes obtenidos correctamente.", data: clientesFiltrados });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ ok: false, message: "Error al buscar clientes" });
+    res.status(500).json({ ok: false, message: "❌ Error al buscar clientes" });
   }
 }
 

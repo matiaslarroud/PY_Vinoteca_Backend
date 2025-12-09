@@ -3,18 +3,17 @@ const getNextSequence = require("./counter_Controller.js");
 
 
 const setUsuario = async(req,res) => {
-    const newId = await getNextSequence("Usuario");
     const nameU = req.body.name;
     const passwordU = req.body.password;
     const rolU = req.body.rol;
     if(!nameU || !passwordU || !rolU){
         res.status(400).json({
             ok:false,
-            message:"No puede agregarse un usuario sin todos los datos."
+            message:"❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
-    console.log(newId + ' ------------ ' + nameU)
+    const newId = await getNextSequence("Usuario");
     const newUsuario = await new Usuario({
         _id: newId,
         name:nameU,
@@ -25,7 +24,7 @@ const setUsuario = async(req,res) => {
     if(!newUsuario){
         res.status(400).json({
             ok:false,
-            message:"Error al agregar nuevo usuario."
+            message:"❌ Error al agregar nuevo usuario."
         })
         return
     }
@@ -33,32 +32,24 @@ const setUsuario = async(req,res) => {
         .then(()=>{
             res.status(201).json({
                 ok:true,
-                message:"Usuario agregado correctamente."
+                message:"✔️ Usuario agregado correctamente."
             })
         })
         .catch((err)=>{
             res.status(400).json({
                 ok:false,
-                message:"Error al agregar Usuario."
+                message:"❌ Error al agregar Usuario."
             })
-            console.log(err)
             return
         })    
 }
 
 const getUsuario = async(req,res) => {
-    const usuarios = await Usuario.find({estado:true});
-    if(!usuarios){
-        res.status(400).json({
-            ok:false,
-            message:"Error al obtener usuarios."
-        })
-        return
-    }
+    const usuarios = await Usuario.find({estado:true}).lean();
+   
     res.status(200).json({
         ok:true,
-        data: usuarios,
-        message:"Usuarios encontrados correctamente."
+        data: usuarios
     })
 }
 
@@ -67,7 +58,7 @@ const getUsuarioID = async(req,res) => {
     if(!usuarioID){
         res.status(400).json({
             ok:false,
-            message:"Error al buscar usuario solicitado."
+            message:"❌ Error al buscar usuario solicitado."
         })
         return
     }
@@ -75,14 +66,14 @@ const getUsuarioID = async(req,res) => {
     if(!usuarioEncontrado){
         res.status(400).json({
             ok:false,
-            message:"Error al buscar usuario solicitado."
+            message:"❌ Error al buscar usuario solicitado."
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:usuarioEncontrado,
-        message:"Usuario encontrado correctamente."
+        message:"✔️ Usuario obtenido correctamente."
     })
 }
 
@@ -95,7 +86,7 @@ const updateUsuario = async(req,res) => {
     if(!usuarioID || !nameU || !passwordU || !rolU){
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar usuario."
+            message:"❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
@@ -108,13 +99,13 @@ const updateUsuario = async(req,res) => {
     if(!updatedUsuario){
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar usuario."
+            message:"❌ Error al actualizar usuario."
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Usuario actualizado correctamente."
+        message:"✔️ Usuario actualizado correctamente."
     })
 }
 
@@ -136,13 +127,13 @@ const deleteUsuario = async(req,res) => {
     if(!deletedUsuario){
         res.status(400).json({
             ok:false,
-            message:"Error eliminar usuario."
+            message:"❌ Error eliminar usuario."
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Usuario eliminado correctamente."
+        message:"✔️ Usuario eliminado correctamente."
     })
 }
 
@@ -153,7 +144,7 @@ const Login = async (req, res) => {
 
   if (!user || user.password !== password) {
 
-    return res.json({ ok: false, msg: "Credenciales inválidas" });
+    return res.json({ ok: false, msg: "❌ Credenciales inválidas" });
   }
 
   res.json({

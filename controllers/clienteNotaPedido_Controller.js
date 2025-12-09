@@ -12,7 +12,6 @@ const obtenerFechaHoy = () => {
 }
 
 const setNotaPedido = async (req,res) => {
-    const newId = await getNextSequence("Cliente_NotaPedido");
     const totalP = req.body.total;
     const fechaP = obtenerFechaHoy();
     const envioP = req.body.envio;
@@ -31,10 +30,11 @@ const setNotaPedido = async (req,res) => {
     const descuento = req.body.descuento;
 
     if(!totalP || !fechaP || !clienteID || !empleadoID || !medioPagoID || !fechaEntregaP){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
-
+    
+    const newId = await getNextSequence("Cliente_NotaPedido");
     const newNotaPedido = new NotaPedido ({
         _id: newId, 
         fecha: fechaP , 
@@ -57,7 +57,7 @@ const setNotaPedido = async (req,res) => {
 
     if (envioP) {
         if(!provincia || !localidad || !barrio || !calle || !altura){
-            res.status(400).json({ok:false , message:'Error al cargar los datos de entrega.'})
+            res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
             return
         }
         newNotaPedido.provincia = provincia;
@@ -74,7 +74,7 @@ const setNotaPedido = async (req,res) => {
     const medioPago = await MedioPago.findById(medioPagoID);
 
     if (!cliente || !medioPago) {
-        return res.status(400).json({ ok: false, message: "Cliente o medio de pago inválido." });
+        return res.status(400).json({ ok: false, message: "❌ Cliente o medio de pago inválido." });
     }
 
     // ⭐ VALIDAR CUENTA CORRIENTE
@@ -84,7 +84,7 @@ const setNotaPedido = async (req,res) => {
         if (!cliente.cuentaCorriente) {
             return res.status(400).json({
                 ok: false,
-                message: "El cliente no tiene habilitada la Cuenta Corriente."
+                message: "❌ El cliente no tiene habilitada la Cuenta Corriente."
             });
         }
 
@@ -92,7 +92,7 @@ const setNotaPedido = async (req,res) => {
         if (cliente.saldoActualCuentaCorriente < totalP) {
             return res.status(400).json({
                 ok: false,
-                message: `Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`
+                message: `❌ Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`
             });
         }
 
@@ -112,11 +112,16 @@ const setNotaPedido = async (req,res) => {
         .then( () => {
             res.status(201).json({
                 ok:true, 
-                message:'Nota de pedido agregada correctamente.',
+                message:'✔️ Nota de pedido agregada correctamente.',
                 data: newNotaPedido
             })
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err)=>{
+            res.status(400).json({
+            ok: false,
+            message: "❌ Error al agregar presupuesto."
+            });
+        });
 
 }
 
@@ -144,10 +149,9 @@ const getNotaPedido = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error al obtener notas de pedido:", error);
     res.status(500).json({
       ok: false,
-      message: "Error interno al obtener las notas de pedido."
+      message: "❌ Error interno al obtener las notas de pedido."
     });
   }
 };
@@ -159,7 +163,7 @@ const getNotaPedidoID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -168,7 +172,7 @@ const getNotaPedidoID = async(req,res) => {
     if(!notaPedido){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a un Nota de pedido.'
+            message:'❌ El id no corresponde a un Nota de pedido.'
         })
         return
     }
@@ -176,6 +180,7 @@ const getNotaPedidoID = async(req,res) => {
     res.status(200).json({
         ok:true,
         data:notaPedido,
+        message:"✔️ Nota de pedido obtenida correctamente."
     })
 }
 
@@ -184,7 +189,7 @@ const getNotaPedidoByCliente = async(req,res) => {
     if(!clienteID){
         res.status(400).json({ 
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -192,13 +197,14 @@ const getNotaPedidoByCliente = async(req,res) => {
     if(!notaPedidos || notaPedidos.length === 0){
         res.status(404).json({
             ok:false,
-            message:'No se encontraron pedidos para el cliente especificado.'
+            message:'❌No se encontraron pedidos para el cliente especificado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:notaPedidos,
+        message:"✔️ Notas de pedido obtenidas correctamente."
     })
 }
 
@@ -209,13 +215,13 @@ const updateNotaPedido = async (req, res) => {
     if (!id) {
         return res.status(400).json({
             ok: false,
-            message: 'El id no llegó al controlador correctamente.'
+            message: '❌ El id no llegó al controlador correctamente.'
         });
     }
 
     const estadoP = req.body.facturado;
     if (estadoP === true) {
-        return res.status(400).json({ ok: false, message: 'El pedido ya está cerrado.' });
+        return res.status(400).json({ ok: false, message: '❌ El pedido ya está cerrado.' });
     }
 
     const totalP = req.body.total;
@@ -234,12 +240,17 @@ const updateNotaPedido = async (req, res) => {
     const deptoLetra = req.body.deptoLetra;
     const descuento = req.body.descuento;
 
+    if(!totalP || !clienteID || !empleadoID || !medioPagoID || !fechaEntregaP){
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
+        return
+    }
+
     // ✨ Obtener el pedido y cliente
     const pedido = await NotaPedido.findById(id);
     const cliente = await Cliente.findById(clienteID);
 
     if (!pedido || !cliente) {
-        return res.status(400).json({ ok: false, message: "Pedido o cliente inválido." });
+        return res.status(400).json({ ok: false, message: "❌ Pedido o cliente inválido." });
     }
 
     const medioPagoAnterior = await MedioPago.findById(pedido.medioPago);
@@ -266,7 +277,7 @@ const updateNotaPedido = async (req, res) => {
     // ✨ Dirección si aplica
     if (envioP) {
         if (!provincia || !localidad || !barrio || !calle || !altura) {
-            return res.status(400).json({ ok: false, message: 'Datos de entrega incompletos.' });
+            return res.status(400).json({ ok: false, message:'❌ Faltan completar algunos campos obligatorios.'});
         }
         updatedPedidoData.provincia = provincia;
         updatedPedidoData.localidad = localidad;
@@ -304,14 +315,14 @@ const updateNotaPedido = async (req, res) => {
         if (!cliente.cuentaCorriente) {
             return res.status(400).json({
                 ok: false,
-                message: "El cliente no tiene habilitada la Cuenta Corriente."
+                message: "❌ El cliente no tiene habilitada la Cuenta Corriente."
             });
         }
 
         if (cliente.saldoActualCuentaCorriente < totalPedidoNuevo) {
             return res.status(400).json({
                 ok: false,
-                message: `Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`
+                message: `❌ Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`
             });
         }       
 
@@ -339,14 +350,14 @@ const updateNotaPedido = async (req, res) => {
     if (!updatedNotaPedido) {
         return res.status(400).json({
             ok: false,
-            message: 'Error al actualizar la Nota de pedido.'
+            message: '❌ Error al actualizar la Nota de pedido.'
         });
     }
 
     res.status(200).json({
         ok: true,
         data: updatedNotaPedido,
-        message: 'Nota de pedido actualizada correctamente.'
+        message: '✔️ Nota de pedido actualizada correctamente.'
     });
 };
 
@@ -358,7 +369,7 @@ const deleteNotaPedido = async (req, res) => {
     if (!id) {
       return res.status(400).json({
         ok: false,
-        message: 'El ID no llegó correctamente al controlador.'
+        message: '❌ El ID no llegó correctamente al controlador.'
       });
     }
 
@@ -366,7 +377,7 @@ const deleteNotaPedido = async (req, res) => {
     if (!nota) {
       return res.status(404).json({
         ok: false,
-        message: 'La nota de pedido no fue encontrada.'
+        message: '❌ La nota de pedido no fue encontrada.'
       });
     }
 
@@ -374,7 +385,7 @@ const deleteNotaPedido = async (req, res) => {
     if (comprobanteAsociado) {
       return res.status(400).json({
         ok: false,
-        message: 'No se puede eliminar la nota de pedido porque posee servicios asociados.'
+        message: '❌ No se puede eliminar la nota de pedido porque posee servicios asociados.'
       });
     }
 
@@ -402,15 +413,13 @@ const deleteNotaPedido = async (req, res) => {
 
     res.status(200).json({
       ok: true,
-      message: 'Nota de pedido eliminada correctamente y stock reintegrado.'
+      message: '✔️ Nota de pedido eliminada correctamente y stock reintegrado.'
     });
 
   } catch (error) {
-    console.error('Error en deleteNotaPedido:', error);
     res.status(500).json({
       ok: false,
-      message: 'Error interno del servidor.',
-      error: error.message
+      message: '❌ Error interno del servidor.'
     });
   }
 };
@@ -435,7 +444,7 @@ const buscarNotaPedido = async (req, res) => {
         producto: { $in: productosBuscados },
       });
     } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "Error al buscar presupuestos" });       
+        res.status(500).json({ ok: false, message: "❌ Error al buscar presupuestos" });       
     } else if (!detalles) {
       detallesFiltrados = await NotaPedidoDetalle.find();
     }
@@ -479,9 +488,9 @@ const buscarNotaPedido = async (req, res) => {
     });
     
     if(pedidosFiltrados.length > 0){
-        res.status(200).json({ ok: true, data: pedidosFiltrados });
+        res.status(200).json({ ok: true, message: "✔️ Presupuestos obtenidos", data: pedidosFiltrados });
     } else {
-        res.status(500).json({ ok: false, message: "Error al buscar notas de pedido" });
+        res.status(500).json({ ok: false, message: "❌ Error al buscar notas de pedido" });
     }
 };
 

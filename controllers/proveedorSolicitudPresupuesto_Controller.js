@@ -9,15 +9,15 @@ const obtenerFechaHoy = () => {
 }
 
 const setSolicitudPresupuesto = async (req,res) => {
-    const newId = await getNextSequence("Proveedor_SolicitudPresupuesto");
     const fechaP = obtenerFechaHoy();
     const provedorP = req.body.proveedor;
     const empleadoID = req.body.empleado;
 
     if( !fechaP || !provedorP || !empleadoID ){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
+    const newId = await getNextSequence("Proveedor_SolicitudPresupuesto");
     const newSolicitudPresupuesto = new SolicitudPresupuesto ({
         _id: newId,
         fecha: fechaP , proveedor: provedorP, empleado:empleadoID  , estado:true
@@ -26,20 +26,24 @@ const setSolicitudPresupuesto = async (req,res) => {
         .then( () => {
             res.status(201).json({
                 ok:true, 
-                message:'Solicitud de presupuesto agregado correctamente.',
+                message:'✔️ Solicitud de presupuesto agregada correctamente.',
                 data: newSolicitudPresupuesto
             })
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌ Error al agregar solicitud de presupuesto. ERROR:\n${err}`
+            })
+        }) 
 
 }
 
 const getSolicitudPresupuesto = async(req, res) => {
-    const presupuestos = await SolicitudPresupuesto.find({estado:true});
-
+    const solicitudes = await SolicitudPresupuesto.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
-        data: presupuestos,
+        data: solicitudes
     })
 }
 
@@ -49,7 +53,7 @@ const getSolicitudPresupuestoID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -58,7 +62,7 @@ const getSolicitudPresupuestoID = async(req,res) => {
     if(!presupuesto){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a una solicitud de presupuesto.'
+            message:'❌ El id no corresponde a una solicitud de presupuesto.'
         })
         return
     }
@@ -66,6 +70,7 @@ const getSolicitudPresupuestoID = async(req,res) => {
     res.status(200).json({
         ok:true,
         data:presupuesto,
+        message:"✔️ Solicitud de presupuesto obtenida correctamente."
     })
 }
 
@@ -75,7 +80,7 @@ const getSolicitudPresupuestoByProveedor = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -84,7 +89,7 @@ const getSolicitudPresupuestoByProveedor = async(req,res) => {
     if(!presupuestos){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a un proveedor que tenga solicitudes de presupuestos.'
+            message:'❌ Error al obtener solicitudes de presupuesto del proveedor elegido.'
         })
         return
     }
@@ -92,6 +97,7 @@ const getSolicitudPresupuestoByProveedor = async(req,res) => {
     res.status(200).json({
         ok:true,
         data:presupuestos,
+        message:"✔️ Solicitudes de presupuesto obtenidas correctamente."
     })
 }
 
@@ -104,8 +110,13 @@ const updateSolicitudPresupuesto = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
+        return
+    }
+
+    if( !proveedorID || !empleadoID ){
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
 
@@ -121,32 +132,36 @@ const updateSolicitudPresupuesto = async(req,res) => {
     if(!updatedPresupuesto){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar la solicitud de presupuesto.'
+            message:'❌ Error al actualizar la solicitud de presupuesto.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedPresupuesto,
-        message:'Solicitud de presupuesto actualizado correctamente.',
+        message:'✔️ Solicitud de presupuesto actualizada correctamente.',
     })
 }
+
+//Validaciones de eliminacion
+const ProveedorPresupuesto = require("../models/proveedorPresupuesto_Model");
 
 const deleteSolicitudPresupuesto = async(req,res) => {
     const id = req.params.id;
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
 
-    const presupuestos = await Presupuesto.find({estado:true , solicitudPresupuesto:id}).lean();
-    if(presupuestos.length > 0){
+    const presupuestos = await ProveedorPresupuesto.find({solicitudPresupuesto:id , estado:true}).lean();
+    
+    if(presupuestos.length !== 0 ){
         res.status(400).json({
             ok:false,
-            message:'La solicitud de presupuesto no puede eliminarse porque pertenece a un presupuesto.'
+            message:"❌ Error al eliminar. Existen tablas relacionadas a esta solicitud de presupuesto."
         })
         return
     }
@@ -161,7 +176,7 @@ const deleteSolicitudPresupuesto = async(req,res) => {
     if(!deletedPresupuesto){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
@@ -173,13 +188,13 @@ const deleteSolicitudPresupuesto = async(req,res) => {
     if(!deletedPresupuestoDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado del detalle.'
+            message: '❌ Error durante el borrado del detalle.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Solicitud de presupuesto eliminado correctamente.'
+        message:'✔️ Solicitud de presupuesto eliminado correctamente.'
     })
 }
 
@@ -197,7 +212,7 @@ const buscarSolicitudPresupuesto = async (req, res) => {
         producto: { $in: productosBuscados },
       });
     } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "Error al buscar presupuestos" });       
+        res.status(500).json({ ok: false, message: "❌ Error al buscar presupuestos" });       
     } else if (!detalles) {
       detallesFiltrados = await SolicitudPresupuestoDetalle.find();
     }
@@ -220,9 +235,9 @@ const buscarSolicitudPresupuesto = async (req, res) => {
     });
 
     if(presupuestosFiltrados.length > 0){
-        res.status(200).json({ ok: true, data: presupuestosFiltrados });
+        res.status(200).json({ ok: true, message: "✔️ Solicitudes de presupuesto obtenidas." , data: presupuestosFiltrados });
     } else {
-        res.status(500).json({ ok: false, message: "Error al buscar solicitudes de presupuesto." });
+        res.status(500).json({ ok: false, message: "❌ Error al buscar solicitudes de presupuesto." });
     }
 };
 

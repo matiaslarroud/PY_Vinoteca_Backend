@@ -3,7 +3,6 @@ const Product = require("../models/producto_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setNotaPedidoDetalle = async (req,res) => {
-    const newId = await getNextSequence("Cliente_NotaPedidoDetalle");
     const importeP = req.body.importe;
     const precioP = req.body.precio;
     const cantidadP = req.body.cantidad;
@@ -11,27 +10,33 @@ const setNotaPedidoDetalle = async (req,res) => {
     const productoID = req.body.producto;
 
     if(!importeP || !notaPedidoP || !productoID || !precioP || !cantidadP ){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'})
         return
     }
+    const newId = await getNextSequence("Cliente_NotaPedidoDetalle");
     const newNotaPedidoDetalle = new NotaPedidoDetalle ({
         _id: newId,
         importe: importeP , notaPedido: notaPedidoP , producto: productoID , precio:precioP , cantidad:cantidadP , estado:true
     });
     await newNotaPedidoDetalle.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Detalle de nota de pedido agregado correctamente.'})
+            res.status(201).json({ok:true, message:'✔️ Detalle de nota de pedido agregado correctamente.'})
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌ Error al agregar detalle de nota de pedido. ERROR:\n${err}`
+            })
+        }) 
 
 }
 
 const getNotaPedidoDetalle = async(req, res) => {
-    const detallesNotaPedido = await NotaPedidoDetalle.find({estado:true});
+    const detallesNotaPedido = await NotaPedidoDetalle.find({estado:true}).lean();
 
     res.status(200).json({
         ok:true,
-        data: detallesNotaPedido,
+        data: detallesNotaPedido
     })
 }
 
@@ -41,7 +46,7 @@ const getNotaPedidoDetalleByNotaPedido = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -50,13 +55,14 @@ const getNotaPedidoDetalleByNotaPedido = async(req,res) => {
     if(!notaPedidoDetalle){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a una nota de pedido.'
+            message:'❌ El id no corresponde a una nota de pedido.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Detalles de notas de pedido obtenidos correctamente.",
         data:notaPedidoDetalle,
     })
 }
@@ -68,7 +74,7 @@ const getNotaPedidoDetalleID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -77,7 +83,7 @@ const getNotaPedidoDetalleID = async(req,res) => {
     if(!notaPedidoDetalle){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde al detalle de un NotaPedido.'
+            message:'❌ El id no corresponde al detalle de una nota de pedido.'
         })
         return
     }
@@ -85,6 +91,7 @@ const getNotaPedidoDetalleID = async(req,res) => {
     res.status(200).json({
         ok:true,
         data:notaPedidoDetalle,
+        message:"✔️ Detalle de nota de pedido obtenido correctamente."
     })
 }
 
@@ -100,8 +107,13 @@ const updateNotaPedidoDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
+        return
+    }
+
+    if(!importeP || !notaPedidoP || !productoID || !precioP || !cantidadP ){
+        res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'})
         return
     }
 
@@ -116,14 +128,14 @@ const updateNotaPedidoDetalle = async(req,res) => {
     if(!updatedNotaPedidoDetalle){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el detalle de nota de pedido.'
+            message:'❌ Error al actualizar el detalle de nota de pedido.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedNotaPedidoDetalle,
-        message:'Detalle de nota de pedido actualizado correctamente.',
+        message:'✔️ Detalle de nota de pedido actualizado correctamente.',
     })
 }
 
@@ -133,7 +145,7 @@ const deleteNotaPedidoDetalle = async (req, res) => {
     if (!id) {
         return res.status(400).json({
             ok: false,
-            message: 'El id no llegó al controlador correctamente.'
+            message: '❌ El id no llegó al controlador correctamente.'
         });
     }
 
@@ -159,13 +171,13 @@ const deleteNotaPedidoDetalle = async (req, res) => {
     if (!deletedNotaPedidoDetalle) {
         return res.status(400).json({
             ok: false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         });
     }
 
     res.status(200).json({
         ok: true,
-        message: 'Detalles eliminados y stock restaurado correctamente.'
+        message: '✔️ Detalles eliminados y stock restaurado correctamente.'
     });
 };
 

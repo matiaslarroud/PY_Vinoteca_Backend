@@ -2,7 +2,6 @@ const Empleado = require("../models/empleado_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setEmpleado = async (req,res) => {
-    const newId = await getNextSequence("Empleado");
     const nombreC = req.body.name;
     const apellidoC = req.body.lastname;
     const nacimientoC = new Date(req.body.fechaNacimiento);
@@ -20,25 +19,38 @@ const setEmpleado = async (req,res) => {
 
     if(!nombreC || !alturaC || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
+    const newId = await getNextSequence("Empleado");
     const newEmpleado = new Empleado ({
         _id: newId,
         name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC, telefono: telefonoC , email: emailC , cuit: cuitC , estado:true,
         pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , altura: alturaC , deptoNumero: deptoNumC , deptoLetra: deptoLetraC
     });
+
+    if(!newEmpleado){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al cargar al empleado."
+        })
+        return
+    }
     await newEmpleado.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Empleado agregado correctamente.'})
+            res.status(201).json({ok:true, message:'✔️ Empleado agregado correctamente.'})
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌ Error al agregar empleado. ERROR:\n${err}`
+            })
+        })
 
 }
 
 const getEmpleado = async(req, res) => {
-    const empleados = await Empleado.find({estado:true});
-
+    const empleados = await Empleado.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
         data: empleados,
@@ -51,7 +63,7 @@ const getEmpleadoID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -60,13 +72,14 @@ const getEmpleadoID = async(req,res) => {
     if(!empleado){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a un empleado.'
+            message:'❌ El id no corresponde a un empleado.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Empleado obtenida correctamente.",
         data:empleado,
     })
 }
@@ -92,14 +105,14 @@ const updateEmpleado = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
         return
     }
 
     if(!nombreC || !alturaC || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     } 
 
@@ -115,22 +128,47 @@ const updateEmpleado = async(req,res) => {
     if(!updatedEmpleado){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar empleado.'
+            message:'❌ Error al actualizar empleado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Empleado actualizado correctamente.',
+        message:'✔️ Empleado actualizado correctamente.',
     })
 }
+
+//Validaciones de eliminacion
+const PresupuestoCliente = require("../models/clientePresupuesto_Model");
+const NotaPedidoCliente = require("../models/clienteNotaPedido_Model");
+const OrdenProduccion = require("../models/ordenProduccion_Model");
+const SolicitudPresupuestoProveedor = require("../models/proveedorSolicitudPresupuesto_Model");
+const PresupuestoProveedor = require("../models/proveedorPresupuesto_Model");
+const OrdenCompraProveedor = require("../models/proveedorOrdenCompra_Model");
 
 const deleteEmpleado = async(req,res) => {
     const id = req.params.id;
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
+        })
+        return
+    }
+
+    const notasPedidoCliente = await NotaPedidoCliente.find({empleado:id , estado:true}).lean();
+    const presupuestosCliente = await PresupuestoCliente.find({empleado:id , estado:true}).lean();
+    const ordenesProduccion = await OrdenProduccion.find({empleado:id , estado:true}).lean();
+    const solicitudesProveedor = await SolicitudPresupuestoProveedor.find({empleado:id , estado:true}).lean();
+    const presupuestosProveedor = await PresupuestoProveedor.find({empleado:id , estado:true}).lean();
+    const ordenesCompraProveedor = await OrdenCompraProveedor.find({empleado:id , estado:true}).lean();
+    
+    if(notasPedidoCliente.length !== 0 || presupuestosCliente.length !== 0 || ordenesProduccion.length !== 0 ||
+        solicitudesProveedor.length !== 0 || presupuestosProveedor.length !== 0 || ordenesCompraProveedor.length !== 0 
+    ){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a este empleado."
         })
         return
     }
@@ -145,13 +183,13 @@ const deleteEmpleado = async(req,res) => {
     if(!deletedEmpleado){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Empleado eliminado correctamente.'
+        message:'✔️ Empleado eliminado correctamente.'
     })
 }
 

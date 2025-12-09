@@ -4,6 +4,7 @@ const controller = require('../controllers/proveedorComprobanteCompraDetalle_Con
 // const imprimir = require('../src/OrdenCompraDetalleCliente_imprimir');
 
 router.post('/', controller.setComprobanteCompraDetalle);
+router.post('/validar', controller.validarDetalle);
 router.get('/', controller.getComprobanteCompraDetalle);
 router.get('/:id',controller.getComprobanteCompraDetalleID);
 router.get('/ComprobanteCompra/:id',controller.getComprobanteCompraDetalleByComprobanteCompra);

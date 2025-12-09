@@ -8,7 +8,6 @@ const obtenerFechaHoy = () => {
 }
 
 const setPresupuesto = async (req,res) => {
-    const newId = await getNextSequence("Proveedor_Presupuesto");
     const totalP = req.body.total;
     const fechaP = obtenerFechaHoy();
     const proveedorID = req.body.proveedor;
@@ -18,10 +17,11 @@ const setPresupuesto = async (req,res) => {
 
 
     if(!totalP || !fechaP || !proveedorID || !medioPagoID || !empleadoID ){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
     
+    const newId = await getNextSequence("Proveedor_Presupuesto");
     const newPresupuesto = new Presupuesto ({
         _id: newId,
         total: totalP , 
@@ -40,16 +40,21 @@ const setPresupuesto = async (req,res) => {
         .then( () => {
             res.status(201).json({
                 ok:true, 
-                message:'Presupuesto agregado correctamente.',
+                message:'✔️Presupuesto agregado correctamente.',
                 data: newPresupuesto
             })
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌ Error al agregar presupuesto. ERROR:\n${err}`
+            })
+        }) 
 
 }
 
 const getPresupuesto = async(req, res) => {
-    const presupuestos = await Presupuesto.find({estado:true});
+    const presupuestos = await Presupuesto.find({estado:true}).lean();
 
     res.status(200).json({
         ok:true,
@@ -63,7 +68,7 @@ const getPresupuestoID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -72,13 +77,14 @@ const getPresupuestoID = async(req,res) => {
     if(!presupuesto){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a un presupuesto.'
+            message:'❌ El id no corresponde a un presupuesto.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Presupuesto obtenido correctamente.",
         data:presupuesto,
     })
 }
@@ -96,8 +102,13 @@ const updatePresupuesto = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
+        return
+    }
+
+    if( !proveedorID || !empleadoID  || !totalP  || !medioPagoID || !solicitudP  ){
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
 
@@ -117,23 +128,36 @@ const updatePresupuesto = async(req,res) => {
     if(!updatedPresupuesto){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el presupuesto.'
+            message:'❌ Error al actualizar el presupuesto.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedPresupuesto,
-        message:'Presupuesto actualizado correctamente.',
+        message:'✔️ Presupuesto actualizado correctamente.',
     })
 }
+
+//Validaciones de eliminacion
+const ProveedorOrdenCompra = require("../models/proveedorOrdenCompra_Model");
 
 const deletePresupuesto = async(req,res) => {
     const id = req.params.id;
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌El id no llego al controlador correctamente.'
+        })
+        return
+    }
+
+    const ordenes = await ProveedorOrdenCompra.find({presupuesto:id , estado:true}).lean();
+    
+    if(ordenes.length !== 0 ){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a este presupuesto."
         })
         return
     }
@@ -149,7 +173,7 @@ const deletePresupuesto = async(req,res) => {
     if(!deletedPresupuesto){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
@@ -164,13 +188,13 @@ const deletePresupuesto = async(req,res) => {
     if(!deletedPresupuestoDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado del detalle.'
+            message: '❌ Error durante el borrado del detalle.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Presupuesto eliminado correctamente.'
+        message:'✔️ Presupuesto eliminado correctamente.'
     })
 }
 
@@ -188,7 +212,7 @@ const buscarPresupuesto = async (req, res) => {
         producto: { $in: productosBuscados },
       });
     } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "Error al buscar presupuestos" });       
+        res.status(500).json({ ok: false, message: "❌ Error al buscar presupuestos" });       
     } else if (!detalles) {
       detallesFiltrados = await PresupuestoDetalle.find();
     }
@@ -215,9 +239,9 @@ const buscarPresupuesto = async (req, res) => {
     });
 
     if(presupuestosFiltrados.length > 0){
-        res.status(200).json({ ok: true, data: presupuestosFiltrados });
+        res.status(200).json({ ok: true, message: "✔️ Presupuesto obtenidos." , data: presupuestosFiltrados });
     } else {
-        res.status(500).json({ ok: false, message: "Error al buscar presupuestos." });
+        res.status(500).json({ ok: false, message: "❌ Error al buscar presupuestos." });
     }
 };
 

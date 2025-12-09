@@ -2,7 +2,6 @@ const Product = require('../models/productoVino_Model.js')
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setProduct =  async (req , res ) => {
-    const newId = await getNextSequence("ProductoVino");
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioCosto;
     const stockProducto = req.body.stock;
@@ -20,10 +19,11 @@ const setProduct =  async (req , res ) => {
 
     
     if (!nombreProducto || !proveedor || !productType || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoVino || !varietalProducto || !volumenProducto || !depositoProducto) {
-        res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
     }
 
+    const newId = await getNextSequence("ProductoVino");
     const newProduct = new Product({
         _id: newId,
         name: nombreProducto , 
@@ -50,16 +50,21 @@ const setProduct =  async (req , res ) => {
         .then(() => { 
             res.status(201).json({
                 ok:true , 
-                message:'Producto agregado correctamente.',
+                message:'✔️ Producto agregado correctamente.',
                 data: newProduct
             })
         })
-        .catch((error) => { console.log(error) }) 
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌ Error al agregar producto. ERROR:\n${err}`
+            })
+        })
     
 }
 
 const getProduct = async(req,res) => {
-    const productos = await Product.find({estado:true});
+    const productos = await Product.find({estado:true}).lean();
 
     res.status(200).json({
         ok:true,
@@ -70,17 +75,18 @@ const getProduct = async(req,res) => {
 const getProductID = async(req,res) => {
     const id = req.params.id;
     if(!id) {
-        res.status(400).json({ok:false, message:"El id no llego al controlador correctamente."})
+        res.status(400).json({ok:false, message:"❌ El id no llego al controlador correctamente."})
         return
     }
     
     const product = await Product.findById(id);
     if (!product) {
-        res.status(400).json({ok:false, message:"El id no corresponde a un producto."});
+        res.status(400).json({ok:false, message:"❌ El id no corresponde a un producto."});
         return
     }
     res.status(200).json({
         ok:true,
+        message:"✔️ Producto obtenido con exito.",
         data: product
     })
 }
@@ -102,7 +108,7 @@ const updateProduct =  async (req , res ) => {
     const proveedor = req.body.proveedor;
     
     if (!nombreProducto || !proveedor || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
-        res.status(400).json({ok:false , message:'No se puede actualizar el producto sin todos los datos.'});
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
     }
     
@@ -129,32 +135,113 @@ const updateProduct =  async (req , res ) => {
     if(!updatedProduct) {
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar producto."
+            message:"❌ Error al actualizar producto."
         });
         return
     }
     res.status(200).json({
         ok:true , 
-        message:"Producto actualizado correctamente.",
+        message:"✔️ Producto actualizado correctamente.",
         data: updatedProduct
     })    
 }
 
+//Validaciones de eliminacion
+const ProveedorSolicitudPresupuesto = require("../models/proveedorSolicitudPresupuestoDetalle_Model.js");
+const ProveedorPresupuesto = require("../models/proveedorPresupuestoDetalle_Model.js");
+const ClientePresupuesto = require("../models/clientePresupuestoDetalle_Model.js");
+const ClienteNotaPedido = require("../models/clienteNotaPedidoDetalle_Model.js");
+
 const deleteProduct = async (req , res) => {
     const id = req.params.id;
-    const deletedProduct = await Product.findByIdAndUpdate(
-            id, 
-            {
-                estado:false
-            },
-            { new: true , runValidators: true }
-        )
-    if(!deletedProduct) {
-        res.status(400).json({ok:false,message:"Error al eliminar producto."});
+
+    if(!id) {
+        res.status(400).json({ok:false,message:"❌ Error al eliminar producto."});
         return
     }
-    res.status(200).json({ok:true , message:"Producto eliminado correctamente."});
-}
+
+    const solicitudesProveedor = await ProveedorSolicitudPresupuesto.find({
+        estado:true,
+        producto:id
+    }).lean();
+
+    const presupuestosProveedor = await ProveedorPresupuesto.find({
+        estado:true,
+        producto:id
+    }).lean();
+
+    const presupuestoClientes = await ClientePresupuesto.find({
+        estado:true,
+        producto:id
+    }).lean();
+
+    const pedidosClientes = await ClienteNotaPedido.find({
+        estado:true,
+        producto:id
+    }).lean();
+
+    // Si aparece en Solicitudes Proveedor → verifico si es un vino
+    for (const s of solicitudesProveedor) {
+        const prod = await Product.findById(s.producto).lean();
+        if (prod && prod.tipoProducto === "ProductoVino") {
+            return res.status(400).json({
+                ok:false,
+                message:"❌ No se puede eliminar el vino porque posee servicios asociados."
+            });
+        }
+    }
+
+    // ✔ Si aparece en Presupuestos Proveedor → verifico si es un vino
+    for (const p of presupuestosProveedor) {
+        const prod = await Product.findById(p.producto).lean();
+        if (prod && prod.tipoProducto === "ProductoVino") {
+            return res.status(400).json({
+                ok:false,
+                message:"❌ No se puede eliminar el vino porque posee servicios asociados."
+            });
+        }
+    }
+
+    // ✔ Si aparece en Presupuestos Cliente → verifico si es un vino
+    for (const p of presupuestoClientes) {
+        const prod = await Product.findById(p.producto).lean();
+        if (prod && prod.tipoProducto === "ProductoVino") {
+            return res.status(400).json({
+                ok:false,
+                message:"❌ No se puede eliminar el vino porque posee servicios asociados."
+            });
+        }
+    }
+
+    // ✔ Si aparece en Notas de Pedido Cliente → verifico si es un vino
+    for (const p of pedidosClientes) {
+        const prod = await Product.findById(p.producto).lean();
+        if (prod && prod.tipoProducto === "ProductoVino") {
+            return res.status(400).json({
+                ok:false,
+                message:"❌ No se puede eliminar el vino porque posee servicios asociados."
+            });
+        }
+    }
+
+    const deletedProduct = await Product.findByIdAndUpdate(
+        id, 
+        { estado:false },
+        { new: true , runValidators: true }
+    );
+
+    if (!deletedProduct) {
+        return res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar el vino."
+        });
+    }
+
+    return res.status(200).json({
+        ok:true,
+        message:"✔️ Vino eliminado correctamente."
+    });
+};
 
 const buscarProducto = async(req,res) => {
   try {

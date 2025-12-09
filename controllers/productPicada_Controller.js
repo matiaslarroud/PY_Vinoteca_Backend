@@ -3,7 +3,6 @@ const PicadaDetalle = require("../models/productoPicadaDetalle_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setProduct =  async (req , res ) => {
-    const newId = await getNextSequence("ProductoPicada");
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioVenta;
     const stockProducto = 0;
@@ -12,10 +11,11 @@ const setProduct =  async (req , res ) => {
     const productType = 'ProductoPicada';
     
     if (!nombreProducto || !productType || !precioProducto || !depositoProducto) {
-        res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
     }
 
+    const newId = await getNextSequence("ProductoPicada");
     const newProduct = new Product({
         _id: newId,
         name: nombreProducto , 
@@ -35,36 +35,42 @@ const setProduct =  async (req , res ) => {
             res.status(201).json({
                 ok:true ,
                 data: newProduct,
-                message:'Producto agregado correctamente.'
+                message:'✔️ Producto agregado correctamente.'
             })
         })
-        .catch((error) => { console.log(error) }) 
+        .catch((err)=>{
+            res.status(400).json({
+            ok: false,
+            message: "❌ Error al agregar picada."
+            });
+        });
     
 }
 
 const getProduct = async(req,res) => {
-    const productos = await Product.find({estado:true});
+    const productos = await Product.find({estado:true}).lean();
 
     res.status(200).json({
         ok:true,
-        data:productos,
+        data:productos
     })
 }
 
 const getProductID = async(req,res) => {
     const id = req.params.id;
     if(!id) {
-        res.status(400).json({ok:false, message:"El id no llego al controlador correctamente."})
+        res.status(400).json({ok:false, message:"❌ El id no llego al controlador correctamente."})
         return
     }
     
     const product = await Product.findById(id);
     if (!product) {
-        res.status(400).json({ok:false, message:"El id no corresponde a un producto."});
+        res.status(400).json({ok:false, message:"❌ El id no corresponde a un producto."});
         return
     }
     res.status(200).json({
         ok:true,
+        message:"✔️ Picada obtenida correctamente.",
         data: product
     })
 }
@@ -77,7 +83,7 @@ const updateProduct =  async (req , res ) => {
     const depositoProducto = req.body.deposito;
     
     if (!nombreProducto || !precioProducto || !depositoProducto) {
-        res.status(400).json({ok:false , message:'No se puede actualizar el producto sin todos los datos.'});
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
     }
     
@@ -96,19 +102,75 @@ const updateProduct =  async (req , res ) => {
     if(!updatedProduct) {
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar producto."
+            message:"❌ Error al actualizar producto."
         });
         return
     }
     res.status(200).json({
         ok:true , 
         data: updatedProduct,
-        message:"Producto actualizado correctamente."
+        message:"✔️ Producto actualizado correctamente."
     })    
 }
 
+//Validaciones de eliminacion
+const ClientePresupuesto = require("../models/clientePresupuestoDetalle_Model.js");
+const ClienteNotaPedido = require("../models/clienteNotaPedidoDetalle_Model.js");
+const OrdenProduccion = require("../models/ordenProduccionDetalle_Model.js");
+
 const deleteProduct = async (req , res) => {
     const id = req.params.id;
+
+    if(!id) {
+        res.status(400).json({ok:false,message:"❌ Error al eliminar picada."});
+        return
+    }
+
+    const presupuestos = await ClientePresupuesto.find({
+        estado:true,
+        producto:id
+    }).lean();
+
+    const pedidos = await ClienteNotaPedido.find({
+        estado:true,
+        producto:id
+    }).lean();
+    
+    const ordenes = await OrdenProduccion.find({
+        estado:true,
+        picada:id
+    }).lean();
+
+    // Si aparece en Presupuesto Cliente → verifico si es una picada
+    for (const s of presupuestos) {
+        const prod = await Product.findById(s.producto).lean();
+        if (prod && prod.tipoProducto === "ProductoPicada") {
+            return res.status(400).json({
+                ok:false,
+                message:"❌ No se puede eliminar la picada porque posee servicios asociados."
+            });
+        }
+    }
+
+    // Si aparece en Notas de Pedido Cliente → verifico si es una picada
+    for (const s of pedidos) {
+        const prod = await Product.findById(s.producto).lean();
+        if (prod && prod.tipoProducto === "ProductoPicada") {
+            return res.status(400).json({
+                ok:false,
+                message:"❌ No se puede eliminar la picada porque posee servicios asociados."
+            });
+        }
+    }
+
+    // ✔ Si aparece en OrdenProduccion → siempre bloquea (solo picadas)
+    if (ordenes.length > 0) {
+        return res.status(400).json({
+            ok:false,
+            message:"❌ No se puede eliminar la picada porque posee servicios asociados."
+        });
+    }
+
     const deletedProduct = await Product.findByIdAndUpdate(
             id, 
             {
@@ -125,10 +187,10 @@ const deleteProduct = async (req , res) => {
         { new: true , runValidators: true }
     )
     if(!deletedProduct || !deletedPicadaDetalle) {
-        res.status(400).json({ok:false,message:"Error al eliminar producto."});
+        res.status(400).json({ok:false,message:"❌ Error al eliminar producto."});
         return
     }
-    res.status(200).json({ok:true , message:"Producto eliminado correctamente."});
+    res.status(200).json({ok:true , message:"✔️ Picada eliminada correctamente."});
 }
 
 const buscarProducto = async(req,res) => {
@@ -166,7 +228,7 @@ res.status(200).json({ ok: true, data: productosFiltrados });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ ok: false, message: "Error al buscar productos" });
+    res.status(500).json({ ok: false, message: "❌ Error al buscar productos" });
   }
 }
 

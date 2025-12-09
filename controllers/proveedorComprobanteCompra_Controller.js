@@ -11,17 +11,17 @@ const obtenerFechaHoy = () => {
 }
 
 const setComprobanteCompra = async (req,res) => {
-    const newId = await getNextSequence("Proveedor_ComprobanteCompra");
     const total = req.body.total;
     const fecha = obtenerFechaHoy();
     const ordenCompra = req.body.ordenCompra;
 
 
     if(!total || !fecha || !ordenCompra ){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
     
+    const newId = await getNextSequence("Proveedor_ComprobanteCompra");
     const newComprobanteCompra = new ComprobanteCompra ({
         _id: newId,
         total: total , 
@@ -34,11 +34,16 @@ const setComprobanteCompra = async (req,res) => {
         .then( () => {
             res.status(201).json({
                 ok:true, 
-                message:'Comprobante de compra agregada correctamente.',
+                message:'✔️ Comprobante de compra agregada correctamente.',
                 data: newComprobanteCompra
             })
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌ Error al agregar comprobante de compra. ERROR:\n${err}`
+            })
+        }) 
 
 }
 
@@ -63,11 +68,11 @@ const getComprobanteCompra = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error al obtener comprobantes de compra:", error);
+    console.error("❌ Error al obtener comprobantes de compra:", error);
 
     res.status(500).json({
       ok: false,
-      message: "Error interno al obtener las comprobantes de compra."
+      message: "❌ Error interno al obtener las comprobantes de compra."
     });
   }
 };
@@ -79,7 +84,7 @@ const getComprobanteCompraID = async (req, res) => {
     if (!id) {
       return res.status(400).json({
         ok: false,
-        message: "El ID no llegó correctamente al controlador.",
+        message: "❌ El ID no llegó correctamente al controlador.",
       });
     }
 
@@ -88,7 +93,7 @@ const getComprobanteCompraID = async (req, res) => {
     if (!comprobanteCompra) {
       return res.status(404).json({
         ok: false,
-        message: "No se encontró el comprobante de compra solicitado.",
+        message: "❌ No se encontró el comprobante de compra solicitado.",
       });
     }
 
@@ -97,7 +102,7 @@ const getComprobanteCompraID = async (req, res) => {
     if (!ordenCompra) {
       return res.status(404).json({
         ok: false,
-        message: "La orden de compra asociada no fue encontrada.",
+        message: "❌ La orden de compra asociada no fue encontrada.",
       });
     }
 
@@ -126,13 +131,14 @@ const getComprobanteCompraID = async (req, res) => {
     };
     res.status(200).json({
       ok: true,
+      message: "✔️ Comprobante de compra obtenido correctamente.",
       data: body,
     });
   } catch (err) {
-    console.error("Error al obtener comprobante de compra:", err);
+    console.error("❌Error al obtener comprobante de compra:", err);
     res.status(500).json({
       ok: false,
-      message: "Error interno del servidor al obtener el comprobante de compra.",
+      message: "❌Error interno del servidor al obtener el comprobante de compra.",
       error: err.message,
     });
   }
@@ -145,7 +151,7 @@ const getComprobantesByProveedor = async (req, res) => {
     if (!id) {
       return res.status(400).json({
         ok: false,
-        message: "El ID no llegó correctamente al controlador.",
+        message: "❌ El ID no llegó correctamente al controlador.",
       });
     }
 
@@ -155,7 +161,7 @@ const getComprobantesByProveedor = async (req, res) => {
     if (!ordenesCompra || ordenesCompra.length === 0) {
       return res.status(404).json({
         ok: false,
-        message: "No se encontraron órdenes de este proveedor.",
+        message: "❌ No se encontraron órdenes de este proveedor.",
       });
     }
 
@@ -172,21 +178,101 @@ const getComprobantesByProveedor = async (req, res) => {
     if (!comprobantes || comprobantes.length === 0) {
       return res.status(404).json({
         ok: false,
-        message: "No se encontraron comprobantes de compra para este proveedor.",
+        message: "❌ No se encontraron comprobantes de compra para este proveedor.",
       });
     }
 
     // 5️⃣ Devolverlos
     res.status(200).json({
       ok: true,
+      message:'✔️ Comprobantes de compra obtenidos correctamente.',
       data: comprobantes
     });
 
   } catch (err) {
-    console.error("Error al obtener comprobantes de compra:", err);
+    console.error("❌ Error al obtener comprobantes de compra:", err);
     res.status(500).json({
       ok: false,
-      message: "Error interno del servidor al obtener los comprobantes de compra.",
+      message: "❌ Error interno del servidor al obtener los comprobantes de compra.",
+      error: err.message,
+    });
+  }
+};
+
+const getComprobantesSinRemitoByProveedor = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        ok: false,
+        message: "❌ El ID no llegó correctamente al controlador.",
+      });
+    }
+
+    // 1️⃣ Obtener todas las órdenes del proveedor
+    const ordenesCompra = await OrdenCompra.find({ estado: true, proveedor: id });
+
+    if (!ordenesCompra || ordenesCompra.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        message: "❌ No se encontraron órdenes de compra para este proveedor.",
+      });
+    }
+
+    // 2️⃣ Obtener los IDs
+    const ordenesIDs = ordenesCompra.map(o => o._id);
+
+    // 3️⃣ Obtener los comprobantes asociados
+    const comprobantes = await ComprobanteCompra.find({
+      ordenCompra: { $in: ordenesIDs },
+      estado: true
+    });
+
+    if (!comprobantes || comprobantes.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        message: "❌ Este proveedor no tiene comprobantes de compra.",
+      });
+    }
+
+    const comprobantesIDs = comprobantes.map(c => c._id);
+
+    // 4️⃣ Buscar remitos que usen esos comprobantes
+    const remitos = await Remito.find({
+      comprobanteCompra: { $in: comprobantesIDs },
+      estado: true
+    });
+
+    // IDs de comprobantes que YA tienen remito
+    const comprobantesConRemitoIDs = new Set(
+      remitos.map(r => String(r.comprobanteCompra))
+    );
+
+    // 5️⃣ Filtrar comprobantes que NO están en ningún remito
+    const comprobantesSinRemito = comprobantes.filter(c => {
+      return !comprobantesConRemitoIDs.has(String(c._id));
+    });
+
+    if (comprobantesSinRemito.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        message: "❌ Todos los comprobantes ya tienen remito asociado.",
+      });
+    }
+
+    // 6️⃣ Respuesta final
+    res.status(200).json({
+      ok: true,
+      message: "✔️ Comprobantes sin remito obtenidos correctamente.",
+      data: comprobantesSinRemito
+    });
+
+  } catch (err) {
+    console.error("❌ Error al obtener comprobantes sin remito:", err);
+    res.status(400).json({
+      ok: false,
+      message: "❌ Error interno del servidor al obtener comprobantes sin remito.",
       error: err.message,
     });
   }
@@ -203,8 +289,13 @@ const updateComprobanteCompra = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
+        return
+    }
+
+    if(!total || !ordenCompra ){
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
 
@@ -221,23 +312,36 @@ const updateComprobanteCompra = async(req,res) => {
     if(!updatedComprobanteCompra){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar la comprobante de compra.'
+            message:'❌ Error al actualizar la comprobante de compra.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedComprobanteCompra,
-        message:'Comprobante de compra actualizado correctamente.',
+        message:'✔️ Comprobante de compra actualizado correctamente.',
     })
 }
+
+//Validaciones de eliminacion
+const ProveedorRemito = require("../models/proveedorRemito_Model");
 
 const deleteComprobanteCompra = async(req,res) => {
     const id = req.params.id;
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
+        })
+        return
+    }
+
+    const remitos = await ProveedorRemito.find({comprobanteCompra:id , estado:true}).lean();
+    
+    if(remitos.length !== 0 ){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a este comprobante de compra."
         })
         return
     }
@@ -253,7 +357,7 @@ const deleteComprobanteCompra = async(req,res) => {
     if(!deletedComprobanteCompra){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
@@ -268,13 +372,13 @@ const deleteComprobanteCompra = async(req,res) => {
     if(!deletedComprobanteCompraDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado del detalle.'
+            message: '❌ Error durante el borrado del detalle.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Comprobante de compra eliminado correctamente.'
+        message:'✔️ Comprobante de compra eliminado correctamente.'
     })
 }
 
@@ -307,7 +411,7 @@ const buscarComprobanteCompra = async (req, res) => {
         producto: { $in: productosBuscados },
       });
     } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "Error al buscar presupuestos" });       
+        res.status(500).json({ ok: false, message: "❌ Error al buscar presupuestos" });       
     } else {
       detallesFiltrados = await ComprobanteCompraDetalle.find();
     }
@@ -358,16 +462,16 @@ const buscarComprobanteCompra = async (req, res) => {
     });
 
     if (comprobantesFiltrados.length > 0) {
-      res.status(200).json({ ok: true, data: comprobantesFiltrados });
+      res.status(200).json({ ok: true, message: "✔️ Comprobantes de compra obtenidos." , data: comprobantesFiltrados });
     } else {
-      res.status(200).json({ ok: false, message: "No se encontraron comprobantes con esos filtros" });
+      res.status(200).json({ ok: false, message: "❌ No se encontraron comprobantes con esos filtros" });
     }
 
   } catch (error) {
-    console.error("Error al buscar comprobantes:", error);
-    res.status(500).json({ ok: false, message: "Error interno del servidor" });
+    console.error("❌ Error al buscar comprobantes:", error);
+    res.status(500).json({ ok: false, message: "❌ Error interno del servidor" });
   }
 }; 
 
 
-module.exports = { setComprobanteCompra , buscarComprobanteCompra , getComprobantesByProveedor , getComprobanteCompra , getComprobanteCompraID , updateComprobanteCompra , deleteComprobanteCompra };
+module.exports = { setComprobanteCompra , buscarComprobanteCompra , getComprobantesByProveedor, getComprobantesSinRemitoByProveedor , getComprobanteCompra , getComprobanteCompraID , updateComprobanteCompra , deleteComprobanteCompra };

@@ -2,24 +2,29 @@ const PicadaDetalle = require("../models/productoPicadaDetalle_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setPicadaDetalle = async (req,res) => {
-    const newId = await getNextSequence("ProductoPicadaDetalle");
     const cantidadP = req.body.cantidad;
     const picadaP = req.body.picada;
     const insumoID = req.body.insumo;
 
     if( !picadaP || !insumoID || !cantidadP ){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'})
         return
     }
+    const newId = await getNextSequence("ProductoPicadaDetalle");
     const newPicadaDetalle = new PicadaDetalle ({
         _id: newId,
         picada: picadaP , cantidad: cantidadP , insumo: insumoID , estado:true
     });
     await newPicadaDetalle.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Picada Detalle agregado correctamente.'})
+            res.status(201).json({ok:true, message:'✔️ Picada Detalle agregado correctamente.'})
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar detalle de picada. ERROR:\n${err}`
+            })
+        }) 
 
 }
 
@@ -39,7 +44,7 @@ const getPicadaDetalleID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -48,13 +53,14 @@ const getPicadaDetalleID = async(req,res) => {
     if(!picadaDetalle){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde al detalle de un picada.'
+            message:'❌ El id no corresponde al detalle de un picada.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Detalle de picada obtenido correctamente",
         data:picadaDetalle,
     })
 }
@@ -65,7 +71,7 @@ const getPicadaDetalle_ByPicada = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌El id no llego al controlador correctamente',
         })
         return
     }
@@ -74,13 +80,14 @@ const getPicadaDetalle_ByPicada = async(req,res) => {
     if(!picadaDetalle || picadaDetalle.length === 0){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a los detalles de una picada.'
+            message:'❌El id no corresponde a los detalles de una picada.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Detalles de picada obtenidos correctamente.",
         data:picadaDetalle,
     })
 }
@@ -95,7 +102,7 @@ const updatePicadaDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
         return
     }
@@ -111,14 +118,14 @@ const updatePicadaDetalle = async(req,res) => {
     if(!updatedPicadaDetalle){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el PicadaDetalle.'
+            message:'❌ Error al actualizar el PicadaDetalle.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedPicadaDetalle,
-        message:'PicadaDetalle actualizado correctamente.',
+        message:'✔️ Detalle de picada actualizado correctamente.',
     })
 }
 
@@ -129,7 +136,7 @@ const deletePicadaDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -145,13 +152,13 @@ const deletePicadaDetalle = async(req,res) => {
     if(!deletedPicadaDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado de los detalles de la picada.'
+            message: '❌ Error durante el borrado de los detalles de la picada.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'PicadaDetalle eliminado correctamente.'
+        message:'✔️ Detalle de picada eliminado correctamente.'
     })
 }
 
@@ -176,7 +183,7 @@ res.status(200).json({ ok: true, data: productosFiltrados });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ ok: false, message: "Error al buscar productos" });
+    res.status(500).json({ ok: false, message: "❌ Error al buscar productos" });
   }
 }
 

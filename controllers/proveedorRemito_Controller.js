@@ -9,56 +9,7 @@ const obtenerFechaHoy = () => {
   return hoy.toISOString().split("T")[0];
 }
 
-async function recalcularOrdenDesdeRemito(remito) {
-
-    // 1. Obtener el comprobanteCompra
-    const comprobante = await ComprobanteCompra.findById(remito.comprobanteCompraID).lean();
-    if (!comprobante) return;
-
-    const ordenCompraId = comprobante.ordenCompraID;
-    if (!ordenCompraId) return;
-
-    // 2. Obtener la orden de compra
-    const orden = await OrdenCompra.findById(ordenCompraId).lean();
-
-    // 3. Obtener TODOS los comprobantes de esta orden
-    const comprobantes = await ComprobanteCompra.find({ ordenCompraID: ordenCompraId }).lean();
-    const comprobanteIds = comprobantes.map(c => c._id);
-
-    // 4. Obtener TODOS los remitos de esos comprobantes
-    const remitos = await RemitoProveedor.find({
-        comprobanteCompraID: { $in: comprobanteIds }
-    }).lean();
-
-    // 5. Acumular cantidades recibidas por producto
-    const recibidos = {};
-
-    remitos.forEach(r => {
-        r.detalles.forEach(item => {
-            const key = item.producto.toString();
-            recibidos[key] = (recibidos[key] || 0) + item.cantidadRecibida;
-        });
-    });
-
-    // 6. Verificar si todos los productos están completos
-    const completo = orden.detalles.every(det => {
-        const key = det.producto.toString();
-        const totalRecibido = recibidos[key] || 0;
-        const pedido = det.cantidadPedida;
-
-        return totalRecibido >= pedido;  // ← **tu condición exacta**
-    });
-
-    // 7. Actualizar la orden de compra
-    await OrdenCompra.findByIdAndUpdate(ordenCompraId, { completo:true });
-
-    return completo;
-}
-
-
 const setRemito = async (req, res) => {
-    try {
-        const newId = await getNextSequence("Proveedor_Remito");
         const { totalPrecio, totalBultos, comprobanteCompra, transporte, detalles } = req.body;
         const fecha = obtenerFechaHoy();
 
@@ -66,9 +17,11 @@ const setRemito = async (req, res) => {
         if (!totalPrecio || !totalBultos || !comprobanteCompra || !transporte) {
             return res.status(400).json({
                 ok: false,
-                message: 'Error al cargar los datos.'
+                message: "❌ Faltan completar algunos campos obligatorios."
             });
         }
+        
+        const newId = await getNextSequence("Proveedor_Remito");
 
         // Crear remito
         const newRemito = new Remito({
@@ -76,72 +29,109 @@ const setRemito = async (req, res) => {
             totalPrecio,
             totalBultos,
             fecha,
-            comprobanteCompra,     // <-- este es el ID del comprobanteCompra
-            transporte,
-            detalles,              // IMPORTANTE: asegúrate que lo estás enviando
+            comprobanteCompra, 
+            transporte,           
             estado: true
         });
 
-        await newRemito.save();
-
-        // 🔥 Llamar al recalculo (acá es donde corresponde)
-        try {
-              await recalcularOrdenDesdeRemito(newRemito);
-          } catch (err) {
-              console.error("Error recalculando orden de compra:", err);
-          }
-
-        return res.status(201).json({
-            ok: true,
-            message: 'Remito agregado correctamente.',
-            data: newRemito
-        });
-
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({
-            ok: false,
-            message: 'Error interno del servidor.'
-        });
-    }
+        await newRemito.save()
+          .then( () => {
+              res.status(201).json({
+                  ok:true, 
+                  message:'✔️ Remito agregado correctamente.',
+                  data: newRemito
+              })
+          })
+          .catch((err) => {
+              res.status(400).json({
+                  ok:false,
+                  message:`❌ Error al agregar remito. ERROR:\n${err}`
+              })
+          }) 
 };
 
 
 
 const getRemito = async(req, res) => {
-    const remitos = await Remito.find({estado:true});
-
+    const remitos = await Remito.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
-        data: remitos,
+        data: remitos
     })
 }
 
-// const getRemitoID = async(req,res) => {
-//     const id = req.params.id;
 
-//     if(!id){
-//         res.status(400).json({
-//             ok:false,
-//             message:'El id no llego al controlador correctamente',
-//         })
-//         return
-//     }
 
-//     const remitoEncontrado = await Remito.findById(id);
-//     if(!remitoEncontrado){
-//         res.status(400).json({
-//             ok:false,
-//             message:'El id no corresponde a un remito.'
-//         })
-//         return
-//     }
+const getRemitosByProveedor = async (req, res) => {
+  try {
+    const proveedorID = req.params.id;
 
-//     res.status(200).json({
-//         ok:true,
-//         data:remitoEncontrado,
-//     })
-// }
+    if (!proveedorID) {
+      return res.status(400).json({
+        ok: false,
+        message: "❌ El ID no llegó correctamente al controlador.",
+      });
+    }
+
+    // Buscar órdenes de compra activas del proveedor
+    const ordenes = await OrdenCompra.find({ estado: true, proveedor: proveedorID });
+
+    if (ordenes.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        message: "❌ Este proveedor no tiene órdenes de compra activas.",
+      });
+    }
+
+    const ordenesIDs = ordenes.map(o => o._id);
+
+    // Buscar comprobantes asociados a esas órdenes
+    const comprobantesCompra = await ComprobanteCompra.find({
+      ordenCompra: { $in: ordenesIDs },
+      estado: true,
+    });
+
+    if (comprobantesCompra.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        message: "❌ No se encontraron comprobantes para este proveedor.",
+      });
+    }
+
+    const comprobantesIDs = comprobantesCompra.map(c => c._id);
+
+    // Buscar remitos asociados
+    const remitos = await Remito.find({
+      comprobanteCompra: { $in: comprobantesIDs },
+      estado: true,
+    });
+
+    if (remitos.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        message: "❌ No se encontraron remitos para este proveedor.",
+      });
+    }
+
+    // ÉXITO
+    res.status(200).json({
+      ok: true,
+      data: {
+        remitos
+      },
+      message: "✔️ Remitos obtenidos correctamente.",
+    });
+
+  } catch (error) {
+    console.error("❌ Error al obtener datos:", error);
+    res.status(500).json({
+      ok: false,
+      message: "❌ Error interno del servidor al obtener los datos.",
+      error: error.message,
+    });
+  }
+};
+
 
 const getRemitoID = async (req, res) => {
   try {
@@ -150,7 +140,7 @@ const getRemitoID = async (req, res) => {
     if (!id) {
       return res.status(400).json({
         ok: false,
-        message: "El ID no llegó correctamente al controlador.",
+        message: "❌ El ID no llegó correctamente al controlador.",
       });
     }
 
@@ -159,7 +149,7 @@ const getRemitoID = async (req, res) => {
     if (!remito) {
       return res.status(404).json({
         ok: false,
-        message: "El ID no corresponde a un remito.",
+        message: "❌ El ID no corresponde a un remito.",
       });
     }
 
@@ -168,7 +158,7 @@ const getRemitoID = async (req, res) => {
     if (!comprobante) {
       return res.status(404).json({
         ok: false,
-        message: "No se encontró el comprobante de compra asociado al remito.",
+        message: "❌ No se encontró el comprobante de compra asociado al remito.",
       });
     }
 
@@ -177,7 +167,7 @@ const getRemitoID = async (req, res) => {
     if (!orden) {
       return res.status(404).json({
         ok: false,
-        message: "No se encontró la orden de compra asociada al comprobante.",
+        message: "❌ No se encontró la orden de compra asociada al comprobante.",
       });
     }
 
@@ -192,13 +182,14 @@ const getRemitoID = async (req, res) => {
         comprobante: comprobante._id,
         proveedor: proveedorID,
       },
+      message:"✔️ Remito obtenido correctamente."
     });
 
   } catch (error) {
-    console.error("Error al obtener datos de remito:", error);
+    console.error("❌ Error al obtener datos de remito:", error);
     res.status(500).json({
       ok: false,
-      message: "Error interno del servidor al obtener los datos del remito.",
+      message: "❌ Error interno del servidor al obtener los datos del remito.",
       error: error.message,
     });
   }
@@ -210,17 +201,25 @@ const updateRemito = async(req,res) => {
     
     const totalPrecio = req.body.totalPrecio;
     const totalBultos = req.body.totalBultos;
-    const fecha = obtenerFechaHoy();
+    const fecha = req.body.fecha;
     const comprobanteCompra = req.body.comprobanteCompra;
     const transporte = req.body.transporte;
 
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
         return
     }
+
+      // Validación mínima
+      if (!totalPrecio || !totalBultos || !comprobanteCompra || !transporte) {
+          return res.status(400).json({
+              ok: false,
+              message: "❌ Faltan completar algunos campos obligatorios."
+          });
+      }
 
     const updatedRemitoData = {
         totalPrecio: totalPrecio,
@@ -239,14 +238,14 @@ const updateRemito = async(req,res) => {
     if(!updatedRemito){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el remito.'
+            message:'❌ Error al actualizar el remito.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedRemito,
-        message:'Remito actualizado correctamente.',
+        message:'✔️ Remito actualizado correctamente.',
     })
 }
 
@@ -255,7 +254,7 @@ const deleteRemito = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -268,7 +267,7 @@ const deleteRemito = async(req,res) => {
     if(!deletedRemito){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
@@ -283,13 +282,13 @@ const deleteRemito = async(req,res) => {
     if(!deletedRemitoDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Remito eliminado correctamente.',
+        message:'✔️ Remito eliminado correctamente.',
     })
 }
 
@@ -326,7 +325,7 @@ const buscarRemito = async (req, res) => {
         producto: { $in: productosBuscados },
       });
     } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "Error al buscar remitos" });       
+        res.status(500).json({ ok: false, message: "❌ Error al buscar remitos" });       
     } else {
       detallesFiltrados = await RemitoDetalle.find();
     }
@@ -363,14 +362,14 @@ const buscarRemito = async (req, res) => {
     });
 
     if (remitosFiltrados.length > 0) {
-      res.status(200).json({ ok: true, data: remitosFiltrados });
+      res.status(200).json({ ok: true,message:'✔️ Remitos obtenidos.', data: remitosFiltrados });
     } else {
-      res.status(200).json({ ok: false, message: "No se encontraron remitos con esos filtros" });
+      res.status(200).json({ ok: false, message: "❌ No se encontraron remitos con esos filtros" });
     }
 
   } catch (error) {
-    res.status(500).json({ ok: false, message: "Error interno del servidor" });
+    res.status(500).json({ ok: false, message: "❌ Error interno del servidor" });
   }
 };
 
-module.exports = { setRemito , buscarRemito , getRemito , getRemitoID , updateRemito , deleteRemito };
+module.exports = { setRemito , getRemitosByProveedor , buscarRemito , getRemito , getRemitoID , updateRemito , deleteRemito };

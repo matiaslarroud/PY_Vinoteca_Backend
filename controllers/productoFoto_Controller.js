@@ -5,20 +5,19 @@ const getNextSequence = require("../controllers/counter_Controller");
 // POST: agregar fotos
 const setProductoFoto = async (req, res) => {
     try {
-        const newId = await getNextSequence("ProductoFoto");
         const { productoID } = req.params;
 
         if (!productoID) {
             return res.status(400).json({
                 ok: false,
-                message: "No llegó productoID en la URL"
+                message: "❌ No llegó productoID en la URL"
             });
         }
 
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({
                 ok: false,
-                message: "No se enviaron imágenes."
+                message: "❌ No se enviaron imágenes."
             });
         }
 
@@ -35,6 +34,7 @@ const setProductoFoto = async (req, res) => {
                 ).end(file.buffer);
             });
 
+            const newId = await getNextSequence("ProductoFoto");
             const nuevaFoto = new ProductoFoto({
                 _id: newId,
                 productoID,
@@ -50,15 +50,14 @@ const setProductoFoto = async (req, res) => {
 
         return res.status(201).json({
             ok: true,
-            message: "Imágenes subidas y guardadas correctamente",
+            message: "✔️ Imágenes subidas y guardadas correctamente",
             fotos: fotosGuardadas
         });
 
     } catch (error) {
-        console.error("Error subiendo imágenes:", error);
         return res.status(500).json({
             ok: false,
-            message: "Error en el servidor"
+            message: "❌ Error en el servidor"
         });
     }
 };
@@ -70,17 +69,17 @@ const getProductoFoto = async (req, res) => {
         const { productoID } = req.params;
 
         if (!productoID) {
-            return res.status(400).json({ ok: false, message: "ID de producto faltante" });
+            return res.status(400).json({ ok: false, message: "❌ ID de producto faltante" });
         }
 
         const fotos = await ProductoFoto.find({ productoID:productoID , estado:true })
             .sort({ orden: 1 });
 
-        res.json({ ok: true, data:fotos });
+        res.json({ ok: true, message:"✔️ Fotos obtenidas correctamente." , data:fotos });
 
     } catch (error) {
         console.log(error);
-        res.status(500).json({ ok: false, message: "Error al obtener fotos." });
+        res.status(500).json({ ok: false, message: "❌ Error al obtener fotos." });
     }
 };
 
@@ -90,13 +89,21 @@ const getProductoFotoID = async (req, res) => {
     try {
         const { fotoID } = req.params;
 
+        if(!fotoID){
+            res.status(400).json({
+                ok:false,
+                message:'❌ El id no llego al controlador correctamente',
+            })
+            return
+        }
+
        const foto = await ProductoFoto.findById(fotoID);
 
-        res.json({ ok: true, foto });
+        res.json({ ok: true , message:"✔️ Foto obtenida correctamente." ,  foto });
 
     } catch (error) {
         console.log(error);
-        res.status(500).json({ ok: false, message: "Error al obtener fotos." });
+        res.status(500).json({ ok: false, message: "❌ Error al obtener fotos." });
     }
 };
 
@@ -106,6 +113,11 @@ const updateProductoFoto = async (req, res) => {
         const { fotoID } = req.params;
         const { orden } = req.body;
 
+        if( !fotoID || !orden ){
+            res.status(400).json({ok:false , message:"❌ Error al recibir los datos."})
+            return
+        }
+
         const foto = await ProductoFoto.findByIdAndUpdate(
             fotoID,
             { orden },
@@ -113,14 +125,14 @@ const updateProductoFoto = async (req, res) => {
         );
 
         if (!foto) {
-            return res.status(404).json({ ok: false, message: "Foto no encontrada." });
+            return res.status(404).json({ ok: false, message: "❌ Foto no encontrada." });
         }
 
         res.json({ ok: true, foto });
 
     } catch (error) {
         console.log(error);
-        res.status(500).json({ ok: false, message: "Error al actualizar foto." });
+        res.status(500).json({ ok: false , message:"✔️ Foto actualizada correctamente."});
     }
 };
 
@@ -132,7 +144,7 @@ const deleteProductoFoto = async (req, res) => {
         const foto = await ProductoFoto.findById(fotoID);
 
         if (!foto) {
-            return res.status(404).json({ ok: false, message: "Foto no encontrada." });
+            return res.status(404).json({ ok: false, message: "❌ Foto no encontrada." });
         }
 
         // 🔹 borrar de Cloudinary
@@ -146,12 +158,11 @@ const deleteProductoFoto = async (req, res) => {
 
         return res.json({
             ok: true,
-            message: "Foto eliminada correctamente."
+            message: "✔️ Foto eliminada correctamente."
         });
 
     } catch (error) {
-        console.log("Error al eliminar foto:", error);
-        res.status(500).json({ ok: false, message: "Error al eliminar foto." });
+        res.status(500).json({ ok: false, message: "❌ Error al eliminar foto." });
     }
 };
 

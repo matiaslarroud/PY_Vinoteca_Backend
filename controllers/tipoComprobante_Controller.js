@@ -2,24 +2,24 @@ const TipoComprobante = require("../models/tipoComprobante");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setTipoComprobante = async(req,res) => {
-    const newId = await getNextSequence("TipoComprobante");
     const nombreTipoComprobante = req.body.name;
     const condicionIvaID = req.body.condicionIva;
 
     if(!nombreTipoComprobante || !condicionIvaID){
         res.status(400).json({
             ok:false,
-            message: "No se puede registrar un tipo de comprobante sin nombre o condicion de iva.",
+            message: "❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
+    const newId = await getNextSequence("TipoComprobante");
     const newTipoComprobante = await new TipoComprobante({
         _id: newId,name:nombreTipoComprobante, condicionIva:condicionIvaID , estado:true});
     
     if(!newTipoComprobante){
         res.status(400).json({
             ok:false,
-            message: "Error al agregar el nuevo tipo de comprobante.",
+            message: "❌ Error al agregar el nuevo tipo de comprobante.",
         })
         return
     }
@@ -27,31 +27,23 @@ const setTipoComprobante = async(req,res) => {
         .then(()=>{
             res.status(201).json({
                 ok:true,
-                message:"Tipo de comprobante agregado correctamente.",
+                message:"✔️ Tipo de comprobante agregado correctamente.",
             })
         })
-        .catch((err)=>{
-             res.status(400).json({
+        .catch((err) => {
+            res.status(400).json({
                 ok:false,
-                message: "Error al agregar la nueva tipo de comprobante."
+                message:`❌  Error al agregar tipo de comprobante. ERROR:\n${err}`
             })
-            console.log(err);
-        })    
+        })  
 }
 
 const getTipoComprobante = async(req,res) => {
-    const tiposComprobante = await TipoComprobante.find({estado:true});
-    if(!tiposComprobante){
-        res.status(400).json({
-            ok:false,
-            message: "Error al buscar los tipos de comprobantes.",
-        })
-        return
-    }
+    const tiposComprobante = await TipoComprobante.find({estado:true}).lean();
+    
     res.status(200).json({
         ok:true,
-        data: tiposComprobante,
-        message:"Tipos de comprobantes encontrados correctamente."
+        data: tiposComprobante
     })
 }
 
@@ -61,7 +53,7 @@ const getTipoComprobanteID = async(req,res) => {
     if(!tipoComprobanteID){
         res.status(400).json({
             ok:false,
-            message: "Error al validar id del tipo de comprobante.",
+            message: "❌ Error al validar id del tipo de comprobante.",
         })
         return
     }
@@ -69,14 +61,14 @@ const getTipoComprobanteID = async(req,res) => {
     if(!tipoComprobante){
         res.status(400).json({
             ok:false,
-            message: "Error al buscar el tipo de comprobante.",
+            message: "❌ Error al buscar el tipo de comprobante.",
         })
         return
     }
     res.status(200).json({
         ok:true,
         data: tipoComprobante,
-        message:"Tipo de comprobante encontrado correctamente."
+        message:"✔️ Tipo de comprobante obtenido correctamente."
     })
 }
 
@@ -85,26 +77,20 @@ const updateTipoComprobante = async(req,res) => {
     if(!tipoComprobanteID){
         res.status(400).json({
             ok:false,
-            message: "Error al validar id del tipo de comprobante.",
+            message: "❌ Error al validar id del tipo de comprobante.",
         })
         return
     }
     const name = req.body.name;
     const condicionIva = req.body.condicionIva;
-    if(!name){
+    if(!name || !condicionIva){
         res.status(400).json({
             ok:false,
-            message: "Error al validar nombre cargado del tipo de comprobante.",
+            message: "❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
-    if(!condicionIva){
-        res.status(400).json({
-            ok:false,
-            message: "Error al validar condicion de iva cargado del tipo de comprobante.",
-        })
-        return
-    }
+    
     const updatedTipoComprobante = await TipoComprobante.findByIdAndUpdate(
         tipoComprobanteID,
         {name,condicionIva},
@@ -113,22 +99,36 @@ const updateTipoComprobante = async(req,res) => {
     if(!updatedTipoComprobante){
         res.status(400).json({
             ok:false,
-            message: "Error al actualizar el tipo de comprobante.",
+            message: "❌ Error al actualizar el tipo de comprobante.",
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Tipo de comprobante actualizado correctamente."
+        message:"✔️ Tipo de comprobante actualizado correctamente."
     }) 
 }
+
+
+//Validaciones de eliminacion
+const Cliente_ComprobanteVenta = require("../models/clienteComprobanteVenta_Model.js");
 
 const deleteTipoComprobante = async(req,res) => {
     const tipoComprobanteID = req.params.id;
     if(!tipoComprobanteID){
         res.status(400).json({
             ok:false,
-            message: "Error al validar id del tipo de comprobante.",
+            message: "❌ Error al validar id del tipo de comprobante.",
+        })
+        return
+    }
+
+    const clienteComprobante = await Cliente_ComprobanteVenta.find({tipoComprobante:tipoComprobanteID , estado:true}).lean();
+    
+    if(clienteComprobante.length !== 0 ){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a este tipo de comprobante."
         })
         return
     }
@@ -141,13 +141,13 @@ const deleteTipoComprobante = async(req,res) => {
     if(!deletedTipoComprobante){
         res.status(400).json({
             ok:false,
-            message: "Error al eliminar tipo de comprobante.",
+            message: "❌ Error al eliminar tipo de comprobante.",
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Tipo de comprobante eliminado correctamente."
+        message:"✔️ Tipo de comprobante eliminado correctamente."
     }) 
 }
 

@@ -2,15 +2,15 @@ const RemitoDetalle = require("../models/clienteRemitoDetalle_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setRemitoDetalle = async (req,res) => {
-    const newId = await getNextSequence("Cliente_RemitoDetalle");
     const remitoID = req.body.remitoID;
     const productoID = req.body.producto;
     const cantidad = req.body.cantidad;
 
     if(!remitoID || !productoID || !cantidad){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
+    const newId = await getNextSequence("Cliente_RemitoDetalle");
     const newRemitoDetalle = new RemitoDetalle ({
         _id: newId,
         remitoID: remitoID,
@@ -22,15 +22,20 @@ const setRemitoDetalle = async (req,res) => {
         .then( () => {
             res.status(201).json({
                 ok:true, 
-                message:'Detalle de remito agregado correctamente.', 
+                message:'✔️ Detalle de remito agregado correctamente.', 
                 data: newRemitoDetalle})
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar detalle de remito. ERROR:\n${err}`
+            })
+        }) 
 
 }
 
 const getRemitoDetalle = async(req, res) => {
-    const detallesRemito= await RemitoDetalle.find({estado:true});
+    const detallesRemito= await RemitoDetalle.find({estado:true}).lean();
 
     res.status(200).json({
         ok:true,
@@ -44,7 +49,7 @@ const getRemitoDetalleByRemito = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -53,7 +58,7 @@ const getRemitoDetalleByRemito = async(req,res) => {
     if(!remitoDetalleEncontrado){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a un detalle de remito.'
+            message:'❌ El id no corresponde a un detalle de remito.'
         })
         return
     }
@@ -61,6 +66,7 @@ const getRemitoDetalleByRemito = async(req,res) => {
     res.status(200).json({
         ok:true,
         data:remitoDetalleEncontrado,
+        message:"✔️ Detalles de remito obtenidos correctamente."
     })
 }
 
@@ -71,7 +77,7 @@ const getRemitoDetalleID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -80,7 +86,7 @@ const getRemitoDetalleID = async(req,res) => {
     if(!remitoDetalleEncontrado){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde al detalle de un remito.'
+            message:'❌ El id no corresponde al detalle de un remito.'
         })
         return
     }
@@ -88,6 +94,7 @@ const getRemitoDetalleID = async(req,res) => {
     res.status(200).json({
         ok:true,
         data:remitoDetalleEncontrado,
+        message:"✔️ Detalle de remito obtenido correctamente."
     })
 }
 
@@ -101,7 +108,7 @@ const updateRemitoDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
         return
     }
@@ -119,14 +126,14 @@ const updateRemitoDetalle = async(req,res) => {
     if(!updatedRemitoDetalle){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el detalle del remito.'
+            message:'❌ Error al actualizar el detalle del remito.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedRemitoDetalle,
-        message:'Detalle de remito actualizado correctamente.',
+        message:'✔️ Detalle de remito actualizado correctamente.',
     })
 }
 
@@ -136,7 +143,7 @@ const deleteRemitoDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -152,13 +159,13 @@ const deleteRemitoDetalle = async(req,res) => {
     if(!deletedRemitoDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Detalle de remito eliminado correctamente.'
+        message:'✔️ Detalle de remito eliminado correctamente.'
     })
 }
 

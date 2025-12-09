@@ -8,7 +8,7 @@ router.post('/buscar', controller.buscarComprobanteCompra);
 router.get('/', controller.getComprobanteCompra);
 router.get('/:id',controller.getComprobanteCompraID);
 router.get('/proveedor/:id',controller.getComprobantesByProveedor);
-// router.get("/imprimir/:id" , imprimir.imprimir);
+router.get('/proveedorSinRemitos/:id',controller.getComprobantesSinRemitoByProveedor);
 router.put('/:id', controller.updateComprobanteCompra);
 router.delete('/:id', controller.deleteComprobanteCompra);
 

@@ -2,7 +2,6 @@ const Paraje = require('../models/bodega-paraje_Model');
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setParaje = async (req , res ) => {
-    const newId = await getNextSequence("Bodega_Paraje");
     const nombreParaje = req.body.name; 
     const bodegaParaje = req.body.bodega;   
     const paisParaje = req.body.pais;
@@ -13,10 +12,11 @@ const setParaje = async (req , res ) => {
     const alturaParaje = req.body.altura;
     
     if (!nombreParaje || !bodegaParaje || !paisParaje || !provinciaParaje || !localidadParaje || !barrioParaje || !calleParaje) {
-        res.status(400).json({ok:false , message:'No se puede cargar la Paraje sin la carga de todos los datos.'});
+        res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'});
         return
     }
 
+    const newId = await getNextSequence("Bodega_Paraje");
     const newParaje = new Paraje({
         _id: newId,
         name: nombreParaje , 
@@ -33,7 +33,7 @@ const setParaje = async (req , res ) => {
     if(!newParaje){
         res.status(400).json({
             ok:false,
-            message:"Error al agregar paraje."
+            message:"❌ Error al agregar paraje."
         })
         return
     }
@@ -43,26 +43,23 @@ const setParaje = async (req , res ) => {
             res.status(201).json(
                 {
                     ok:true,
-                    message:"Paraje agregado correctamente."
+                    message:"✔️ Paraje agregado correctamente."
                 })
         })
-        .catch((error) => { console.log(error) }) 
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar paraje. ERROR:\n${err}`
+            })
+        })
     
 }
 
 const getParaje = async(req,res) => {
-    const parajes = await Paraje.find({estado:true});
+    const parajes = await Paraje.find({estado:true}).lean();
 
-    if(!parajes){
-        res.status(400).json({
-            ok:false,
-            message:"Error al obtener parajes."
-        })
-        return
-    }
     res.status(200).json({
         ok:true,
-        message:"Parajes obtenidos correctamente.",
         data:parajes
     })
 }
@@ -73,7 +70,7 @@ const getParajeID = async(req,res) => {
     if(!parajeID){
         res.status(400).json({
             ok:false,
-            message:"Error al obtener paraje."
+            message:"❌ Error al obtener paraje."
         })
         return
     }
@@ -82,13 +79,13 @@ const getParajeID = async(req,res) => {
     if(!parajeEncontrado){
         res.status(400).json({
             ok:false,
-            message:"Error al obtener paraje."
+            message:"❌ Error al obtener paraje."
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Paraje encontrado correctamente.",
+        message:"✔️ Paraje encontrado correctamente.",
         data: parajeEncontrado
     })
 }
@@ -99,7 +96,7 @@ const updateParaje = async(req,res) => {
     if(!parajeID){
         res.status(400).json({
             ok:false,
-            message:"Error al obtener paraje."
+            message:"❌ Error al obtener paraje."
         })
         return
     }
@@ -115,7 +112,7 @@ const updateParaje = async(req,res) => {
     if(!nameP  || !bodegaP || !paisP || !provinciaP || !localidadP || !barrioP || !calleP){
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar paraje."
+            message:"❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
@@ -138,25 +135,38 @@ const updateParaje = async(req,res) => {
     if(!updatedParaje){
         res.status(400).json({
             ok:false,
-            message:"Error al actualizar paraje."
+            message:"❌ Error al actualizar paraje."
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Paraje actualizado correctamente."
+        message:"✔️ Paraje actualizado correctamente."
     })
 }
+
+//Validaciones de eliminacion
+const Vino = require("../models/productoVino_Model");
 
 const deleteParaje = async(req,res) => {
     const parajeID=req.params.id;
     if(!parajeID){
         res.status(400).json({
             ok:false,
-            message:"Error al obtener paraje."
+            message:"❌ Error al obtener paraje."
         })
         return
     }
+
+    const vino = await Vino.find({paraje: parajeID , estado:true}).lean();
+    if(vino.length !== 0){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a este paraje."
+        })
+        return
+    }
+
     const deletedParaje = await Paraje.findByIdAndUpdate(
         parajeID,
         {
@@ -167,13 +177,13 @@ const deleteParaje = async(req,res) => {
     if(!deletedParaje){
         res.status(400).json({
             ok:false,
-            message:"Error al eliminar paraje."
+            message:"❌ Error al eliminar paraje."
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Paraje eliminado correctamente."
+        message:"✔️ Paraje eliminado correctamente."
     })
 }
 

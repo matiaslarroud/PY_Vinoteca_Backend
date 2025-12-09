@@ -2,15 +2,15 @@ const Bodega = require('../models/bodega_Model.js');
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setBodega = async (req , res ) => {
-    const newId = await getNextSequence("Bodega");
     const nombreBodega = req.body.name;    
     const familiaBodega = req.body.familia;
     
     if (!nombreBodega || !familiaBodega) {
-        res.status(400).json({ok:false , message:'No se puede cargar la bodega sin la carga de todos los datos.'});
+        res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'});
         return
     }
 
+    const newId = await getNextSequence("Bodega");
     const newBodega = new Bodega({
         _id: newId,
         name: nombreBodega , 
@@ -22,25 +22,22 @@ const setBodega = async (req , res ) => {
         .then(() => {
             res.status(201).json({
                 ok:true,
-                message:"Bodega agregada correctamente."
+                message:"✔️ Bodega agregada correctamente."
             });
         })
-        .catch((error) => { console.log(error) }) 
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar bodega. ERROR:\n${err}`
+            })
+        })
     
 }
 
 const getBodega = async(req,res) => {
-    const bodegas = await Bodega.find({estado:true});
-    if (!bodegas) {
-        res.status(400).json({
-            ok:false , 
-            message:'Error al obtener datos de bodega.'
-        });
-        return
-    }
+    const bodegas = await Bodega.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
-        message:"Bodegas encontradas exitosamente.",
         data:bodegas
     })
 }
@@ -50,7 +47,7 @@ const getBodegaID = async(req,res) => {
     if (!bodegaID) {
         res.status(400).json({
             ok:false , 
-            message:'Error al obtener datos de bodega.'
+            message:'❌ Error al obtener datos de bodega.'
         });
         return
     }
@@ -60,13 +57,13 @@ const getBodegaID = async(req,res) => {
     if (!bodegaEncontrada) {
         res.status(400).json({
             ok:false , 
-            message:'Error al obtener datos de bodega.'
+            message:'❌ Error al obtener datos de bodega.'
         });
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Bodega encontrada exitosamente.",
+        message:"✔️ Bodega obtenida correctamente.",
         data:bodegaEncontrada
     })
 }
@@ -76,7 +73,7 @@ const updateBodega = async(req,res) => {
     if (!bodegaID) {
         res.status(400).json({
             ok:false , 
-            message:'Error al obtener datos de bodega.'
+            message:'❌ Error al validar id de la bodega.'
         });
         return
     }
@@ -85,7 +82,7 @@ const updateBodega = async(req,res) => {
     if (!bodegaID) {
         res.status(400).json({
             ok:false , 
-            message:'Error al obtener datos de bodega.'
+            message:'❌ Error al obtener datos de bodega.'
         });
         return
     }
@@ -100,25 +97,38 @@ const updateBodega = async(req,res) => {
     if (!updatedBodega) {
         res.status(400).json({
             ok:false , 
-            message:'Error al actualizar bodega.'
+            message:'❌ Error al actualizar bodega.'
         });
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Bodega actualizada correctamente."
+        message:"✔️ Bodega actualizada correctamente."
     })
 }
+
+//Validaciones de eliminacion
+const Vino = require("../models/productoVino_Model");
 
 const deleteBodega = async(req,res) => {
     const bodegaID = req.params.id;
     if (!bodegaID) {
         res.status(400).json({
             ok:false , 
-            message:'Error al obtener datos de bodega.'
+            message:'❌ Error al obtener datos de bodega.'
         });
         return
     }
+
+    const vino = await Vino.find({bodega: bodegaID , estado:true}).lean();
+    if(vino.length !== 0){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a esta bodega."
+        })
+        return
+    }
+
     const deletedBodega = await Bodega.findByIdAndUpdate(
         bodegaID,
         {
@@ -129,13 +139,13 @@ const deleteBodega = async(req,res) => {
     if (!deletedBodega) {
         res.status(400).json({
             ok:false , 
-            message:'Error al eliminar bodega.'
+            message:'❌ Error al eliminar bodega.'
         });
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Bodega eliminada correctamente."
+        message:"✔️ Bodega eliminada correctamente."
     })
 }
 

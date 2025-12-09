@@ -12,7 +12,6 @@ const obtenerFechaHoy = () => {
 const setRemito = async (req, res) => {
     
     try {
-        const newId = await getNextSequence("Cliente_Remito");
         const totalPrecio = req.body.totalPrecio;
         const totalBultos = req.body.totalBultos;
         const fecha = obtenerFechaHoy();
@@ -23,10 +22,11 @@ const setRemito = async (req, res) => {
         if (!totalPrecio || !totalBultos || !fecha || !comprobanteVentaID || !transporteID) {
             return res.status(400).json({
                 ok: false,
-                message: 'Error al cargar los datos.'
+                message: "❌ Faltan completar algunos campos obligatorios."
             });
         }
 
+        const newId = await getNextSequence("Cliente_Remito");
         const newRemito = new Remito({
             _id: newId,
             totalPrecio: totalPrecio,
@@ -51,7 +51,7 @@ const setRemito = async (req, res) => {
         if (!updateComprobanteVentaState) {
             return res.status(400).json({
                 ok: false,
-                message: 'Error al actualizar el estado del comprobante de venta.'
+                message: '❌ Error al actualizar el estado del comprobante de venta.'
             });
         }
 
@@ -59,7 +59,7 @@ const setRemito = async (req, res) => {
 
         return res.status(201).json({
             ok: true,
-            message: 'Remito agregado correctamente.',
+            message: '✔️ Remito agregado correctamente.',
             data: newRemito
         })
 
@@ -67,18 +67,18 @@ const setRemito = async (req, res) => {
         console.error(err);
         return res.status(500).json({
             ok: false,
-            message: 'Error interno del servidor.'
+            message: '❌ Error interno del servidor.'
         });
     }
 };
 
 
 const getRemito = async(req, res) => {
-    const remitos = await Remito.find({estado:true});
+    const remitos = await Remito.find({estado:true}).lean();
 
     res.status(200).json({
         ok:true,
-        data: remitos,
+        data: remitos
     })
 }
 
@@ -88,7 +88,7 @@ const getRemitoID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -97,13 +97,14 @@ const getRemitoID = async(req,res) => {
     if(!remitoEncontrado){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a un remito.'
+            message:'❌ El id no corresponde a un remito.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:'✔️ Remito obtenido correctamente.',
         data:remitoEncontrado,
     })
 }
@@ -124,7 +125,7 @@ const updateRemito = async(req,res) => {
         })
         return
     }
-
+    
     const updatedRemitoData = {
         totalPrecio: totalPrecio,
         totalBultos: totalBultos,
@@ -146,14 +147,14 @@ const updateRemito = async(req,res) => {
     if(!updatedRemito){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el remito.'
+            message:'❌ Error al actualizar el remito.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedRemito,
-        message:'Remito actualizado correctamente.',
+        message:'✔️ Remito actualizado correctamente.',
     })
 }
 
@@ -162,7 +163,7 @@ const deleteRemito = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -175,7 +176,7 @@ const deleteRemito = async(req,res) => {
     if(!deletedRemito){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
@@ -190,13 +191,13 @@ const deleteRemito = async(req,res) => {
     if(!deletedRemitoDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Remito eliminado correctamente.',
+        message:'✔️ Remito eliminado correctamente.',
     })
 }
 
@@ -235,7 +236,7 @@ const buscarRemito = async (req, res) => {
         producto: { $in: productosBuscados },
       });
     } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "Error al buscar remitos" });       
+        res.status(500).json({ ok: false, message: "❌ Error al buscar remitos" });       
     } else {
       detallesFiltrados = await RemitoDetalle.find();
     }
@@ -294,11 +295,11 @@ const buscarRemito = async (req, res) => {
     if (remitosFiltrados.length > 0) {
       res.status(200).json({ ok: true, data: remitosFiltrados });
     } else {
-      res.status(200).json({ ok: false, message: "No se encontraron remitos con esos filtros" });
+      res.status(200).json({ ok: false, message: "❌ No se encontraron remitos con esos filtros" });
     }
 
   } catch (error) {
-    res.status(500).json({ ok: false, message: "Error interno del servidor" });
+    res.status(500).json({ ok: false, message: "❌ Error interno del servidor" });
   }
 };
 

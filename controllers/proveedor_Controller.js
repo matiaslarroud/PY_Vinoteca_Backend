@@ -2,7 +2,6 @@ const Proveedor = require("../models/proveedor_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setProveedor = async (req,res) => {
-    const newId = await getNextSequence("Proveedor");
     const nombreC = req.body.name;
     const telefonoC = req.body.telefono;
     const emailC = req.body.email;
@@ -15,11 +14,12 @@ const setProveedor = async (req,res) => {
     const alturaC = req.body.altura;
     const ivaC = req.body.condicionIva;
 
-    if(!nombreC || !telefonoC || !emailC || !cuitC
-         || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+    if(!nombreC || !telefonoC || !emailC || !cuitC || !paisC || !provinciaC || 
+        !localidadC || !barrioC || !calleC || !ivaC || !alturaC){
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
+    const newId = await getNextSequence("Proveedor");
     const newProveedor = new Proveedor ({
         _id: newId,
         name: nombreC , telefono: telefonoC , email: emailC , cuit: cuitC , estado:true,
@@ -27,15 +27,20 @@ const setProveedor = async (req,res) => {
     });
     await newProveedor.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Proveedor agregado correctamente.'})
+            res.status(201).json({ok:true, message:'✔️ Proveedor agregado correctamente.'})
         })
-        .catch((err)=>{console.log(err)});
+        
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar proveedor. ERROR:\n${err}`
+            })
+        })
 
 }
 
 const getProveedor = async(req, res) => {
-    const proveedores = await Proveedor.find({estado:true});
-
+    const proveedores = await Proveedor.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
         data: proveedores,
@@ -48,7 +53,7 @@ const getProveedorID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -57,13 +62,14 @@ const getProveedorID = async(req,res) => {
     if(!proveedor){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a un proveedor.'
+            message:'❌ El id no corresponde a un proveedor.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Proveedor obtenido correctamente.",
         data:proveedor,
     })
 }
@@ -86,14 +92,17 @@ const updateProveedor = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
         return
     }
 
-    if(!nombreC || !telefonoC || !emailC || !cuitC
-         || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+    if(!nombreC || !telefonoC || !emailC || !cuitC  || !paisC || !provinciaC || 
+        !localidadC || !barrioC || !calleC || !ivaC || !alturaC){
+        res.status(400).json({
+            ok:false , 
+            message:"❌ Faltan completar algunos campos obligatorios."
+        })
         return
     }
 
@@ -109,22 +118,42 @@ const updateProveedor = async(req,res) => {
     if(!updatedProveedor){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar proveedor.'
+            message:'❌ Error al actualizar proveedor.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Proveedor actualizado correctamente.',
+        message:'✔️ Proveedor actualizado correctamente.',
     })
 }
+
+
+//Validaciones de eliminacion
+const Proveedor_SolicitudPresupuesto = require("../models/proveedorSolicitudPresupuesto_Model.js");
+const Proveedor_Presupuesto = require("../models/proveedorPresupuesto_Model.js");
+const ProductoVino = require("../models/productoVino_Model.js");
+const ProductoInsumo = require("../models/productoInsumo_Model.js");
 
 const deleteProveedor = async(req,res) => {
     const id = req.params.id;
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
+        })
+        return
+    }
+
+    const solicitudPresupuesto = await Proveedor_SolicitudPresupuesto.find({proveedor:id , estado:true}).lean();
+    const presupuesto = await Proveedor_Presupuesto.find({proveedor:id , estado:true}).lean();
+    const productoVino = await ProductoVino.find({proveedor:id , estado:true}).lean();
+    const productoInsumo = await ProductoInsumo.find({proveedor:id , estado:true}).lean();
+    
+    if(solicitudPresupuesto.length !== 0 || presupuesto.length !== 0 || productoVino.length !== 0 || productoInsumo.length !== 0){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a este proveedor."
         })
         return
     }
@@ -139,13 +168,13 @@ const deleteProveedor = async(req,res) => {
     if(!deletedProveedor){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Proveedor eliminado correctamente.'
+        message:'✔️ Proveedor eliminado correctamente.'
     })
 }
 
@@ -203,7 +232,7 @@ const proveedoresFiltrados = proveedores.filter(c => {
     res.status(200).json({ ok: true, data: proveedoresFiltrados });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ ok: false, message: "Error al buscar proveedores" });
+    res.status(500).json({ ok: false, message: "❌ Error al buscar proveedores" });
   }
 }
 

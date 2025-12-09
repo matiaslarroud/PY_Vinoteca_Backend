@@ -2,29 +2,33 @@ const VinoDetalle = require("../models/productoVinoDetalle_Model");
 const getNextSequence = require("./counter_Controller");
 
 const setVinoDetalle = async (req,res) => {
-    const newId = await getNextSequence("ProductoVinoDetalle");
     const vinoP = req.body.vino;
     const uvaID = req.body.uva;
 
     if( !vinoP || !uvaID ){
-        res.status(400).json({ok:false , message:'Error al cargar los datos.'})
+        res.status(400).json({ok:false , message:'❌ Error al cargar los datos.'})
         return
     }
+    const newId = await getNextSequence("ProductoVinoDetalle");
     const newVinoDetalle = new VinoDetalle ({
         _id: newId,
         vino: vinoP , uva: uvaID , estado:true
     });
     await newVinoDetalle.save()
         .then( () => {
-            res.status(201).json({ok:true, message:'Vino Detalle agregado correctamente.'})
+            res.status(201).json({ok:true, message:'✔️ Vino Detalle agregado correctamente.'})
         })
-        .catch((err)=>{console.log(err)});
+        .catch((err) => {
+            res.status(400).json({
+                ok:false,
+                message:`❌ Error al agregar detalle de vino. ERROR:\n${err}`
+            })
+        }) 
 
 }
 
 const getVinoDetalle = async(req, res) => {
-    const detallesVino = await VinoDetalle.find({estado:true});
-
+    const detallesVino = await VinoDetalle.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
         data: detallesVino,
@@ -37,7 +41,7 @@ const getVinoDetalleID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -46,13 +50,14 @@ const getVinoDetalleID = async(req,res) => {
     if(!vinoDetalle){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde al detalle de un vino.'
+            message:'❌ El id no corresponde al detalle de un vino.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Detalle de vino obtenido correctamente.",
         data:vinoDetalle,
     })
 }
@@ -63,7 +68,7 @@ const getVinoDetalle_ByVino = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -72,13 +77,14 @@ const getVinoDetalle_ByVino = async(req,res) => {
     if(!vinoDetalle || vinoDetalle.length === 0){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a los detalles de un vino.'
+            message:'❌ El id no corresponde a los detalles de un vino.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Detalle de vino obtenido correctamente.",
         data:vinoDetalle,
     })
 }
@@ -86,21 +92,26 @@ const getVinoDetalle_ByVino = async(req,res) => {
 const updateVinoDetalle = async(req,res) => {
     const id = req.params.id;
     
-    const VinoP = req.body.vino;
+    const vinoP = req.body.vino;
     const uvaID = req.body.uva;
 
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.',
+            message:'❌ El id no llego al controlador correctamente.',
         })
+        return
+    }
+
+    if( !vinoP || !uvaID ){
+        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
 
     const updatedVinoDetalle = await VinoDetalle.findByIdAndUpdate(
         id,
         {   
-            vino: VinoP , uva: uvaID
+            vino: vinoP , uva: uvaID
         },
         { new: true , runValidators: true }
     )
@@ -108,14 +119,14 @@ const updateVinoDetalle = async(req,res) => {
     if(!updatedVinoDetalle){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar el Vino Detalle.'
+            message:'❌ Error al actualizar el Vino Detalle.'
         })
         return
     }
     res.status(200).json({
         ok:true,
         data:updatedVinoDetalle,
-        message:'Vino Detalle actualizado correctamente.',
+        message: '✔️ Vino Detalle actualizado correctamente.',
     })
 }
 
@@ -126,7 +137,7 @@ const deleteVinoDetalle = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -142,13 +153,13 @@ const deleteVinoDetalle = async(req,res) => {
     if(!deletedVinoDetalle){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado de los detalles de vino.'
+            message: '❌Error durante el borrado de los detalles de vino.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Vino Detalle eliminado correctamente.'
+        message:'✔️Vino Detalle eliminado correctamente.'
     })
 }
 

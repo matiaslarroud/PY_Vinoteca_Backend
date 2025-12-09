@@ -9,25 +9,24 @@ const obtenerFechaHoy = () => {
 
 const setReciboPago = async (req, res) => {
     try {
-        const newId = await getNextSequence("Cliente_ReciboPago");
         const total = Number(req.body.total);
         const fecha = obtenerFechaHoy();
         const clienteID = req.body.clienteID;
         const medioPagoID = req.body.medioPagoID;
 
-        // ✔ Validación corregida (total = 0 es válido)
-        if (total === undefined || total === null || !clienteID || !medioPagoID) {
+        if (!total || !clienteID || !medioPagoID) {
             return res.status(400).json({
                 ok: false,
-                message: 'Error al cargar los datos.'
+                message: "❌ Faltan completar algunos campos obligatorios."
             });
         }
 
+        const newId = await getNextSequence("Cliente_ReciboPago");
         const cliente = await Cliente.findById(clienteID);
         if (!cliente) {
             return res.status(400).json({
                 ok: false,
-                message: 'Cliente no encontrado.'
+                message: '❌ Cliente no encontrado.'
             });
         }
 
@@ -36,7 +35,7 @@ const setReciboPago = async (req, res) => {
         if (sumaSaldo > cliente.saldoCuentaCorriente) {
             return res.status(400).json({
                 ok: false,
-                message: `El total del recibo supera el límite de saldo del cliente.\n Su maximo a agregar es: ${cliente.saldoCuentaCorriente-cliente.saldoActualCuentaCorriente} `
+                message: `❌ El total del recibo supera el límite de saldo del cliente.\n Su maximo a agregar es: ${cliente.saldoCuentaCorriente-cliente.saldoActualCuentaCorriente} `
             });
         }
 
@@ -59,7 +58,7 @@ const setReciboPago = async (req, res) => {
 
         return res.status(201).json({
             ok: true,
-            message: 'Recibo de pago agregado correctamente.',
+            message: '✔️ Recibo de pago agregado correctamente.',
             data: newReciboPago
         });
 
@@ -67,7 +66,7 @@ const setReciboPago = async (req, res) => {
         console.error("❌ Error en setReciboPago:", err);
         return res.status(500).json({
             ok: false,
-            message: 'Error interno del servidor.'
+            message: '❌ Error interno del servidor.'
         });
     }
 };
@@ -75,11 +74,10 @@ const setReciboPago = async (req, res) => {
 
 
 const getReciboPago = async(req, res) => {
-    const recibos = await ReciboPago.find({estado:true});
-
+    const recibos = await ReciboPago.find({estado:true}).lean();
     res.status(200).json({
         ok:true,
-        data: recibos,
+        data: recibos
     })
 }
 
@@ -89,7 +87,7 @@ const getReciboPagoID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente',
+            message:'❌ El id no llego al controlador correctamente',
         })
         return
     }
@@ -98,13 +96,14 @@ const getReciboPagoID = async(req,res) => {
     if(!reciboPagoEncontrado){
         res.status(400).json({
             ok:false,
-            message:'El id no corresponde a un ReciboPago.'
+            message:'❌ El id no corresponde a un ReciboPago.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
+        message:"✔️ Recibo de pago obtenido.",
         data:reciboPagoEncontrado,
     })
 }
@@ -121,7 +120,14 @@ const updateReciboPago = async (req, res) => {
         if (!id) {
             return res.status(400).json({
                 ok: false,
-                message: 'El id no llegó al controlador correctamente.'
+                message: '❌ El id no llegó al controlador correctamente.'
+            });
+        }
+
+        if (!totalNuevo || !clienteID || !medioPagoID) {
+            return res.status(400).json({
+                ok: false,
+                message: "❌ Faltan completar algunos campos obligatorios."
             });
         }
 
@@ -130,7 +136,7 @@ const updateReciboPago = async (req, res) => {
         if (!reciboOriginal) {
             return res.status(400).json({
                 ok: false,
-                message: 'Recibo no encontrado.'
+                message: '❌ Recibo no encontrado.'
             });
         }
 
@@ -141,7 +147,7 @@ const updateReciboPago = async (req, res) => {
         if (!cliente) {
             return res.status(400).json({
                 ok: false,
-                message: 'Cliente no encontrado.'
+                message: '❌ Cliente no encontrado.'
             });
         }
 
@@ -155,7 +161,7 @@ const updateReciboPago = async (req, res) => {
         if (saldoCorregido > cliente.saldoCuentaCorriente) {
             return res.status(400).json({
                 ok: false,
-                message: `El nuevo total supera el límite de saldo del cliente.\n Su maximo a agregar es: ${cliente.saldoCuentaCorriente-cliente.saldoActualCuentaCorriente} `
+                message: `❌ El nuevo total supera el límite de saldo del cliente.\n Su maximo a agregar es: ${cliente.saldoCuentaCorriente-cliente.saldoActualCuentaCorriente} `
             });
         }
 
@@ -179,21 +185,21 @@ const updateReciboPago = async (req, res) => {
         if (!updatedReciboPago) {
             return res.status(400).json({
                 ok: false,
-                message: 'Error al actualizar el recibo de pago.'
+                message: '❌ Error al actualizar el recibo de pago.'
             });
         }
 
         return res.status(200).json({
             ok: true,
             data: updatedReciboPago,
-            message: 'Recibo de pago actualizado correctamente.'
+            message: '✔️ Recibo de pago actualizado correctamente.'
         });
 
     } catch (err) {
         console.error(err);
         return res.status(500).json({
             ok: false,
-            message: 'Error interno del servidor.'
+            message: '❌ Error interno del servidor.'
         });
     }
 };
@@ -204,7 +210,7 @@ const deleteReciboPago = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:'El id no llego al controlador correctamente.'
+            message:'❌ El id no llego al controlador correctamente.'
         })
         return
     }
@@ -218,13 +224,13 @@ const deleteReciboPago = async(req,res) => {
     if(!deletedReciboPago){
         res.status(400).json({
             ok:false,
-            message: 'Error durante el borrado.'
+            message: '❌ Error durante el borrado.'
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:'Recibo de pago eliminado correctamente.',
+        message:'✔️ Recibo de pago eliminado correctamente.',
     })
 }
 
@@ -248,9 +254,9 @@ const buscarReciboPago = async (req, res) => {
     });
 
     if(recibosFiltrados.length > 0){
-        res.status(200).json({ ok: true, data: recibosFiltrados });
+        res.status(200).json({ ok: true, message: "✔️ Recibos de pago obtenidos", data: recibosFiltrados });
     } else {
-        res.status(500).json({ ok: false, message: "Error al buscar recibos" });
+        res.status(500).json({ ok: false, message: "❌ Error al buscar recibos" });
     }
 };
 

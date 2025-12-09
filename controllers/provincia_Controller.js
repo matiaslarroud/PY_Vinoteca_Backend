@@ -3,47 +3,41 @@ const Pais = require("../models/pais_Model.js");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setProvincia = async(req,res) => {
-    const newId = await getNextSequence("Provincia");
     const nombreProvincia = req.body.name;
     const pais = req.body.pais;
 
-    if(!nombreProvincia){
+    if(!nombreProvincia || !pais){
         res.status(400).json({
             ok:false,
-            message:"No se puede cargar una provincia sin su nombre"
+            message:"❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
 
-    if(!pais){
-        res.status(400).json({
-            ok:false,
-            message:"No se puede cargar una provincia sin el pais al que pertenece"
-        })
-        return
-    }
-
+    const newId = await getNextSequence("Provincia");
     const newProvincia = new Provincia({
         _id: newId ,name: nombreProvincia , pais: pais , estado: true});
     await newProvincia.save()
         .then(() => {
             res.status(201).json({
                 ok:true,
-                message:"Provincia cargada correctamente."
+                message:"✔️ Provincia cargada correctamente."
             })
         })
         .catch((err) => {
-            console.log(err);
+            res.status(400).json({
+                ok:false,
+                message:`❌  Error al agregar provincia. ERROR:\n${err}`
+            })
         })
 }
 
 const getProvincia = async(req,res) => {
-    const provincias = await Provincia.find({estado:true});
-    
+    const provincias = await Provincia.find({estado:true}).lean();
+
     res.status(200).json({
         ok:true,
-        data: provincias,
-        message:"Provincia cargada correctamente."
+        data: provincias
     })
 }
 
@@ -53,7 +47,7 @@ const getProvinciaID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:"El id no llego al controlador correctamente"
+            message:"❌ El id no llego al controlador correctamente"
         })
         return
     }
@@ -63,7 +57,7 @@ const getProvinciaID = async(req,res) => {
     if(!provincia){
         res.status(400).json({
             ok:false,
-            message:"El id no corresponde a una provincia."
+            message:"❌ El id no corresponde a una provincia."
         })
         return
     }
@@ -71,7 +65,7 @@ const getProvinciaID = async(req,res) => {
     res.status(200).json({
         ok:true,
         data: provincia,
-        message:"Provincia encontrada correctamente."
+        message:"✔️ Provincia obtenida correctamente."
     })
 }
 
@@ -83,24 +77,15 @@ const updateProvincia = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:"El id no llego al controlador correctamente."
+            message:"❌ El id no llego al controlador correctamente."
         })
         return
     }
 
-    if(!name){
+    if(!name || !pais){
         res.status(400).json({
             ok:false,
-            message:"El nombre de la provincia no llego al controlador correctamente."
-        })
-        return
-    }
-
-    const verifyPais = await Pais.findById(pais)
-    if(!verifyPais){
-        res.status(400).json({
-            ok:false,
-            message:"No se pudo verificar correctamente el pais."
+            message:"❌ Faltan completar algunos campos obligatorios."
         })
         return
     }
@@ -114,29 +99,50 @@ const updateProvincia = async(req,res) => {
         { new: true , runValidators: true }
     )
 
-    if(!updateProvincia){
+    if(!updatedProvincia){
         res.status(400).json({
             ok:false,
-            message:'Error al actualizar la provincia.'
+            message:'❌ Error al actualizar la provincia.'
         })
         return
     }
 
     res.status(200).json({
         ok:true,
-        message: "Provincia actualizada correctamente."
+        message: "✔️ Provincia actualizada correctamente."
     })
 }
+
+//Validaciones de eliminacion
+const Cliente = require("../models/cliente_Model.js");
+const Proveedor = require("../models/proveedor_Model.js");
+const Paraje = require("../models/bodega-paraje_Model.js");
+const NotaPedido = require("../models/clienteNotaPedido_Model.js");
 
 const deleteProvincia = async(req,res) => {
     const id = req.params.id;
     if(!id){
         res.status(400).json({
             ok:false,
-            message:"El id no llego al controlador correctamente."
+            message:"❌ El id no llego al controlador correctamente."
         })
         return
     }
+
+    const cliente = await Cliente.find({provincia:id , estado:true}).lean();
+    const proveedor = await Proveedor.find({provincia:id  , estado:true}).lean();
+    const paraje = await Paraje.find({provincia:id  , estado:true}).lean();
+    const pedido = await NotaPedido.find({provincia:id  , estado:true}).lean();
+    
+    if(cliente.length !== 0 || proveedor.length !== 0 || paraje.length !== 0 || pedido.length !== 0){
+        res.status(400).json({
+            ok:false,
+            message:"❌ Error al eliminar. Existen tablas relacionadas a esta provincia."
+        })
+        return
+    }
+
+    
     const deletedProvincia = await Provincia.findByIdAndUpdate(
         id,
         {
@@ -149,13 +155,13 @@ const deleteProvincia = async(req,res) => {
     if(!deletedProvincia){
         res.status(400).json({
             ok:false,
-            message:"No se pudo borrar la provincia correctamente."
+            message:"❌ Error al eliminar provincia."
         })
         return
     }
     res.status(200).json({
         ok:true,
-        message:"Provincia eliminada correctamente."
+        message:"✔️ Provincia eliminada correctamente."
     })
 }
 
