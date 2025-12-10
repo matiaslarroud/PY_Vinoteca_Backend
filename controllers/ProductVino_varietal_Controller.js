@@ -64,7 +64,7 @@ const updateVarietalVino = async(req,res) => {
     const nombreVarietalVino = req.body.name;
     
     if(!id || !nombreVarietalVino){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
+       return res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
     }
 
     const updatedVarietalVino = await VarietalVino.findByIdAndUpdate(
