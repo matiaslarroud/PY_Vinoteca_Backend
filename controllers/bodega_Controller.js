@@ -70,6 +70,8 @@ const getBodegaID = async(req,res) => {
 
 const updateBodega = async(req,res) => {
     const bodegaID = req.params.id;
+    const nombreBodega = req.body.name;    
+    const familiaBodega = req.body.familia;
     if (!bodegaID) {
         res.status(400).json({
             ok:false , 
@@ -77,13 +79,9 @@ const updateBodega = async(req,res) => {
         });
         return
     }
-    const nombreBodega = req.body.name;
-    const familiaBodega = req.body.familia;
-    if (!bodegaID) {
-        res.status(400).json({
-            ok:false , 
-            message:'❌ Error al obtener datos de bodega.'
-        });
+    
+    if (!nombreBodega || !familiaBodega) {
+        res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'});
         return
     }
     const updatedBodega = await Bodega.findByIdAndUpdate(
