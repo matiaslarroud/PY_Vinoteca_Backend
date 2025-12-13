@@ -12,8 +12,9 @@ const setTransporte =  async (req , res ) => {
     const barrioTransporte = req.body.barrio;
     const calleTransporte = req.body.calle;
     const condicionIvaTransporte = req.body.condicionIva;
+    const alturaTransporte = req.body.altura;
     
-    if (!razonSocial || !telefonoTransporte || !emailTransporte || !cuitTransporte || !paisTransporte || 
+    if (!razonSocial || !telefonoTransporte || !emailTransporte || !cuitTransporte || !paisTransporte || !alturaTransporte || 
         !provinciaTransporte || !localidadTransporte || !barrioTransporte || !calleTransporte || !condicionIvaTransporte   ) {
         res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
@@ -31,7 +32,8 @@ const setTransporte =  async (req , res ) => {
         localidad: localidadTransporte,
         barrio: barrioTransporte,
         calle: calleTransporte,
-        condicionIva: condicionIvaTransporte
+        condicionIva: condicionIvaTransporte ,
+        altura:alturaTransporte
     });
     
     await newTransporte.save()
@@ -90,8 +92,9 @@ const updateTransporte =  async (req , res ) => {
     const barrioTransporte = req.body.barrio;
     const calleTransporte = req.body.calle;
     const condicionIvaTransporte = req.body.condicionIva;
+    const alturaTransporte = req.body.altura;
     
-    if (!razonSocial || !telefonoTransporte || !emailTransporte || !cuitTransporte || !paisTransporte || 
+    if (!razonSocial || !telefonoTransporte || !emailTransporte || !cuitTransporte || !paisTransporte ||  !alturaTransporte || 
         !provinciaTransporte || !localidadTransporte || !barrioTransporte || !calleTransporte || !condicionIvaTransporte) {
         res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
@@ -109,7 +112,8 @@ const updateTransporte =  async (req , res ) => {
                 localidad: localidadTransporte,
                 barrio: barrioTransporte,
                 calle: calleTransporte,
-                condicionIva: condicionIvaTransporte
+                condicionIva: condicionIvaTransporte ,
+                altura: alturaTransporte
             },
             { new: true , runValidators: true }
         )

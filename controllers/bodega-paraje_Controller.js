@@ -11,7 +11,7 @@ const setParaje = async (req , res ) => {
     const calleParaje = req.body.calle;
     const alturaParaje = req.body.altura;
     
-    if (!nombreParaje || !bodegaParaje || !paisParaje || !provinciaParaje || !localidadParaje || !barrioParaje || !calleParaje) {
+    if (!nombreParaje || !bodegaParaje || !paisParaje || !provinciaParaje || !localidadParaje || !barrioParaje || !calleParaje || !alturaParaje) {
         res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'});
         return
     }
@@ -109,7 +109,7 @@ const updateParaje = async(req,res) => {
     const calleP = req.body.calle;
     const alturaP = req.body.altura;
 
-    if(!nameP  || !bodegaP || !paisP || !provinciaP || !localidadP || !barrioP || !calleP){
+    if(!nameP  || !bodegaP || !paisP || !provinciaP || !localidadP || !barrioP || !calleP || !alturaP){
         res.status(400).json({
             ok:false,
             message:"❌ Faltan completar algunos campos obligatorios."

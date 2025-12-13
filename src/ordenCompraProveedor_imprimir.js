@@ -34,7 +34,7 @@ const imprimir = async (req, res) => {
     }
 
     // Traer los detalles con productos
-    const detalles = await OrdenCompraDetalle.find({ ordenCompra: id })
+    const detalles = await OrdenCompraDetalle.find({ ordenCompra: id , estado:true })
       .populate("producto");
     ordenCompra.detalles = detalles;
 

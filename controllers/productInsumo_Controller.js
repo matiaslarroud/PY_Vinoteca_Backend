@@ -16,7 +16,7 @@ const setProduct =  async (req , res ) => {
         return
     }
 
-    const newId = await getNextSequence("ProductoInsumo");
+    const newId = await getNextSequence("Producto");
     const newProduct = new Product({
         _id: newId,
         name: nombreProducto , 

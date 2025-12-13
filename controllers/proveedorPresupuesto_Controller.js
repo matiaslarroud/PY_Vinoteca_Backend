@@ -16,7 +16,7 @@ const setPresupuesto = async (req,res) => {
     const solicitudP = req.body.solicitudPresupuesto;
 
 
-    if(!totalP || !fechaP || !proveedorID || !medioPagoID || !empleadoID ){
+    if(!totalP || !fechaP || !proveedorID || !medioPagoID || !empleadoID || !solicitudP ){
         res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }

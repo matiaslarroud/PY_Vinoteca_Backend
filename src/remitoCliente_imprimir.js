@@ -41,7 +41,7 @@ const imprimir = async (req, res) => {
     }
 
     // Traer los detalles con productos
-    const detalles = await RemitoDetalle.find({ remitoID: id })
+    const detalles = await RemitoDetalle.find({ remitoID: id , estado:true})
       .populate("producto");
     remito.detalles = detalles;
 

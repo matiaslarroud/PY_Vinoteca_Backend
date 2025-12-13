@@ -163,7 +163,7 @@ const updateComprobantePago = async(req,res) => {
         return
     }
 
-    if( !total || !fecha || !medioPago || !comprobanteCompra ){
+    if( !total || !medioPago || !comprobanteCompra ){
         res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
