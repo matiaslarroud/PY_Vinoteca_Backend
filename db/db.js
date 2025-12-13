@@ -9,7 +9,7 @@ const connectDatabase = (app) => {
   });
 
   mongoose
-    .connect(`mongodb+srv://matutedel30:${process.env.PASS_MONGODB}@vinOteca.thjyjhn.mongodb.net/Vinoteca?retryWrites=true&w=majority&appName=Vinoteca`)
+    .connect(`mongodb+srv://matutedel30:${process.env.PASS_MONGODB}@vinOteca.thjyjhn.mongodb.net/${process.env.MONGODB_DB}?retryWrites=true&w=majority&appName=Vinoteca`)
     .then(() => {
       console.log("✅ Conexión exitosa a la BD.");
     })
