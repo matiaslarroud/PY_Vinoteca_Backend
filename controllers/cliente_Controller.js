@@ -272,7 +272,7 @@ const clientesFiltrados = clientes.filter(c => {
   const coincideDeptoNumero = deptoNumeroC ? Number(c.deptoNumero) === Number(deptoNumeroC) : true;
   const coincideDeptoLetra = deptoLetraC ? c.deptoLetra?.toLowerCase() === deptoLetraC.toLowerCase() : true;
   const coincideCondicionIva = condicionIvaC ? String(c.condicionIva) === String(condicionIvaC) : true;
-  const coincideCuentaCorriente = typeof cuentaCorrienteC === "boolean" ? p.cuentaCorriente === cuentaCorrienteC : true;
+  const coincideCuentaCorriente = typeof cuentaCorrienteC === "boolean" ? c.cuentaCorriente === cuentaCorrienteC : true;
 
   // Si todos los criterios activos coinciden => mantener cliente
   return (
