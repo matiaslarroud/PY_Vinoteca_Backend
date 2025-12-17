@@ -243,67 +243,106 @@ const deleteProduct = async (req , res) => {
     });
 };
 
+
+const ProductoVinoDetalle = require('../models/productoVinoDetalle_Model.js');
+const ProductoVino = require('../models/productoVino_Model.js');
+
 const buscarProducto = async(req,res) => {
   try {
-    const stockP = req.body.stock;
-    const stockMinimoP = req.body.stockMinimo;
-    const depositoP = req.body.deposito;
-    const nombreP = req.body.name;
-    const bodegaP = req.body.bodega;
-    const proveedorP = req.body.proveedor;
-    const parajeP = req.body.paraje;
-    const crianzaP = req.body.crianza;
-    const tipoP = req.body.tipo;
-    const varietalP = req.body.varietal;
-    const volumenP = req.body.volumen;
-    const precioCostoP = req.body.precioCosto;
-    const gananciaP = req.body.ganancia;
-    
-// Primero traemos todos los clientes
-const productos = await Product.find();
+        const stockP = req.body.stock;
+        const stockMinimoP = req.body.stockMinimo;
+        const depositoP = req.body.deposito;
+        const nombreP = req.body.name;
+        const bodegaP = req.body.bodega;
+        const proveedorP = req.body.proveedor;
+        const parajeP = req.body.paraje;
+        const crianzaP = req.body.crianza;
+        const tipoP = req.body.tipo;
+        const varietalP = req.body.varietal;
+        const volumenP = req.body.volumen;
+        const vinoIDP = req.body.vinoID;
+        const precioCostoP = req.body.precioCosto;
+        const gananciaP = req.body.ganancia;
+        const detalles = req.body.detalles;
 
-// Luego filtramos dinámicamente
-const productosFiltrados = productos.filter(c => {
-    const coincideEstado = c.estado === true;
-  // Cada condición solo se evalúa si el campo tiene valor
-  const coincideNombre = nombreP ? c.name?.toLowerCase().includes(nombreP.toLowerCase()) : true;proveedorP
-  const coincideStock = stockP ? Number(c.stock) === Number(stockP) : true;
-  const coincideStockMinimo = stockMinimoP ? Number(c.stockMinimo) === Number(stockMinimoP) : true;
-  const coincideProveedor = proveedorP ? Number(c.proveedor) === Number(proveedorP) : true;
-  const coincideDeposito = depositoP ? Number(c.deposito) === Number(depositoP) : true;
-  const coincideBodega = bodegaP ? Number(c.bodega) === Number(bodegaP) : true;
-  const coincideParaje = parajeP ? Number(c.paraje) === Number(parajeP) : true;
-  const coincideCrianza = crianzaP ? Number(c.crianza) === Number(crianzaP) : true;
-  const coincideTipo = tipoP ? Number(c.tipo) === Number(tipoP) : true;
-  const coincideVarietal = varietalP ? Number(c.varietal) === Number(varietalP) : true;
-  const coincideVolumen = volumenP ? Number(c.volumen) === Number(volumenP) : true;
-  const coincidePrecioCosto = precioCostoP ? Number(c.precioCosto) === Number(precioCostoP) : true;
-  const coincideGanancia = gananciaP ? Number(c.ganancia) === Number(gananciaP) : true;
+        // 1️⃣ Obtenemos todas las uvas que vienen en los detalles
+        const uvasBuscadas = detalles && detalles.length > 0
+        ? detalles.map(d => d.uva)
+        : [];
 
-  // Si todos los criterios activos coinciden => mantener cliente
-  return (
-    coincideEstado &&
-    coincideNombre &&
-    coincideStock &&
-    coincideStockMinimo &&
-    coincideDeposito &&
-    coincideBodega &&
-    coincideParaje &&
-    coincideCrianza &&
-    coincideTipo &&
-    coincideVarietal &&
-    coincideVolumen &&
-    coincidePrecioCosto &&
-    coincideGanancia &&
-    coincideProveedor
-  );
-});
+        // 2️⃣ Buscamos los ProductoVinoDetalle que contengan alguna de esas uvas
+        let detallesFiltrados = [];
+        if (uvasBuscadas.length > 0) {
+            detallesFiltrados = await ProductoVinoDetalle.find({
+                uva: { $in: uvasBuscadas },
+            });
+        } if (uvasBuscadas.length > 0 && detallesFiltrados.length === 0) {
+            res.status(500).json({ ok: false, message: "❌ Error al buscar vinos" });       
+        } else if (!detalles) {
+            detallesFiltrados = await ProductoVinoDetalle.find();
+        }
+        
+        // 3️⃣ Obtenemos los IDs únicos de los vinos asociados
+        const vinosIDs = [
+            ...new Set(
+                detallesFiltrados
+                .map(d => d.vino)
+                .filter(id => id !== undefined && id !== null)
+            ),
+        ];
 
-    res.status(200).json({ ok: true, data: productosFiltrados });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ ok: false, message: "Error al buscar productos" });
-  }
+        // 4️⃣ Buscamos los presupuestos relacionados
+        let vinos = await ProductoVino.find(
+            vinosIDs.length > 0 ? { _id: { $in: vinosIDs } } : {}
+        );
+            
+        // Primero traemos todos los clientes
+        const productos = await Product.find();
+
+        // Luego filtramos dinámicamente
+        const productosFiltrados = vinos.filter(c => {
+            const coincideEstado = c.estado === true;
+        // Cada condición solo se evalúa si el campo tiene valor
+        const coincideVino = vinoIDP ? (c._id) === Number(vinoIDP) : true;
+        const coincideNombre = nombreP ? c.name?.toLowerCase().includes(nombreP.toLowerCase()) : true;
+        const coincideStock = stockP ? Number(c.stock) === Number(stockP) : true;
+        const coincideStockMinimo = stockMinimoP ? Number(c.stockMinimo) === Number(stockMinimoP) : true;
+        const coincideProveedor = proveedorP ? Number(c.proveedor) === Number(proveedorP) : true;
+        const coincideDeposito = depositoP ? Number(c.deposito) === Number(depositoP) : true;
+        const coincideBodega = bodegaP ? Number(c.bodega) === Number(bodegaP) : true;
+        const coincideParaje = parajeP ? Number(c.paraje) === Number(parajeP) : true;
+        const coincideCrianza = crianzaP ? Number(c.crianza) === Number(crianzaP) : true;
+        const coincideTipo = tipoP ? Number(c.tipo) === Number(tipoP) : true;
+        const coincideVarietal = varietalP ? Number(c.varietal) === Number(varietalP) : true;
+        const coincideVolumen = volumenP ? Number(c.volumen) === Number(volumenP) : true;
+        const coincidePrecioCosto = precioCostoP ? Number(c.precioCosto) === Number(precioCostoP) : true;
+        const coincideGanancia = gananciaP ? Number(c.ganancia) === Number(gananciaP) : true;
+
+        // Si todos los criterios activos coinciden => mantener cliente
+        return (
+            coincideVino &&
+            coincideEstado &&
+            coincideNombre &&
+            coincideStock &&
+            coincideStockMinimo &&
+            coincideDeposito &&
+            coincideBodega &&
+            coincideParaje &&
+            coincideCrianza &&
+            coincideTipo &&
+            coincideVarietal &&
+            coincideVolumen &&
+            coincidePrecioCosto &&
+            coincideGanancia &&
+            coincideProveedor
+        );
+        });
+
+        res.status(200).json({ ok: true, data: productosFiltrados });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ ok: false, message: "❌ Error al buscar vinos" });
+    }
 }
 
 module.exports = {setProduct , getProduct , getProductID , updateProduct , deleteProduct , buscarProducto};

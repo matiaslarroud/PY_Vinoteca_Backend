@@ -200,6 +200,7 @@ const buscarProducto = async(req,res) => {
     const depositoP = req.body.deposito;
     const nombreP = req.body.name;
     const precioVentaP = req.body.precioVenta;
+    const picadaID = req.body.picadaID;
     
 // Primero traemos todos los clientes
 const productos = await Product.find({estado:true});
@@ -207,6 +208,7 @@ const productos = await Product.find({estado:true});
 const productosFiltrados = productos.filter(c => {
   // Cada condición solo se evalúa si el campo tiene valor
   const coincideEstado = c.estado === true;
+  const coincidePicadaID = picadaID ? (c._id) === Number(picadaID) : true;
   const coincideNombre = nombreP ? c.name?.toLowerCase().includes(nombreP.toLowerCase()) : true;
   const coincideStock = stockP ? Number(c.stock) === Number(stockP) : true;
   const coincideStockMinimo = stockMinimoP ? Number(c.stockMinimo) === Number(stockMinimoP) : true;
@@ -215,6 +217,7 @@ const productosFiltrados = productos.filter(c => {
 
   // Si todos los criterios activos coinciden => mantener cliente
   return (
+    coincidePicadaID &&
     coincideEstado &&
     coincideNombre &&
     coincideStock &&
