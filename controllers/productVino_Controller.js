@@ -341,7 +341,7 @@ const buscarProducto = async(req,res) => {
         res.status(200).json({ ok: true, data: productosFiltrados });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ ok: false, message: "❌ Error al buscar vinos" });
+        res.status(500).json({ ok: false, message: "❌ Error al buscar vinos." });
     }
 }
 
