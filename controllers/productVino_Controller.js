@@ -295,9 +295,6 @@ const buscarProducto = async(req,res) => {
         let vinos = await ProductoVino.find(
             vinosIDs.length > 0 ? { _id: { $in: vinosIDs } } : {}
         );
-            
-        // Primero traemos todos los clientes
-        const productos = await Product.find();
 
         // Luego filtramos dinámicamente
         const productosFiltrados = vinos.filter(c => {

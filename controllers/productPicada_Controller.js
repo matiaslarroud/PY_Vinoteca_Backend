@@ -201,37 +201,65 @@ const buscarProducto = async(req,res) => {
     const nombreP = req.body.name;
     const precioVentaP = req.body.precioVenta;
     const picadaID = req.body.picadaID;
+    const detalles = req.body.detalles;
+
+    // 1️⃣ Obtenemos todas las uvas que vienen en los detalles
+    const insumosBuscados = detalles && detalles.length > 0
+    ? detalles.map(d => d.insumo)
+    : [];
+
+    // 2️⃣ Buscamos los ProductoVinoDetalle que contengan alguna de esas uvas
+    let detallesFiltrados = [];
+    if (insumosBuscados.length > 0) {
+        detallesFiltrados = await PicadaDetalle.find({
+            insumo: { $in: insumosBuscados },
+        });
+    } if (insumosBuscados.length > 0 && detallesFiltrados.length === 0) {
+        res.status(500).json({ ok: false, message: "❌ Error al buscar picadas" });       
+    } else if (!detalles) {
+        detallesFiltrados = await PicadaDetalle.find();
+    }
     
-// Primero traemos todos los clientes
-const productos = await Product.find({estado:true});
+    // 3️⃣ Obtenemos los IDs únicos de los vinos asociados
+    const picadasIDs = [
+        ...new Set(
+            detallesFiltrados
+            .map(d => d.picada)
+            .filter(_id => _id !== undefined && _id !== null)
+        ),
+    ];
+    // 4️⃣ Buscamos los presupuestos relacionados
+    let picadas = await Product.find(
+        picadasIDs.length > 0 ? { _id: { $in: picadasIDs } } : {}
+    );
 
-const productosFiltrados = productos.filter(c => {
-  // Cada condición solo se evalúa si el campo tiene valor
-  const coincideEstado = c.estado === true;
-  const coincidePicadaID = picadaID ? (c._id) === Number(picadaID) : true;
-  const coincideNombre = nombreP ? c.name?.toLowerCase().includes(nombreP.toLowerCase()) : true;
-  const coincideStock = stockP ? Number(c.stock) === Number(stockP) : true;
-  const coincideStockMinimo = stockMinimoP ? Number(c.stockMinimo) === Number(stockMinimoP) : true;
-  const coincideDeposito = depositoP ? Number(c.deposito) === Number(depositoP) : true;
-  const coincidePrecio = precioVentaP ? Number(c.precioVenta) === Number(precioVentaP) : true; 
+    const productosFiltrados = picadas.filter(c => {
+    // Cada condición solo se evalúa si el campo tiene valor
+    const coincideEstado = c.estado === true;
+    const coincidePicadaID = picadaID ? (c._id) === Number(picadaID) : true;
+    const coincideNombre = nombreP ? c.name?.toLowerCase().includes(nombreP.toLowerCase()) : true;
+    const coincideStock = stockP ? Number(c.stock) === Number(stockP) : true;
+    const coincideStockMinimo = stockMinimoP ? Number(c.stockMinimo) === Number(stockMinimoP) : true;
+    const coincideDeposito = depositoP ? Number(c.deposito) === Number(depositoP) : true;
+    const coincidePrecio = precioVentaP ? Number(c.precioVenta) === Number(precioVentaP) : true; 
 
-  // Si todos los criterios activos coinciden => mantener cliente
-  return (
-    coincidePicadaID &&
-    coincideEstado &&
-    coincideNombre &&
-    coincideStock &&
-    coincideStockMinimo &&
-    coincideDeposito &&
-    coincidePrecio 
-  );
-});
+    // Si todos los criterios activos coinciden => mantener cliente
+    return (
+        coincidePicadaID &&
+        coincideEstado &&
+        coincideNombre &&
+        coincideStock &&
+        coincideStockMinimo &&
+        coincideDeposito &&
+        coincidePrecio 
+    );
+    });
 
-res.status(200).json({ ok: true, data: productosFiltrados });
+    res.status(200).json({ ok: true, data: productosFiltrados });
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ ok: false, message: "❌ Error al buscar productos" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ ok: false, message: "❌ Error al buscar productos" });
   }
 }
 
