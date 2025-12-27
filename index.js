@@ -56,6 +56,7 @@ const routerProveedor_RemitoDetalle = require('./routes/proveedorRemitoDetalle_R
 const routerUsuario = require('./routes/usuario_Router.js');
 const pingServer = require('./routes/pingServer.js');
 const routerProductofoto = require('./routes/productoFoto_Router.js');
+const routerCaja = require('./routes/caja_Router.js');
 
 const app = express();
 
@@ -98,6 +99,7 @@ app.use(`${process.env.ROUTE}/gestion/empleado` , routerEmpleado);
 app.use(`${process.env.ROUTE}/gestion/tipoComprobante` , routerTipoComprobante);
 app.use(`${process.env.ROUTE}/gestion/transporte` , routerTransporte);
 app.use(`${process.env.ROUTE}/gestion/proveedor` , routerProveedor); 
+app.use(`${process.env.ROUTE}/gestion/caja` , routerCaja); 
 
 app.use(`${process.env.ROUTE}/cliente/presupuesto` , routerCliente_Presupuesto);
 app.use(`${process.env.ROUTE}/cliente/presupuestoDetalle` , routerCliente_PresupuestoDetalle);

@@ -13,6 +13,32 @@ const setNotaPedidoDetalle = async (req,res) => {
         res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'})
         return
     }
+
+    if (isNaN(cantidadP)) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: '❌ Cantidad inválida, debe ser un número',
+    })}
+
+    const producto = await Product.findById(id);
+    if (!producto) {
+        return res.status(400).json({
+            ok: false,
+            message: '❌ Producto no encontrado',
+        });
+    }
+
+    if(producto.stock - Number(cantidadP) < 0)
+    {
+      return res.status(400).json({
+            ok: false,
+            message: '❌ La cantidad solicitada supera al stock actual del producto.',
+        });
+    }
+      
+    producto.stock -= Number(cantidadVendida);
+    await producto.save();
+    
     const newId = await getNextSequence("Cliente_NotaPedidoDetalle");
     const newNotaPedidoDetalle = new NotaPedidoDetalle ({
         _id: newId,

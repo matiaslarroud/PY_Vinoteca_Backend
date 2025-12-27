@@ -1,5 +1,6 @@
 const ReciboPago = require("../models/clienteReciboPago_Model");
 const Cliente = require("../models/cliente_Model");
+const Caja = require("../models/caja_Model");
 const getNextSequence = require("./counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -53,8 +54,21 @@ const setReciboPago = async (req, res) => {
             medioPagoID: medioPagoID,
             estado: true
         });
-
         await newReciboPago.save();
+
+        // AGREGAMOS MOVIMIENTO A LA CAJA SOLO SI EL MEDIO DE PAGO NO ES 'CuentaCorriente'
+        const newIdCaja = await getNextSequence("Caja");
+        const newCaja = await new Caja({
+            _id: newIdCaja,
+            fecha:obtenerFechaHoy(),
+            tipo: true,
+            total: total,
+            persona:clienteID , 
+            referencia:`Recibo de Pago Cliente N°: ${newId}.`, 
+            medioPago:medioPagoID , 
+            estado:true
+        });
+        await newCaja.save();
 
         return res.status(201).json({
             ok: true,
@@ -187,6 +201,38 @@ const updateReciboPago = async (req, res) => {
                 ok: false,
                 message: '❌ Error al actualizar el recibo de pago.'
             });
+        }
+
+        // 1️⃣ Buscar TODOS los movimientos de caja de la Nota de Pedido
+        const movimientosCaja = await Caja.find({
+          estado: true,
+          referencia: { $regex: `Recibo de Pago Cliente N°: ${id}` }
+        });
+        if (!movimientosCaja || movimientosCaja.length === 0) {
+          throw new Error("❌ No se encontraron movimientos de caja para este recibo de pago.");
+        }
+        // 2️⃣ Calcular TOTAL REAL ACTUAL de caja
+        const totalActualCaja = movimientosCaja.reduce((acc, mov) => {
+          return mov.tipo ? acc + mov.total : acc - mov.total;
+        }, 0);
+        // 3️⃣ Calcular nuevo total correcto
+        let nuevoTotalCaja = totalNuevo;
+        // 4️⃣ Calcular diferencia REAL
+        const diferencia = nuevoTotalCaja - totalActualCaja;
+        // 5️⃣ Crear ajuste SOLO si hay diferencia
+        if (diferencia !== 0) {
+          const newIdCaja = await getNextSequence("Caja");
+          const ajusteCaja = new Caja({
+            _id: newIdCaja,
+            fecha: obtenerFechaHoy(),
+            tipo: diferencia > 0, // true = ingreso, false = egreso
+            persona: cliente,
+            referencia: `Ajuste Recibo de Pago Cliente N°: ${id}.`,
+            medioPago: movimientosCaja[0].medioPago, // tomamos el medio de pago original
+            total: Math.abs(diferencia),
+            estado: true
+          });
+          await ajusteCaja.save();
         }
 
         return res.status(200).json({

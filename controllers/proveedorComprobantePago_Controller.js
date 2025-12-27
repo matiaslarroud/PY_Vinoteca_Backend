@@ -1,6 +1,7 @@
 const ComprobantePago = require("../models/proveedorComprobantePago_Model");
 const ComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
 const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
+const Caja = require("../models/caja_Model");
 const getNextSequence = require("./counter_Controller");
 
 const obtenerFechaHoy = () => {
@@ -28,6 +29,44 @@ const setComprobantePago = async (req,res) => {
         medioPago : medioPago ,
         estado:true
     });
+    
+    
+      // AGREGAMOS MOVIMIENTO A LA CAJA
+      
+      const comprobanteCompraEncontrado = await ComprobanteCompra.findById(comprobanteCompra)
+        .populate({
+            path: "ordenCompra",
+            populate: {
+                path: "proveedor",
+                select: "_id"
+            }
+      });
+      const proveedorID =
+        comprobanteCompraEncontrado
+            ?.ordenCompra
+            ?.proveedor
+            ?._id;
+
+      const newIdCaja = await getNextSequence("Caja");
+      const newCaja = await new Caja({
+          _id: newIdCaja,
+          fecha:obtenerFechaHoy(),
+          tipo: false,
+          total: total,
+          persona:proveedorID , 
+          referencia: `Comprobante de Pago Proveedor N°: ${newId}`, 
+          medioPago:medioPago , 
+          estado:true
+      });
+  
+      if(!newCaja){
+          res.status(400).json({
+              ok:false,
+              message:"❌ Error al agregar movimiento de caja."
+          })
+          return
+      }
+      await newCaja.save()
 
     await newComprobantePago.save()
         .then( () => {
@@ -43,7 +82,8 @@ const setComprobantePago = async (req,res) => {
             message: "❌ Error al agregar comprobante de pago."
             });
         });
-
+    
+    
 }
 
 const getComprobantePago = async (req, res) => {
@@ -185,6 +225,52 @@ const updateComprobantePago = async(req,res) => {
             message:'❌ Error al actualizar el comprobante de pago.'
         })
         return
+    }
+
+    const comprobanteCompraEncontrado = await ComprobanteCompra.findById(comprobanteCompra)
+        .populate({
+            path: "ordenCompra",
+            populate: {
+                path: "proveedor",
+                select: "_id"
+            }
+      });
+      const proveedorID =
+        comprobanteCompraEncontrado
+            ?.ordenCompra
+            ?.proveedor
+            ?._id;
+
+    // 1️⃣ Buscar TODOS los movimientos de caja de la Nota de Pedido
+    const movimientosCaja = await Caja.find({
+      estado: true,
+      referencia: { $regex: `Comprobante de Pago Proveedor N°: ${id}` }
+    });
+    if (!movimientosCaja || movimientosCaja.length === 0) {
+      throw new Error("❌ No se encontraron movimientos de caja para este comprobante de pago.");
+    }
+    // 2️⃣ Total actual REAL de caja (con signo)
+    const totalActualCaja = movimientosCaja.reduce((acc, mov) => {
+    return mov.tipo === true ? acc + mov.total : acc - mov.total;
+    }, 0);
+    // 3️⃣ Nuevo total CORRECTO en caja (egreso = negativo)
+    const nuevoTotalCaja = -Math.abs(total);
+    // 4️⃣ Diferencia real
+    const diferencia = totalActualCaja - nuevoTotalCaja;
+    // 5️⃣ Crear ajuste SOLO si hay diferencia
+    if (diferencia !== 0) {
+      const newIdCaja = await getNextSequence("Caja");
+      const ajusteCaja = new Caja({
+        _id: newIdCaja,
+        fecha: obtenerFechaHoy(),
+        tipo: diferencia < 0, // true = ingreso, false = egreso
+        persona: proveedorID,
+        referencia: `Ajuste Comprobante de Pago Proveedor N°: ${id}.`,
+        medioPago: movimientosCaja[0].medioPago, // tomamos el medio de pago original
+        total: Math.abs(diferencia),
+        estado: true
+      });
+      await ajusteCaja.save();
     }
     res.status(200).json({
         ok:true,

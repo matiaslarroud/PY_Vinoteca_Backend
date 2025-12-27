@@ -34,7 +34,7 @@ const setCliente = async (req,res) => {
     });    
 
     if (cuentaCorrienteC) {
-        if(!saldoCuentaCorriente){
+        if (!saldoCuentaCorriente) {
             res.status(400).json({ok:false , message:'❌ Error al cargar saldo de cuenta corriente.'})
             return
         }
@@ -133,7 +133,7 @@ const updateCliente = async(req,res) => {
     }  
 
     if (cuentaCorrienteC) {
-        if (saldoCuentaCorriente == null) {
+        if (!saldoCuentaCorriente) {
             return res.status(400).json({
                 ok:false,
                 message:'❌ Error al cargar saldo de cuenta corriente.'
@@ -143,16 +143,35 @@ const updateCliente = async(req,res) => {
         // Traer cliente actual
         const cliente = await Cliente.findById(id);
 
-        // Calcular diferencia
-        const diferenciaCuentaCorriente =
-            saldoCuentaCorriente - cliente.saldoCuentaCorriente;
+        // Actualizamos el saldo de cuenta corriente si el cliente ya lo poseia cuenta corriente asignada
+        if(cliente.cuentaCorriente === true) {
+            // Calcular diferencia
+            const diferenciaCuentaCorriente =
+                saldoCuentaCorriente - cliente.saldoCuentaCorriente;
 
-        // Actualizar ambos saldos en base al cliente actual
-        updatedClienteData.saldoCuentaCorriente =
-            cliente.saldoCuentaCorriente + diferenciaCuentaCorriente;
+            // Actualizar ambos saldos en base al cliente actual
+            updatedClienteData.saldoCuentaCorriente =
+                cliente.saldoCuentaCorriente + diferenciaCuentaCorriente;
 
-        updatedClienteData.saldoActualCuentaCorriente =
-            cliente.saldoActualCuentaCorriente + diferenciaCuentaCorriente;
+            updatedClienteData.saldoActualCuentaCorriente =
+                cliente.saldoActualCuentaCorriente + diferenciaCuentaCorriente;
+        } else {
+            updatedClienteData.cuentaCorriente = true;
+            updatedClienteData.saldoCuentaCorriente = saldoCuentaCorriente;
+            updatedClienteData.saldoActualCuentaCorriente = saldoCuentaCorriente;
+        }
+        
+    }
+
+    if(!cuentaCorrienteC){
+        // Traer cliente actual
+        const cliente = await Cliente.findById(id);
+
+        // Borramos el saldo de su cuenta corriente
+        if(cliente.cuentaCorriente === true) {
+            updatedClienteData.saldoCuentaCorriente = '';
+            updatedClienteData.saldoActualCuentaCorriente = '';
+        }
     }
 
 

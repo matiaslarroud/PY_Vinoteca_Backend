@@ -4,124 +4,209 @@ const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
 const Producto = require("../models/producto_Model");
 const MedioPago = require("../models/medioPago_Model")
 const Cliente = require("../models/cliente_Model")
+const Caja = require("../models/caja_Model")
 const getNextSequence = require("../controllers/counter_Controller");
+const mongoose = require('mongoose');
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
   return hoy.toISOString().split("T")[0];
 }
 
-const setNotaPedido = async (req,res) => {
-    const totalP = req.body.total;
-    const fechaP = obtenerFechaHoy();
-    const envioP = req.body.envio;
-    const fechaEntregaP = new Date(req.body.fechaEntrega);
-    const clienteID = req.body.cliente;
-    const empleadoID = req.body.empleado;
-    const medioPagoID = req.body.medioPago;
-    const presupuestoID = req.body.presupuesto;
-    const provincia = req.body.provincia;
-    const localidad = req.body.localidad;
-    const barrio = req.body.barrio;
-    const calle = req.body.calle;
-    const altura = req.body.altura;
-    const deptoNumero = req.body.deptoNumero;
-    const deptoLetra = req.body.deptoLetra;    
-    const descuento = req.body.descuento;
+const setNotaPedidoDetalle = async ({
+    importeP,
+    precioP,
+    cantidadP,
+    notaPedidoP,
+    productoID,
+    session
+}) => {
 
-    if(!totalP || !fechaP || !clienteID || !empleadoID || !medioPagoID || !fechaEntregaP){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
+    const producto = await Producto.findById(productoID).session(session);
+
+    if (!producto) {
+        throw new Error('❌ Producto no encontrado');
     }
-    
-    const newId = await getNextSequence("Cliente_NotaPedido");
-    const newNotaPedido = new NotaPedido ({
-        _id: newId, 
-        fecha: fechaP , 
-        cliente: clienteID,
-        empleado:empleadoID , 
-        medioPago:medioPagoID , 
-        fechaEntrega:fechaEntregaP , 
-        envio:envioP,
-        estado:true
+
+    if (producto.stock < cantidadP) {
+        throw new Error('❌ Stock insuficiente');
+    }
+
+    producto.stock -= cantidadP;
+    await producto.save({ session });
+
+    const newId = await getNextSequence("Cliente_NotaPedidoDetalle");
+
+    const detalle = new NotaPedidoDetalle({
+        _id: newId,
+        importe: importeP,
+        notaPedido: notaPedidoP,
+        producto: productoID,
+        precio: precioP,
+        cantidad: cantidadP,
+        estado: true
     });
-    if (presupuestoID) {
-        newNotaPedido.presupuesto = presupuestoID;
-    }
-    if (descuento > 0) {
-        newNotaPedido.descuento = descuento;
-        newNotaPedido.total = totalP - ((totalP*descuento)/100)
-    } else {
-        newNotaPedido.total = totalP
-    }
 
-    if (envioP) {
-        if(!provincia || !localidad || !barrio || !calle || !altura){
-            res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-            return
-        }
-        newNotaPedido.provincia = provincia;
-        newNotaPedido.localidad = localidad;
-        newNotaPedido.barrio = barrio;
-        newNotaPedido.calle = calle;
-        newNotaPedido.altura = altura;
-        newNotaPedido.deptoNumero = deptoNumero;
-        newNotaPedido.deptoLetra = deptoLetra;
-    }
+    await detalle.save({ session });
 
-    // TRAER CLIENTE Y MEDIO DE PAGO
-    const cliente = await Cliente.findById(clienteID);
-    const medioPago = await MedioPago.findById(medioPagoID);
+    return detalle;
+};
 
-    if (!cliente || !medioPago) {
-        return res.status(400).json({ ok: false, message: "❌ Cliente o medio de pago inválido." });
-    }
+const setNotaPedido = async (req,res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    // ⭐ VALIDAR CUENTA CORRIENTE
-    if (medioPago.name === "Cuenta Corriente") {
+    try {
+        const totalP = req.body.total;
+        const fechaP = obtenerFechaHoy();
+        const envioP = req.body.envio;
+        const fechaEntregaP = new Date(req.body.fechaEntrega);
+        const clienteID = req.body.cliente;
+        const empleadoID = req.body.empleado;
+        const medioPagoID = req.body.medioPago;
+        const presupuestoID = req.body.presupuesto;
+        const provincia = req.body.provincia;
+        const localidad = req.body.localidad;
+        const barrio = req.body.barrio;
+        const calle = req.body.calle;
+        const altura = req.body.altura;
+        const deptoNumero = req.body.deptoNumero;
+        const deptoLetra = req.body.deptoLetra;    
+        const descuento = req.body.descuento;
+        const detalles = req.body.detalles;
 
-        // 1️⃣ ¿El cliente tiene CC habilitada?
-        if (!cliente.cuentaCorriente) {
-            return res.status(400).json({
-                ok: false,
-                message: "❌ El cliente no tiene habilitada la Cuenta Corriente."
-            });
-        }
-
-        // 2️⃣ ¿Tiene saldo suficiente?
-        if (cliente.saldoActualCuentaCorriente < totalP) {
-            return res.status(400).json({
-                ok: false,
-                message: `❌ Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`
-            });
-        }
-
-        // 3️⃣ Descontar el saldo
-        if(descuento){
-          cliente.saldoActualCuentaCorriente -= totalP - ((totalP*descuento)/100);
-        } else if (!descuento){
-          cliente.saldoActualCuentaCorriente -= totalP;
+        if(!totalP || !fechaP || !clienteID || !empleadoID || !medioPagoID || !fechaEntregaP){
+            throw new Error("❌ Faltan completar algunos campos obligatorios.")
         }
         
-
-        // 4️⃣ Guardar el nuevo saldo antes de continuar
-        await cliente.save();
-    }
-
-    await newNotaPedido.save()
-        .then( () => {
-            res.status(201).json({
-                ok:true, 
-                message:'✔️ Nota de pedido agregada correctamente.',
-                data: newNotaPedido
-            })
-        })
-        .catch((err)=>{
-            res.status(400).json({
-            ok: false,
-            message: "❌ Error al agregar presupuesto."
-            });
+        const newId = await getNextSequence("Cliente_NotaPedido");
+        const newNotaPedido = new NotaPedido ({
+            _id: newId, 
+            fecha: fechaP , 
+            cliente: clienteID,
+            empleado:empleadoID , 
+            medioPago:medioPagoID , 
+            fechaEntrega:fechaEntregaP , 
+            envio:envioP,
+            estado:true
         });
+        if (presupuestoID) {
+            newNotaPedido.presupuesto = presupuestoID;
+        }
+        if (descuento > 0) {
+            newNotaPedido.descuento = descuento;
+            newNotaPedido.total = totalP - ((totalP*descuento)/100)
+        } else {
+            newNotaPedido.total = totalP
+        }
+
+        if (envioP) {
+            if(!provincia || !localidad || !barrio || !calle || !altura){
+               throw new Error("❌ Faltan completar algunos campos obligatorios.")
+            }
+            newNotaPedido.provincia = provincia;
+            newNotaPedido.localidad = localidad;
+            newNotaPedido.barrio = barrio;
+            newNotaPedido.calle = calle;
+            newNotaPedido.altura = altura;
+            newNotaPedido.deptoNumero = deptoNumero;
+            newNotaPedido.deptoLetra = deptoLetra;
+        }
+
+        // TRAER CLIENTE Y MEDIO DE PAGO
+        const cliente = await Cliente.findById(clienteID).session(session);
+        const medioPago = await MedioPago.findById(medioPagoID).session(session);
+
+
+        if (!cliente || !medioPago) {
+            throw new Error("❌ Cliente o medio de pago inválido.");
+        }
+
+        // ⭐ VALIDAR CUENTA CORRIENTE
+        if (medioPago.name === "Cuenta Corriente") {
+
+            // 1️⃣ ¿El cliente tiene CC habilitada?
+            if (!cliente.cuentaCorriente) {
+                throw new Error("❌ El cliente no tiene habilitada la Cuenta Corriente.");
+            }
+
+            // 2️⃣ ¿Tiene saldo suficiente?
+            if (cliente.saldoActualCuentaCorriente < totalP) {
+                throw new Error(`❌ Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`)
+            }
+
+            // 3️⃣ Descontar el saldo
+            if(descuento){
+            cliente.saldoActualCuentaCorriente -= totalP - ((totalP*descuento)/100);
+            } else if (!descuento){
+            cliente.saldoActualCuentaCorriente -= totalP;
+            }
+            
+
+            // 4️⃣ Guardar el nuevo saldo antes de continuar
+            await cliente.save({ session });
+        }
+
+        await newNotaPedido.save({ session });
+
+        if (!detalles || detalles.length === 0) {
+            throw new Error("❌ La nota de pedido debe tener al menos un detalle.");
+        }
+
+        for (const det of detalles) {
+                await setNotaPedidoDetalle({
+                    importeP: det.importe,
+                    precioP: det.precio,
+                    cantidadP: det.cantidad,
+                    notaPedidoP: newId,
+                    productoID: det.producto,
+                    session
+                });
+            }
+
+        
+        // AGREGAMOS MOVIMIENTO A LA CAJA SOLO SI EL MEDIO DE PAGO NO ES 'CuentaCorriente'
+        if(medioPago.name !== "Cuenta Corriente" ){
+          const newIdCaja = await getNextSequence("Caja");
+          const newCaja = await new Caja({
+              _id: newIdCaja,
+              fecha:obtenerFechaHoy(),
+              tipo: true,
+              persona:clienteID , 
+              referencia:`Nota de Pedido Cliente N°: ${newId}.`, 
+              medioPago:medioPago , 
+              estado:true
+          });
+          if (descuento > 0) {
+              newNotaPedido.descuento = descuento;
+              newCaja.total = totalP - ((totalP*descuento)/100)
+          } else {
+              newCaja.total = totalP
+          }
+      
+          if(!newCaja){
+              throw new Error("❌ Error al agregar movimiento de caja.")
+          }
+          await newCaja.save({ session })
+        }
+
+        await session.commitTransaction();
+
+        return res.status(201).json({
+            ok: true,
+            message: "✔️ Nota de pedido creada correctamente",
+            data: newNotaPedido
+        });
+
+
+    } catch (error) {
+
+        await session.abortTransaction();
+
+        res.status(400).json({ ok: false, message: error.message });
+  }finally {
+        session.endSession();
+    }
 
 }
 
@@ -210,156 +295,283 @@ const getNotaPedidoByCliente = async(req,res) => {
 
 
 const updateNotaPedido = async (req, res) => {
-    const id = req.params.id;
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-    if (!id) {
-        return res.status(400).json({
-            ok: false,
-            message: '❌ El id no llegó al controlador correctamente.'
-        });
-    }
+  try {
+    const id = req.params.id;
+    if (!id) throw new Error('❌ El id no llegó correctamente.');
 
     const estadoP = req.body.facturado;
     if (estadoP === true) {
-        return res.status(400).json({ ok: false, message: '❌ El pedido ya está cerrado.' });
+      throw new Error('❌ El pedido ya está cerrado.');
     }
 
-    const totalP = req.body.total;
-    const envioP = req.body.envio;
-    const fechaEntregaP = req.body.fechaEntrega;
-    const clienteID = req.body.cliente;
-    const empleadoID = req.body.empleado;
-    const medioPagoID = req.body.medioPago;
-    const presupuestoID = req.body.presupuesto;
-    const provincia = req.body.provincia;
-    const localidad = req.body.localidad;
-    const barrio = req.body.barrio;
-    const calle = req.body.calle;
-    const altura = req.body.altura;
-    const deptoNumero = req.body.deptoNumero;
-    const deptoLetra = req.body.deptoLetra;
-    const descuento = req.body.descuento;
+    const {
+      total,
+      envio,
+      fechaEntrega,
+      cliente,
+      empleado,
+      medioPago,
+      presupuesto,
+      provincia,
+      localidad,
+      barrio,
+      calle,
+      altura,
+      deptoNumero,
+      deptoLetra,
+      descuento,
+      detalles
+    } = req.body;
 
-    if(!totalP || !clienteID || !empleadoID || !medioPagoID || !fechaEntregaP){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
+    if (!total || !cliente || !empleado || !medioPago || !fechaEntrega) {
+      throw new Error("❌ Faltan campos obligatorios.");
     }
 
-    // ✨ Obtener el pedido y cliente
-    const pedido = await NotaPedido.findById(id);
-    const cliente = await Cliente.findById(clienteID);
+    // 🔎 Pedido y cliente
+    const pedido = await NotaPedido.findById(id).session(session);
+    const clienteDB = await Cliente.findById(cliente).session(session);
 
-    if (!pedido || !cliente) {
-        return res.status(400).json({ ok: false, message: "❌ Pedido o cliente inválido." });
+    if (!pedido || !clienteDB) {
+      throw new Error("❌ Pedido o cliente inválido.");
     }
 
-    const medioPagoAnterior = await MedioPago.findById(pedido.medioPago);
-    const medioPagoActual = await MedioPago.findById(medioPagoID);
+    const medioPagoAnterior = await MedioPago.findById(pedido.medioPago).session(session);
+    const medioPagoActual = await MedioPago.findById(medioPago).session(session);
 
-    // ✨ Datos a actualizar
-    const updatedPedidoData = {
-        total: totalP,
-        cliente: clienteID,
-        empleado: empleadoID,
-        medioPago: medioPagoID,
-        fechaEntrega: fechaEntregaP,
-        envio: envioP
-    };
+    // ===============================
+    // 📊 Totales viejo vs nuevo
+    // ===============================
+    const totalAnterior = pedido.descuento
+      ? pedido.total - ((pedido.total * pedido.descuento) / 100)
+      : pedido.total;
 
-    if (presupuestoID) updatedPedidoData.presupuesto = presupuestoID;
+    const totalNuevo = descuento
+      ? total - ((total * descuento) / 100)
+      : total;
 
-    // ✨ Recalcular total con descuento
-    if (descuento > 0) {
-        updatedPedidoData.descuento = descuento;
-        updatedPedidoData.total = totalP - ((totalP * descuento) / 100);
-    }
+    // ===============================
+    // ⭐ CUENTA CORRIENTE
+    // ===============================
 
-    // ✨ Dirección si aplica
-    if (envioP) {
-        if (!provincia || !localidad || !barrio || !calle || !altura) {
-            return res.status(400).json({ ok: false, message:'❌ Faltan completar algunos campos obligatorios.'});
-        }
-        updatedPedidoData.provincia = provincia;
-        updatedPedidoData.localidad = localidad;
-        updatedPedidoData.barrio = barrio;
-        updatedPedidoData.calle = calle;
-        updatedPedidoData.altura = altura;
-        updatedPedidoData.deptoNumero = deptoNumero;
-        updatedPedidoData.deptoLetra = deptoLetra;
-    }
-
-    // ===============================================================
-    // ⭐⭐⭐ MANEJO CORRECTO DE CUENTA CORRIENTE ⭐⭐⭐
-    // ===============================================================
-
-    const totalPedidoAnterior = pedido.descuento
-        ? pedido.total - ((pedido.total * pedido.descuento) / 100)
-        : pedido.total;
-
-    const totalPedidoNuevo = descuento
-        ? totalP - ((totalP * descuento) / 100)
-        : totalP;
-
-    // 1️⃣ SI ANTES ERA CC Y AHORA NO → DEVUELVE SALDO
     if (medioPagoAnterior.name === "Cuenta Corriente" &&
         medioPagoActual.name !== "Cuenta Corriente") {
 
-        cliente.saldoActualCuentaCorriente += totalPedidoAnterior;
-        await cliente.save();
+      clienteDB.saldoActualCuentaCorriente += totalAnterior;
     }
 
-    // 2️⃣ SI ANTES NO ERA CC Y AHORA SÍ → DESCUENTA SALDO
     else if (medioPagoAnterior.name !== "Cuenta Corriente" &&
-        medioPagoActual.name === "Cuenta Corriente") {
+             medioPagoActual.name === "Cuenta Corriente") {
 
-        if (!cliente.cuentaCorriente) {
-            return res.status(400).json({
-                ok: false,
-                message: "❌ El cliente no tiene habilitada la Cuenta Corriente."
-            });
-        }
+      if (!clienteDB.cuentaCorriente) {
+        throw new Error("❌ El cliente no tiene CC.");
+      }
 
-        if (cliente.saldoActualCuentaCorriente < totalPedidoNuevo) {
-            return res.status(400).json({
-                ok: false,
-                message: `❌ Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`
-            });
-        }       
+      if (clienteDB.saldoActualCuentaCorriente < totalNuevo) {
+        throw new Error(`❌ Saldo insuficiente: $${clienteDB.saldoActualCuentaCorriente}`);
+      }
 
-        cliente.saldoActualCuentaCorriente -= totalPedidoNuevo;
-        await cliente.save();
+      clienteDB.saldoActualCuentaCorriente -= totalNuevo;
     }
-    
-    // SI ANTES ERA CC Y AHORA SÍ → DESCUENTA SALDO
+
     else if (medioPagoAnterior.name === "Cuenta Corriente" &&
-        medioPagoActual.name === "Cuenta Corriente") {
-        
-        cliente.saldoActualCuentaCorriente = cliente.saldoActualCuentaCorriente + totalPedidoAnterior - totalPedidoNuevo;
-        await cliente.save();
+             medioPagoActual.name === "Cuenta Corriente") {
+
+      clienteDB.saldoActualCuentaCorriente =
+        clienteDB.saldoActualCuentaCorriente + totalAnterior - totalNuevo;
     }
 
-    // ===============================================================
+    await clienteDB.save({ session });
 
-    // ✨ Actualizar pedido
-    const updatedNotaPedido = await NotaPedido.findByIdAndUpdate(
-        id,
-        updatedPedidoData,
-        { new: true, runValidators: true }
+    // ===============================
+    // 📝 UPDATE PEDIDO
+    // ===============================
+    const updatedData = {
+      total: totalNuevo,
+      cliente,
+      empleado,
+      medioPago,
+      fechaEntrega,
+      envio,
+      descuento
+    };
+
+    if (presupuesto) updatedData.presupuesto = presupuesto;
+
+    if (envio) {
+      if (!provincia || !localidad || !barrio || !calle || !altura) {
+        throw new Error("❌ Dirección incompleta.");
+      }
+
+      Object.assign(updatedData, {
+        provincia,
+        localidad,
+        barrio,
+        calle,
+        altura,
+        deptoNumero,
+        deptoLetra
+      });
+    }
+
+    const updatedPedido = await NotaPedido.findByIdAndUpdate(
+      id,
+      updatedData,
+      { new: true, runValidators: true, session }
     );
 
-    if (!updatedNotaPedido) {
-        return res.status(400).json({
-            ok: false,
-            message: '❌ Error al actualizar la Nota de pedido.'
+    if (!updatedPedido) {
+      throw new Error("❌ Error al actualizar la nota de pedido.");
+    }
+
+    const detallesViejos = await NotaPedidoDetalle
+        .find({ notaPedido: id, estado: true })
+        .session(session);
+
+    for (const detalle of detallesViejos) {
+          await Producto.findByIdAndUpdate(
+            detalle.producto,
+            { $inc: { stock: detalle.cantidad } }, // suma la cantidad al stock
+            { new: true , session}
+          );
+        }
+
+    const deletedNotaPedidoDetalle = await NotaPedidoDetalle.updateMany(
+      { notaPedido: id },
+      { estado: false },
+      { runValidators: true, session }
+    );
+    if (!deletedNotaPedidoDetalle) {
+        throw new Error('❌ Error durante el borrado de los detalles viejos.')
+    }
+
+    if (!detalles || detalles.length === 0) {
+            throw new Error("❌ La nota de pedido debe tener al menos un detalle.");
+        }
+
+    for (const det of detalles) {
+
+        await setNotaPedidoDetalle({
+            importeP: det.importe,
+            precioP: det.precio,
+            cantidadP: det.cantidad,
+            notaPedidoP: id,
+            productoID: det.producto,
+            session
         });
     }
 
-    res.status(200).json({
-        ok: true,
-        data: updatedNotaPedido,
-        message: '✔️ Nota de pedido actualizada correctamente.'
+    // AGREGAMOS MOVIMIENTO A LA CAJA SOLO SI EL MEDIO DE PAGO NO ES 'CuentaCorriente'
+      if(medioPagoActual.name !== "Cuenta Corriente" ){
+          if (medioPagoAnterior.name !== "Cuenta Corriente") {
+            // 1️⃣ Buscar TODOS los movimientos de caja de la Nota de Pedido
+            const movimientosCaja = await Caja.find({
+              estado: true,
+              referencia: { $regex: `Nota de Pedido Cliente N°: ${id}` }
+            }).session(session);
+
+            if (!movimientosCaja || movimientosCaja.length === 0) {
+              throw new Error("❌ No se encontraron movimientos de caja para esta Nota de Pedido.");
+            }
+
+            // 2️⃣ Calcular TOTAL REAL ACTUAL de caja
+            const totalActualCaja = movimientosCaja.reduce((acc, mov) => {
+              return mov.tipo ? acc + mov.total : acc - mov.total;
+            }, 0);
+
+            // 3️⃣ Calcular nuevo total correcto
+            let nuevoTotalCaja;
+            if (descuento > 0) {
+              nuevoTotalCaja = total - ((total * descuento) / 100);
+            } else {
+              nuevoTotalCaja = total;
+            }
+
+            // 4️⃣ Calcular diferencia REAL
+            const diferencia = nuevoTotalCaja - totalActualCaja;
+
+            // 5️⃣ Crear ajuste SOLO si hay diferencia
+            if (diferencia !== 0) {
+              const newIdCaja = await getNextSequence("Caja");
+
+              const ajusteCaja = new Caja({
+                _id: newIdCaja,
+                fecha: obtenerFechaHoy(),
+                tipo: diferencia > 0, // true = ingreso, false = egreso
+                persona: cliente,
+                referencia: `Ajuste Nota de Pedido Cliente N°: ${id}.`,
+                medioPago: movimientosCaja[0].medioPago, // tomamos el medio de pago original
+                total: Math.abs(diferencia),
+                estado: true
+              });
+
+              await ajusteCaja.save({ session });
+            }
+          } else {
+            // AGREGAMOS MOVIMIENTO A LA CAJA SOLO SI EL MEDIO DE PAGO NO ES 'CuentaCorriente'
+            const newIdCaja = await getNextSequence("Caja");
+            const newCaja = await new Caja({
+                _id: newIdCaja,
+                fecha:obtenerFechaHoy(),
+                tipo: true,
+                persona:cliente , 
+                referencia:`Nota de Pedido Cliente N°: ${id}.`, 
+                medioPago:medioPago , 
+                estado:true
+            });
+            if (descuento > 0) {
+                updatedPedido.descuento = descuento;
+                newCaja.total = total - ((total*descuento)/100)
+            } else {
+                newCaja.total = total
+            }
+        
+            if(!newCaja){
+                throw new Error("❌ Error al agregar movimiento de caja.")
+            }
+            await newCaja.save({ session })
+          }
+      }
+
+      // BORRAMOS LOS MOVIMIENTOS REALIZADOS EN CAJA SI EL MEDIO DE PAGO CAMBIA A "Cuenta Corriente"
+      if (medioPagoActual.name === "Cuenta Corriente"){
+        if(medioPagoAnterior.name !== "Cuenta Corriente") {
+           const movimiento = await Caja.updateMany(
+            { referencia: { $regex: `Nota de Pedido Cliente N°: ${id}` } },
+            { estado: false },
+            { runValidators: true, session }
+          );
+          if (!deletedNotaPedidoDetalle) {
+              throw new Error('❌ Error durante el borrado de los movimientos de caja.')
+          }
+        }
+      }
+
+
+
+    // ✅ TODO OK
+    await session.commitTransaction();
+
+    return res.status(200).json({
+      ok: true,
+      data: updatedPedido,
+      message: "✔️ Nota de pedido actualizada correctamente."
     });
+
+  } catch (error) {
+    await session.abortTransaction();
+
+    return res.status(400).json({
+      ok: false,
+      message: error.message
+    });
+  }finally {
+        session.endSession();
+    }
 };
+
 
 
 const deleteNotaPedido = async (req, res) => {
