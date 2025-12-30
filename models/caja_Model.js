@@ -5,7 +5,7 @@ const Caja_Schema = mongoose.Schema({
     referencia: {type: String , require:true},
     persona: {type: Number , require:true},
     total: {type: Number , require:true},
-    tipo: {type: Boolean , require:true},
+    tipo: {type: String , require:true},
     fecha: {type:Date , require:true} ,
     medioPago: {
             type: Number,

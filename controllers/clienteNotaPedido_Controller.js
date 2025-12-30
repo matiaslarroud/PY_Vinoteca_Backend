@@ -165,13 +165,35 @@ const setNotaPedido = async (req,res) => {
             }
 
         
-        // AGREGAMOS MOVIMIENTO A LA CAJA SOLO SI EL MEDIO DE PAGO NO ES 'CuentaCorriente'
+        // AGREGAMOS MOVIMIENTO A LA CAJA
         if(medioPago.name !== "Cuenta Corriente" ){
           const newIdCaja = await getNextSequence("Caja");
           const newCaja = await new Caja({
               _id: newIdCaja,
               fecha:obtenerFechaHoy(),
-              tipo: true,
+              tipo: 'ENTRADA',
+              persona:clienteID , 
+              referencia:`Nota de Pedido Cliente N°: ${newId}.`, 
+              medioPago:medioPago , 
+              estado:true
+          });
+          if (descuento > 0) {
+              newNotaPedido.descuento = descuento;
+              newCaja.total = totalP - ((totalP*descuento)/100)
+          } else {
+              newCaja.total = totalP
+          }
+      
+          if(!newCaja){
+              throw new Error("❌ Error al agregar movimiento de caja.")
+          }
+          await newCaja.save({ session })
+        } else {
+          const newIdCaja = await getNextSequence("Caja");
+          const newCaja = await new Caja({
+              _id: newIdCaja,
+              fecha:obtenerFechaHoy(),
+              tipo: 'CUENTA_CORRIENTE',
               persona:clienteID , 
               referencia:`Nota de Pedido Cliente N°: ${newId}.`, 
               medioPago:medioPago , 
@@ -462,93 +484,105 @@ const updateNotaPedido = async (req, res) => {
             session
         });
     }
+            
+    // 1️⃣ Buscar TODOS los movimientos de caja de la Nota de Pedido
+    const movimientosCaja = await Caja.find({
+      estado: true,
+      referencia: { $regex: `Nota de Pedido Cliente N°: ${id}` }
+    }).session(session);
 
-    // AGREGAMOS MOVIMIENTO A LA CAJA SOLO SI EL MEDIO DE PAGO NO ES 'CuentaCorriente'
-      if(medioPagoActual.name !== "Cuenta Corriente" ){
-          if (medioPagoAnterior.name !== "Cuenta Corriente") {
-            // 1️⃣ Buscar TODOS los movimientos de caja de la Nota de Pedido
-            const movimientosCaja = await Caja.find({
-              estado: true,
-              referencia: { $regex: `Nota de Pedido Cliente N°: ${id}` }
-            }).session(session);
+     if (!movimientosCaja || movimientosCaja.length === 0) {
+      throw new Error("❌ No se encontraron movimientos de caja para esta Nota de Pedido.");
+    }
 
-            if (!movimientosCaja || movimientosCaja.length === 0) {
-              throw new Error("❌ No se encontraron movimientos de caja para esta Nota de Pedido.");
-            }
+    // 2️⃣ Calcular TOTAL REAL ACTUAL de caja
+    const totalActualCaja = movimientosCaja.reduce((acc, mov) => {
+      return mov.tipo ? acc + mov.total : acc - mov.total;
+    }, 0);
 
-            // 2️⃣ Calcular TOTAL REAL ACTUAL de caja
-            const totalActualCaja = movimientosCaja.reduce((acc, mov) => {
-              return mov.tipo ? acc + mov.total : acc - mov.total;
-            }, 0);
+    // 3️⃣ Calcular nuevo total correcto
+    let nuevoTotalCaja;
+    if (descuento > 0) {
+      nuevoTotalCaja = total - ((total * descuento) / 100);
+    } else {
+      nuevoTotalCaja = total;
+    }
 
-            // 3️⃣ Calcular nuevo total correcto
-            let nuevoTotalCaja;
-            if (descuento > 0) {
-              nuevoTotalCaja = total - ((total * descuento) / 100);
-            } else {
-              nuevoTotalCaja = total;
-            }
+    // 4️⃣ Calcular diferencia REAL
+    const diferencia = nuevoTotalCaja - totalActualCaja
+    
+    // 5️⃣ Crear ajuste SOLO si hay diferencia
+    if (diferencia !== 0) {
+    // HAY DIFERENCIA DE PLATA → SE GENERA UN NUEVO MOVIMIENTO
+    const newIdCaja = await getNextSequence("Caja");
 
-            // 4️⃣ Calcular diferencia REAL
-            const diferencia = nuevoTotalCaja - totalActualCaja;
+    if (medioPagoActual.name !== "Cuenta Corriente") {
 
-            // 5️⃣ Crear ajuste SOLO si hay diferencia
-            if (diferencia !== 0) {
-              const newIdCaja = await getNextSequence("Caja");
+      const tipoMovimiento = diferencia > 0 ? 'ENTRADA' : 'SALIDA';
 
-              const ajusteCaja = new Caja({
-                _id: newIdCaja,
-                fecha: obtenerFechaHoy(),
-                tipo: diferencia > 0, // true = ingreso, false = egreso
-                persona: cliente,
-                referencia: `Ajuste Nota de Pedido Cliente N°: ${id}.`,
-                medioPago: movimientosCaja[0].medioPago, // tomamos el medio de pago original
-                total: Math.abs(diferencia),
-                estado: true
-              });
+      const ajusteCaja = new Caja({
+        _id: newIdCaja,
+        fecha: obtenerFechaHoy(),
+        tipo: tipoMovimiento,
+        persona: cliente,
+        referencia: `Ajuste Nota de Pedido Cliente N°: ${id}.`,
+        medioPago: medioPagoActual._id,
+        total: Math.abs(diferencia),
+        estado: true
+      });
 
-              await ajusteCaja.save({ session });
-            }
-          } else {
-            // AGREGAMOS MOVIMIENTO A LA CAJA SOLO SI EL MEDIO DE PAGO NO ES 'CuentaCorriente'
-            const newIdCaja = await getNextSequence("Caja");
-            const newCaja = await new Caja({
-                _id: newIdCaja,
-                fecha:obtenerFechaHoy(),
-                tipo: true,
-                persona:cliente , 
-                referencia:`Nota de Pedido Cliente N°: ${id}.`, 
-                medioPago:medioPago , 
-                estado:true
-            });
-            if (descuento > 0) {
-                updatedPedido.descuento = descuento;
-                newCaja.total = total - ((total*descuento)/100)
-            } else {
-                newCaja.total = total
-            }
-        
-            if(!newCaja){
-                throw new Error("❌ Error al agregar movimiento de caja.")
-            }
-            await newCaja.save({ session })
-          }
+      await ajusteCaja.save({ session });
+
+    } else {
+      // AJUSTE POR CUENTA CORRIENTE
+      const ajusteCaja = new Caja({
+        _id: newIdCaja,
+        fecha: obtenerFechaHoy(),
+        tipo: 'CUENTA_CORRIENTE',
+        persona: cliente,
+        referencia: `Ajuste Nota de Pedido Cliente N°: ${id}.`,
+        medioPago: medioPagoActual._id,
+        total: Math.abs(diferencia),
+        estado: true
+      });
+
+      await ajusteCaja.save({ session });
+    }
+
+  } else {
+    // NO HAY DIFERENCIA → SOLO SE ACTUALIZA EL MOVIMIENTO EXISTENTE
+
+    if (medioPagoActual.name !== "Cuenta Corriente") {
+
+      const cajaUpdated = await Caja.findByIdAndUpdate(
+        movimientosCaja[0]._id,
+        { 
+          tipo: 'ENTRADA',
+          medioPago: medioPagoActual
+        },
+        { new: true, runValidators: true, session }
+      );
+
+      if (!cajaUpdated) {
+        throw new Error("❌ Error al actualizar movimiento de caja.");
       }
 
-      // BORRAMOS LOS MOVIMIENTOS REALIZADOS EN CAJA SI EL MEDIO DE PAGO CAMBIA A "Cuenta Corriente"
-      if (medioPagoActual.name === "Cuenta Corriente"){
-        if(medioPagoAnterior.name !== "Cuenta Corriente") {
-           const movimiento = await Caja.updateMany(
-            { referencia: { $regex: `Nota de Pedido Cliente N°: ${id}` } },
-            { estado: false },
-            { runValidators: true, session }
-          );
-          if (!deletedNotaPedidoDetalle) {
-              throw new Error('❌ Error durante el borrado de los movimientos de caja.')
-          }
-        }
-      }
+    } else {
 
+      const cajaUpdated = await Caja.findByIdAndUpdate(
+        movimientosCaja[0]._id,
+        { 
+          tipo: 'CUENTA_CORRIENTE',
+          medioPago: medioPagoActual
+        },
+        { new: true, runValidators: true, session }
+      );
+
+      if (!cajaUpdated) {
+        throw new Error("❌ Error al actualizar movimiento de caja.");
+      }
+    }
+  }
 
 
     // ✅ TODO OK

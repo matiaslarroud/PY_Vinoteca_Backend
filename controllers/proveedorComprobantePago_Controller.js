@@ -51,7 +51,7 @@ const setComprobantePago = async (req,res) => {
       const newCaja = await new Caja({
           _id: newIdCaja,
           fecha:obtenerFechaHoy(),
-          tipo: false,
+          tipo: 'SALIDA',
           total: total,
           persona:proveedorID , 
           referencia: `Comprobante de Pago Proveedor N°: ${newId}`, 
@@ -260,10 +260,11 @@ const updateComprobantePago = async(req,res) => {
     // 5️⃣ Crear ajuste SOLO si hay diferencia
     if (diferencia !== 0) {
       const newIdCaja = await getNextSequence("Caja");
+      const tipoMovimiento = diferencia < 0 ? 'ENTRADA' : 'SALIDA';
       const ajusteCaja = new Caja({
         _id: newIdCaja,
         fecha: obtenerFechaHoy(),
-        tipo: diferencia < 0, // true = ingreso, false = egreso
+        tipo: tipoMovimiento,
         persona: proveedorID,
         referencia: `Ajuste Comprobante de Pago Proveedor N°: ${id}.`,
         medioPago: movimientosCaja[0].medioPago, // tomamos el medio de pago original
