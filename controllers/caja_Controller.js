@@ -196,6 +196,57 @@ const getVentasByCliente = async (req, res) => {
   }
 };
 
+const getVentasByFecha = async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin } = req.query;
+
+
+    if (!fechaInicio || !fechaFin) {
+      return res.status(400).json({
+        ok: false,
+        message: "❌ Debe proporcionar una fecha de inicio y fin."
+      });
+    }
+
+    // Convertimos a Date
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+
+    // Ajuste importante: incluir TODO el día final
+    fin.setHours(23, 59, 59, 999);
+
+    const movimientos = await Caja.find({
+      estado: true,
+      fecha: {
+        $gte: inicio,
+        $lte: fin
+      }
+    }).sort({ fecha: -1 }); // más lógico ordenar por fecha  
+
+    const movimientosNormalizados = movimientos.map(m => ({
+      tipo: m.tipo,
+      total: m.total
+    }));
+
+    const totales = calcularTotales(movimientosNormalizados);
+
+    return res.status(200).json({
+      ok: true,
+      data: movimientos,
+      resumen:totales,
+      message: "✔️ Movimientos obtenidos correctamente."
+    });
+
+  } catch (error) {
+    console.error("Error getVentasByCliente:", error);
+
+    return res.status(500).json({
+      ok: false,
+      message: "❌ Error interno del servidor."
+    });
+  }
+};
+
 const getCuentaCorrienteByCliente = async (req, res) => {
   try {
     const { id: clienteID } = req.params;
@@ -337,4 +388,4 @@ const deleteCaja = async(req,res) => {
     })
 }
 
-module.exports = {setCaja,getCaja,getVentasByCliente,updateCaja,deleteCaja,getCajaID,getCuentaCorrienteByCliente};
+module.exports = {setCaja,getVentasByFecha,getCaja,getVentasByCliente,updateCaja,deleteCaja,getCajaID,getCuentaCorrienteByCliente};
