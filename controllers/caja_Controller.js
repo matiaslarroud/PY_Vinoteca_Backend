@@ -114,7 +114,7 @@ function calcularTotales(movimientos = []) {
     ingresos: totalIngresos,
     egresos: totalEgresos,
     saldoCaja: totalIngresos - totalEgresos,
-    cuentaCorriente: totalCuentaCorriente
+    cuentaCorriente: totalCuentaCorriente,
   };
 }
 
@@ -144,6 +144,45 @@ const getCajaID = async(req,res) => {
         data: cajaEncontrada
     })
 }
+
+function calcularSaldoCuentaCorriente(movimientos = []) {
+  let totalCuentaCorriente = 0;
+  let totalEntradas = 0;
+  let totalSalidas = 0;
+
+  for (const mov of movimientos) {
+    if (!mov?.total) continue;
+
+    switch (mov.tipo) {
+      case "CUENTA_CORRIENTE":
+        totalCuentaCorriente += mov.total;
+        break;
+
+      case "ENTRADA":
+        totalEntradas += mov.total;
+        break;
+
+      case "SALIDA":
+        totalSalidas += mov.total;
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  const saldoRestante =
+    totalCuentaCorriente - totalEntradas + totalSalidas;
+
+  return {
+    totalCuentaCorriente,
+    pagosEntrada: totalEntradas,
+    saldoCaja: totalEntradas - totalSalidas,
+    pagosSalida: totalSalidas,
+    saldoRestante,
+  };
+}
+
 
 const getVentasByCliente = async (req, res) => {
   try {
@@ -290,7 +329,7 @@ const getCuentaCorrienteByCliente = async (req, res) => {
       total: m.total
     }));
 
-    const totales = calcularTotales(movimientosNormalizados);
+    const totales = calcularSaldoCuentaCorriente(movimientosNormalizados);
 
     return res.status(200).json({
       ok: true,
