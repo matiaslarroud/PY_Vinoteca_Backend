@@ -1,57 +1,106 @@
 const Presupuesto = require("../models/proveedorPresupuesto_Model");
 const PresupuestoDetalle = require("../models/proveedorPresupuestoDetalle_Model");
 const getNextSequence = require("./counter_Controller");
+const mongoose = require('mongoose');
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
   return hoy.toISOString().split("T")[0];
 }
 
-const setPresupuesto = async (req,res) => {
-    const totalP = req.body.total;
-    const fechaP = obtenerFechaHoy();
-    const proveedorID = req.body.proveedor;
-    const empleadoID = req.body.empleado;
-    const medioPagoID = req.body.medioPago;
-    const solicitudP = req.body.solicitudPresupuesto;
+const setPresupuestoDetalle = async ({
+    importeP,
+    precioP,
+    cantidadP,
+    presupuestoP,
+    productoID,
+    session
+}) => {
 
-
-    if(!totalP || !fechaP || !proveedorID || !medioPagoID || !empleadoID || !solicitudP ){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
+    if(!importeP || !presupuestoP || !productoID || !precioP || !cantidadP ){
+        throw new Error("❌ Faltan completar algunos campos obligatorios.")
     }
-    
-    const newId = await getNextSequence("Proveedor_Presupuesto");
-    const newPresupuesto = new Presupuesto ({
+    const newId = await getNextSequence("Cliente_PresupuestoDetalle");
+    const newPresupuestoDetalle = new PresupuestoDetalle ({
         _id: newId,
-        total: totalP , 
-        fecha: fechaP , 
-        proveedor: proveedorID ,
-        medioPago : medioPagoID,
-        empleado: empleadoID ,
-        estado:true
+        importe: importeP , presupuesto: presupuestoP , producto: productoID , precio:precioP , cantidad:cantidadP , estado : true
     });
 
-    if (solicitudP){
-        newPresupuesto.solicitudPresupuesto = solicitudP
-    }
+    await newPresupuestoDetalle.save({ session });
 
-    await newPresupuesto.save()
-        .then( () => {
-            res.status(201).json({
-                ok:true, 
-                message:'✔️Presupuesto agregado correctamente.',
-                data: newPresupuesto
-            })
-        })
-        .catch((err) => {
-            res.status(400).json({
-                ok:false,
-                message:`❌ Error al agregar presupuesto. ERROR:\n${err}`
-            })
-        }) 
-
+    return newPresupuestoDetalle;
 }
+
+const setPresupuesto = async (req, res) => {
+    const session = await mongoose.startSession();
+
+    try {
+        session.startTransaction();
+
+        const totalP = req.body.total;
+        const fechaP = obtenerFechaHoy();
+        const proveedorID = req.body.proveedor;
+        const empleadoID = req.body.empleado;
+        const medioPagoID = req.body.medioPago;
+        const solicitudP = req.body.solicitudPresupuesto;
+        const detalles = req.body.detalles; // array de productos
+
+        if (!totalP || !fechaP || !proveedorID || !medioPagoID || !empleadoID || !solicitudP || !detalles?.length) {
+            throw new Error("❌ Faltan completar algunos campos obligatorios.");
+        }
+
+        // 🔹 Crear cabecera
+        const newId = await getNextSequence("Proveedor_Presupuesto");
+
+        const newPresupuesto = new Presupuesto({
+            _id: newId,
+            total: totalP,
+            fecha: fechaP,
+            proveedor: proveedorID,
+            medioPago: medioPagoID,
+            empleado: empleadoID,
+            estado: true,
+            solicitudPresupuesto: solicitudP
+        });
+
+        await newPresupuesto.save({ session });
+
+        // 🔹 Crear detalles
+        for (const item of detalles) {
+            await setPresupuestoDetalle({
+                importeP: item.importe,
+                precioP: item.precio,
+                cantidadP: item.cantidad,
+                presupuestoP: newPresupuesto._id,
+                productoID: item.producto,
+                session
+            });
+        }
+
+        // ✅ Commit
+        await session.commitTransaction();
+
+        res.status(201).json({
+            ok: true,
+            message: "✔️ Presupuesto y detalles guardados correctamente.",
+            data: newPresupuesto
+        });
+
+    } catch (error) {
+        // ❌ Rollback
+        await session.abortTransaction();
+
+        res.status(400).json({
+            ok: false,
+            message: "❌ Error al agregar presupuesto.",
+            error: error.message
+        });
+
+    } finally {
+        session.endSession();
+    }
+};
+
 
 const getPresupuesto = async(req, res) => {
     const presupuestos = await Presupuesto.find({estado:true}).lean();
@@ -89,55 +138,99 @@ const getPresupuestoID = async(req,res) => {
     })
 }
 
-const updatePresupuesto = async(req,res) => {
-    const id = req.params.id;
-    
-    const totalP = req.body.total;
-    const fechaP = req.body.fecha;
-    const proveedorID = req.body.proveedor;
-    const empleadoID = req.body.empleado;
-    const medioPagoID = req.body.medioPago;
-    const solicitudP = req.body.solicitudPresupuesto;
+const updatePresupuesto = async (req, res) => {
+    const session = await mongoose.startSession();
 
-    if(!id){
+    try {
+        session.startTransaction();
+
+        const id = req.params.id;
+
+        const totalP = req.body.total;
+        const fechaP = req.body.fecha;
+        const proveedorID = req.body.proveedor;
+        const empleadoID = req.body.empleado;
+        const medioPagoID = req.body.medioPago;
+        const solicitudP = req.body.solicitudPresupuesto;
+        const detalles = req.body.detalles; 
+
+        if (!id) {
+            throw new Error("❌ El id no llegó al controlador correctamente.");
+        }
+
+        if (!proveedorID || !empleadoID || !totalP || !medioPagoID || !solicitudP) {
+            throw new Error("❌ Faltan completar algunos campos obligatorios.");
+        }
+
+        // 🔹 Actualizar cabecera
+        const updatedPresupuesto = await Presupuesto.findByIdAndUpdate(
+            id,
+            {
+                total: totalP,
+                fecha: fechaP,
+                proveedor: proveedorID,
+                empleado: empleadoID,
+                solicitudPresupuesto: solicitudP,
+                medioPago: medioPagoID
+            },
+            {
+                new: true,
+                runValidators: true,
+                session
+            }
+        );
+
+        if (!updatedPresupuesto) {
+            throw new Error("❌ Error al actualizar el presupuesto.");
+        }
+
+        // 🔹 (OPCIONAL) Actualizar detalles
+        if (Array.isArray(detalles)) {
+
+            // Baja lógica de detalles actuales
+            await PresupuestoDetalle.updateMany(
+                { presupuesto: id, estado: true },
+                { estado: false },
+                { session }
+            );
+
+            // Crear nuevos detalles
+            for (const item of detalles) {
+                await setPresupuestoDetalle({
+                    importeP: item.importe,
+                    precioP: item.precio,
+                    cantidadP: item.cantidad,
+                    presupuestoP: id,
+                    productoID: item.producto,
+                    session
+                });
+            }
+        }
+
+        // ✅ Commit
+        await session.commitTransaction();
+
+        res.status(200).json({
+            ok: true,
+            data: updatedPresupuesto,
+            message: "✔️ Presupuesto actualizado correctamente."
+        });
+
+    } catch (error) {
+        // ❌ Rollback
+        await session.abortTransaction();
+
         res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.',
-        })
-        return
-    }
+            ok: false,
+            message: "❌ Error al actualizar el presupuesto.",
+            error: error.message
+        });
 
-    if( !proveedorID || !empleadoID  || !totalP  || !medioPagoID || !solicitudP  ){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
+    } finally {
+        session.endSession();
     }
+};
 
-    const updatedPresupuesto = await Presupuesto.findByIdAndUpdate(
-        id,
-        {   
-            total: totalP , 
-            fecha: fechaP , 
-            proveedor: proveedorID,
-            empleado:empleadoID,
-            solicitudPresupuesto:solicitudP,
-            medioPago: medioPagoID
-        },
-        { new: true , runValidators: true }
-    )
-
-    if(!updatedPresupuesto){
-        res.status(400).json({
-            ok:false,
-            message:'❌ Error al actualizar el presupuesto.'
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        data:updatedPresupuesto,
-        message:'✔️ Presupuesto actualizado correctamente.',
-    })
-}
 
 //Validaciones de eliminacion
 const ProveedorOrdenCompra = require("../models/proveedorOrdenCompra_Model");

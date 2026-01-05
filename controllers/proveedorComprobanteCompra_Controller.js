@@ -1,51 +1,213 @@
 const ComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
 const ComprobanteCompraDetalle = require("../models/proveedorComprobanteCompraDetalle_Model");
 const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
+const OrdenCompraDetalle = require("../models/proveedorOrdenCompraDetalle_Model");
 const Remito = require("../models/proveedorRemito_Model");
 const Proveedor = require("../models/proveedor_Model");
 const getNextSequence = require("./counter_Controller");
+const mongoose = require('mongoose');
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
   return hoy.toISOString().split("T")[0];
 }
 
-const setComprobanteCompra = async (req,res) => {
-    const total = req.body.total;
-    const fecha = obtenerFechaHoy();
-    const ordenCompra = req.body.ordenCompra;
+const setComprobanteCompraDetalle = async ({
+    comprobanteCompra,
+    producto,
+    cantidad,
+    importe,
+    precio,
+    session
+}) => {
 
-
-    if(!total || !fecha || !ordenCompra ){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
+    if (!comprobanteCompra || !producto || !cantidad || !importe || !precio) {
+        throw new Error("❌ Faltan completar algunos campos obligatorios.");
     }
-    
-    const newId = await getNextSequence("Proveedor_ComprobanteCompra");
-    const newComprobanteCompra = new ComprobanteCompra ({
+
+    // 🔹 Buscar comprobante
+    const comprobante = await ComprobanteCompra
+        .findById(comprobanteCompra)
+        .session(session)
+        .lean();
+
+    if (!comprobante) {
+        throw new Error("❌ Error al cargar detalle de comprobante de compra.");
+    }
+
+    // 🔹 Buscar detalle de la OC para este producto
+    const detalleOC = await OrdenCompraDetalle.findOne({
+        ordenCompra: comprobante.ordenCompra,
+        producto,
+        estado: true
+    }).session(session).lean();
+
+    if (!detalleOC) {
+        throw new Error("❌ El producto no forma parte de la Orden de Compra.");
+    }
+
+    // 🔹 Calcular cuánto ya fue entregado para este producto
+    const comprobantes = await ComprobanteCompra.find({
+        ordenCompra: comprobante.ordenCompra,
+        estado: true
+    }).session(session).lean();
+
+    const idsComprobantes = comprobantes.map(c => c._id);
+
+    const entregasPrevias = await ComprobanteCompraDetalle.find({
+        comprobanteCompra: { $in: idsComprobantes },
+        producto,
+        estado: true
+    }).session(session).lean();
+
+    const totalEntregado = entregasPrevias.reduce(
+        (acc, det) => acc + Number(det.cantidad),
+        0
+    );
+
+    const totalPedido = Number(detalleOC.cantidad);
+    const cantidadNueva = Number(cantidad);
+
+    // 🚨 VALIDACIÓN CLAVE
+    if (totalEntregado + cantidadNueva > totalPedido) {
+        const maxPermitido = totalPedido - totalEntregado;
+
+        throw new Error(
+            `❌ La cantidad ingresada supera lo pedido en la Orden de Compra.\n` +
+            `📦 Pedido: ${totalPedido}\n` +
+            `✔️ Entregado: ${totalEntregado}\n` +
+            `➡️ Máximo permitido: ${maxPermitido}`
+        );
+    }
+
+    // 🔹 Crear detalle
+    const newId = await getNextSequence("Proveedor_ComprobanteCompraDetalle");
+
+    const newDetalle = new ComprobanteCompraDetalle({
         _id: newId,
-        total: total , 
-        fecha: fecha , 
-        ordenCompra : ordenCompra ,
-        estado:true
+        comprobanteCompra,
+        producto,
+        cantidad: cantidadNueva,
+        importe,
+        precio,
+        estado: true
     });
 
-    await newComprobanteCompra.save()
-        .then( () => {
-            res.status(201).json({
-                ok:true, 
-                message:'✔️ Comprobante de compra agregada correctamente.',
-                data: newComprobanteCompra
-            })
-        })
-        .catch((err) => {
-            res.status(400).json({
-                ok:false,
-                message:`❌ Error al agregar comprobante de compra. ERROR:\n${err}`
-            })
-        }) 
+    await newDetalle.save({ session });
 
-}
+    return newDetalle;
+};
+
+
+
+const setComprobanteCompra = async (req, res) => {
+    const session = await mongoose.startSession();
+
+    try {
+        session.startTransaction();
+
+        const total = req.body.total;
+        const fecha = obtenerFechaHoy();
+        const ordenCompra = req.body.ordenCompra;
+        const detalles = req.body.detalles; // array
+
+        if (!total || !fecha || !ordenCompra || !detalles?.length) {
+            throw new Error("❌ Faltan completar algunos campos obligatorios.");
+        }
+
+        // 🔹 Crear cabecera
+        const newId = await getNextSequence("Proveedor_ComprobanteCompra");
+
+        const newComprobanteCompra = new ComprobanteCompra({
+            _id: newId,
+            total,
+            fecha,
+            ordenCompra,
+            estado: true
+        });
+
+        await newComprobanteCompra.save({ session });
+
+        // 🔹 Crear detalles
+        for (const item of detalles) {
+            await setComprobanteCompraDetalle({
+                comprobanteCompra: newComprobanteCompra._id,
+                producto: item.producto,
+                cantidad: item.cantidad,
+                importe: item.importe,
+                precio: item.precio,
+                session
+            });
+        }
+
+        // =====================================================
+        //   VERIFICAR SI LA ORDEN DE COMPRA QUEDA COMPLETA
+        // =====================================================
+
+        const detallesOC = await OrdenCompraDetalle.find({
+            ordenCompra,
+            estado: true
+        }).session(session).lean();
+
+        const comprobantes = await ComprobanteCompra.find({
+            ordenCompra,
+            estado: true
+        }).session(session).lean();
+
+        const idsComprobantes = comprobantes.map(c => c._id);
+
+        const entregas = await ComprobanteCompraDetalle.find({
+            comprobanteCompra: { $in: idsComprobantes },
+            estado: true
+        }).session(session).lean();
+
+        // Mapa entregas
+        const mapaEntregas = {};
+        for (const det of entregas) {
+            mapaEntregas[det.producto] =
+                (mapaEntregas[det.producto] || 0) + Number(det.cantidad);
+        }
+
+        let ordenCompleta = true;
+
+        for (const det of detallesOC) {
+            const entregado = mapaEntregas[det.producto] || 0;
+            if (entregado < det.cantidad) {
+                ordenCompleta = false;
+                break;
+            }
+        }
+
+        await OrdenCompra.findByIdAndUpdate(
+            ordenCompra,
+            { completo: ordenCompleta },
+            { session }
+        );
+
+        // ✅ Commit
+        await session.commitTransaction();
+
+        res.status(201).json({
+            ok: true,
+            message: "✔️ Comprobante de compra agregado correctamente.",
+            data: newComprobanteCompra
+        });
+
+    } catch (error) {
+        // ❌ Rollback
+        await session.abortTransaction();
+
+        res.status(400).json({
+            ok: false,
+            message: "❌ Error al agregar comprobante de compra.",
+            error: error.message
+        });
+
+    } finally {
+        session.endSession();
+    }
+};
+
 
 const getComprobanteCompra = async (req, res) => {
   try {
@@ -279,49 +441,135 @@ const getComprobantesSinRemitoByProveedor = async (req, res) => {
 };
 
 
-const updateComprobanteCompra = async(req,res) => {
-    const id = req.params.id;
-    
-    const total = req.body.total;
-    const fecha = req.body.fecha;
-    const ordenCompra = req.body.ordenCompra;
+const updateComprobanteCompra = async (req, res) => {
+    const session = await mongoose.startSession();
 
-    if(!id){
+    try {
+        session.startTransaction();
+
+        const id = req.params.id;
+        const total = req.body.total;
+        const fecha = req.body.fecha;
+        const ordenCompra = req.body.ordenCompra;
+        const detalles = req.body.detalles; // opcional
+
+        if (!id) {
+            throw new Error("❌ El id no llegó al controlador correctamente.");
+        }
+
+        if (!total || !ordenCompra) {
+            throw new Error("❌ Faltan completar algunos campos obligatorios.");
+        }
+
+        // 🔹 Actualizar cabecera
+        const updatedComprobanteCompra = await ComprobanteCompra.findByIdAndUpdate(
+            id,
+            {
+                total,
+                fecha,
+                ordenCompra
+            },
+            {
+                new: true,
+                runValidators: true,
+                session
+            }
+        );
+
+        if (!updatedComprobanteCompra) {
+            throw new Error("❌ Error al actualizar el comprobante de compra.");
+        }
+
+        // 🔹 (OPCIONAL) Actualizar detalles
+        if (Array.isArray(detalles)) {
+
+            // Baja lógica de detalles actuales
+            await ComprobanteCompraDetalle.updateMany(
+                { comprobanteCompra: id, estado: true },
+                { estado: false },
+                { session }
+            );
+
+            // Crear nuevos detalles
+            for (const item of detalles) {
+                await setComprobanteCompraDetalle({
+                    comprobanteCompra: id,
+                    producto: item.producto,
+                    cantidad: item.cantidad,
+                    importe: item.importe,
+                    precio: item.precio,
+                    session
+                });
+            }
+        }
+
+        // =====================================================
+        //   REVERIFICAR SI LA ORDEN DE COMPRA QUEDA COMPLETA
+        // =====================================================
+
+        const detallesOC = await OrdenCompraDetalle.find({
+            ordenCompra,
+            estado: true
+        }).session(session).lean();
+
+        const comprobantes = await ComprobanteCompra.find({
+            ordenCompra,
+            estado: true
+        }).session(session).lean();
+
+        const idsComprobantes = comprobantes.map(c => c._id);
+
+        const entregas = await ComprobanteCompraDetalle.find({
+            comprobanteCompra: { $in: idsComprobantes },
+            estado: true
+        }).session(session).lean();
+
+        const mapaEntregas = {};
+        for (const det of entregas) {
+            mapaEntregas[det.producto] =
+                (mapaEntregas[det.producto] || 0) + Number(det.cantidad);
+        }
+
+        let ordenCompleta = true;
+
+        for (const det of detallesOC) {
+            const entregado = mapaEntregas[det.producto] || 0;
+            if (entregado < det.cantidad) {
+                ordenCompleta = false;
+                break;
+            }
+        }
+
+        await OrdenCompra.findByIdAndUpdate(
+            ordenCompra,
+            { completo: ordenCompleta },
+            { session }
+        );
+
+        // ✅ Commit
+        await session.commitTransaction();
+
+        res.status(200).json({
+            ok: true,
+            data: updatedComprobanteCompra,
+            message: "✔️ Comprobante de compra actualizado correctamente."
+        });
+
+    } catch (error) {
+        // ❌ Rollback
+        await session.abortTransaction();
+
         res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.',
-        })
-        return
-    }
+            ok: false,
+            message: "❌ Error al actualizar el comprobante de compra.",
+            error: error.message
+        });
 
-    if(!total || !ordenCompra ){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
+    } finally {
+        session.endSession();
     }
+};
 
-    const updatedComprobanteCompra = await ComprobanteCompra.findByIdAndUpdate(
-        id,
-        {   
-            total: total , 
-            fecha: fecha , 
-            ordenCompra : ordenCompra ,
-        },
-        { new: true , runValidators: true }
-    )
-
-    if(!updatedComprobanteCompra){
-        res.status(400).json({
-            ok:false,
-            message:'❌ Error al actualizar la comprobante de compra.'
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        data:updatedComprobanteCompra,
-        message:'✔️ Comprobante de compra actualizado correctamente.',
-    })
-}
 
 //Validaciones de eliminacion
 const ProveedorRemito = require("../models/proveedorRemito_Model");

@@ -2,56 +2,125 @@ const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
 const OrdenCompraDetalle = require("../models/proveedorOrdenCompraDetalle_Model");
 const ComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
 const getNextSequence = require("./counter_Controller");
+const mongoose = require('mongoose');
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
   return hoy.toISOString().split("T")[0];
 }
 
-const setOrdenCompra = async (req,res) => {
-    const total = req.body.total;
-    const fecha = obtenerFechaHoy();
-    const fechaEntrega = new Date(req.body.fechaEntrega);
-    const proveedorID = req.body.proveedor;
-    const empleadoID = req.body.empleado;
-    const medioPagoID = req.body.medioPago;
-    const presupuesto = req.body.presupuesto;
+const setOrdenCompraDetalle = async ({
+    ordenCompra,
+    producto,
+    cantidad,
+    importe,
+    precio,
+    session
+}) => {
 
 
-    if(!total || !fecha || !proveedorID || !medioPagoID || !empleadoID || !presupuesto || !fechaEntrega ){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
+    if(!ordenCompra || !producto || !cantidad || !importe || !precio ){
+        throw new Error("❌ Faltan completar algunos campos obligatorios.")
     }
     
-    const newId = await getNextSequence("Proveedor_OrdenCompra");
-    const newOrdenCompra = new OrdenCompra ({
+    const newId = await getNextSequence("Proveedor_OrdenCompraDetalle");
+    const newOrdenCompraDetalle = new OrdenCompraDetalle ({
         _id: newId,
-        total: total , 
-        fecha: fecha , 
-        fechaEntrega: fechaEntrega , 
-        proveedor: proveedorID ,
-        medioPago : medioPagoID,
-        empleado: empleadoID ,
-        presupuesto : presupuesto ,
-        completo : false ,
+        ordenCompra: ordenCompra , 
+        producto: producto , 
+        cantidad: cantidad , 
+        importe: importe ,
+        precio : precio,
         estado:true
     });
 
-    await newOrdenCompra.save()
-        .then( () => {
-            res.status(201).json({
-                ok:true, 
-                message:'✔️ Orden de compra agregada correctamente.',
-                data: newOrdenCompra
-            })
-        })
-        .catch((err) => {
-            res.status(400).json({
-                ok:false,
-                message:`❌ Error al agregar orden de compra. ERROR:\n${err}`
-            })
-        }) 
+    await newOrdenCompraDetalle.save({ session });
+
+    return newOrdenCompraDetalle;
 }
+
+const setOrdenCompra = async (req, res) => {
+    const session = await mongoose.startSession();
+
+    try {
+        session.startTransaction();
+
+        const total = req.body.total;
+        const fecha = obtenerFechaHoy();
+        const fechaEntrega = new Date(req.body.fechaEntrega);
+        const proveedorID = req.body.proveedor;
+        const empleadoID = req.body.empleado;
+        const medioPagoID = req.body.medioPago;
+        const presupuesto = req.body.presupuesto;
+        const detalles = req.body.detalles; // array de productos
+
+        if (
+            !total ||
+            !fecha ||
+            !proveedorID ||
+            !medioPagoID ||
+            !empleadoID ||
+            !presupuesto ||
+            !fechaEntrega ||
+            !detalles?.length
+        ) {
+            throw new Error("❌ Faltan completar algunos campos obligatorios.");
+        }
+
+        // 🔹 Crear cabecera
+        const newId = await getNextSequence("Proveedor_OrdenCompra");
+
+        const newOrdenCompra = new OrdenCompra({
+            _id: newId,
+            total: total,
+            fecha: fecha,
+            fechaEntrega: fechaEntrega,
+            proveedor: proveedorID,
+            medioPago: medioPagoID,
+            empleado: empleadoID,
+            presupuesto: presupuesto,
+            completo: false,
+            estado: true
+        });
+
+        await newOrdenCompra.save({ session });
+
+        // 🔹 Crear detalles
+        for (const item of detalles) {
+            await setOrdenCompraDetalle({
+                ordenCompra: newOrdenCompra._id,
+                producto: item.producto,
+                cantidad: item.cantidad,
+                importe: item.importe,
+                precio: item.precio,
+                session
+            });
+        }
+
+        // ✅ Commit
+        await session.commitTransaction();
+
+        res.status(201).json({
+            ok: true,
+            message: "✔️ Orden de compra y detalles guardados correctamente.",
+            data: newOrdenCompra
+        });
+
+    } catch (error) {
+        // ❌ Rollback
+        await session.abortTransaction();
+
+        res.status(400).json({
+            ok: false,
+            message: "❌ Error al agregar orden de compra.",
+            error: error.message
+        });
+
+    } finally {
+        session.endSession();
+    }
+};
+
 
 const getOrdenCompra = async (req, res) => {
   try {
@@ -116,57 +185,101 @@ const getOrdenCompraID = async(req,res) => {
     })
 }
 
-const updateOrdenCompra = async(req,res) => {
-    const id = req.params.id;
-    
-    const total = req.body.total;
-    const fecha = req.body.fecha;
-    const fechaEntrega = req.body.fechaEntrega;
-    const proveedorID = req.body.proveedor;
-    const empleadoID = req.body.empleado;
-    const medioPagoID = req.body.medioPago;
-    const presupuesto = req.body.presupuesto;
+const updateOrdenCompra = async (req, res) => {
+    const session = await mongoose.startSession();
 
-    if(!id){
+    try {
+        session.startTransaction();
+
+        const id = req.params.id;
+
+        const total = req.body.total;
+        const fecha = req.body.fecha;
+        const fechaEntrega = req.body.fechaEntrega;
+        const proveedorID = req.body.proveedor;
+        const empleadoID = req.body.empleado;
+        const medioPagoID = req.body.medioPago;
+        const presupuesto = req.body.presupuesto;
+        const detalles = req.body.detalles; // opcional
+
+        if (!id) {
+            throw new Error("❌ El id no llegó al controlador correctamente.");
+        }
+
+        if (!total || !fechaEntrega || !proveedorID || !empleadoID || !medioPagoID || !presupuesto) {
+            throw new Error("❌ Faltan completar algunos campos obligatorios.");
+        }
+
+        // 🔹 Actualizar cabecera
+        const updatedOrdenCompra = await OrdenCompra.findByIdAndUpdate(
+            id,
+            {
+                total: total,
+                fecha: fecha,
+                fechaEntrega: fechaEntrega,
+                proveedor: proveedorID,
+                medioPago: medioPagoID,
+                empleado: empleadoID,
+                presupuesto: presupuesto
+            },
+            {
+                new: true,
+                runValidators: true,
+                session
+            }
+        );
+
+        if (!updatedOrdenCompra) {
+            throw new Error("❌ Error al actualizar la orden de compra.");
+        }
+
+        // 🔹 (OPCIONAL) Actualizar detalles
+        if (Array.isArray(detalles)) {
+
+            // Baja lógica de detalles actuales
+            await OrdenCompraDetalle.updateMany(
+                { ordenCompra: id, estado: true },
+                { estado: false },
+                { session }
+            );
+
+            // Crear nuevos detalles
+            for (const item of detalles) {
+                await setOrdenCompraDetalle({
+                    ordenCompra: id,
+                    producto: item.producto,
+                    cantidad: item.cantidad,
+                    importe: item.importe,
+                    precio: item.precio,
+                    session
+                });
+            }
+        }
+
+        // ✅ Commit
+        await session.commitTransaction();
+
+        res.status(200).json({
+            ok: true,
+            data: updatedOrdenCompra,
+            message: "✔️ Orden de compra actualizada correctamente."
+        });
+
+    } catch (error) {
+        // ❌ Rollback
+        await session.abortTransaction();
+
         res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.',
-        })
-        return
-    }
+            ok: false,
+            message: "❌ Error al actualizar la orden de compra.",
+            error: error.message
+        });
 
-    if( !total || !fechaEntrega || !proveedorID || !empleadoID || !medioPagoID || !presupuesto ){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
+    } finally {
+        session.endSession();
     }
+};
 
-    const updatedOrdenCompra = await OrdenCompra.findByIdAndUpdate(
-        id,
-        {   
-            total: total , 
-            fecha: fecha , 
-            fechaEntrega: fechaEntrega , 
-            proveedor: proveedorID ,
-            medioPago : medioPagoID,
-            empleado: empleadoID ,
-            presupuesto : presupuesto ,
-        },
-        { new: true , runValidators: true }
-    )
-
-    if(!updatedOrdenCompra){
-        res.status(400).json({
-            ok:false,
-            message:'❌ Error al actualizar la orden de compra.'
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        data:updatedOrdenCompra,
-        message:'✔️ Orden de compra actualizada correctamente.',
-    })
-}
 
 //Validaciones de eliminacion
 const ProveedorComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
