@@ -64,7 +64,7 @@ const setComprobanteCompraDetalle = async (req, res) => {
     }
 
     // Crear el nuevo comprobante compra detalle
-    const newId = await getNextSequence("Proveedor_OrdenCompraDetalle");
+    const newId = await getNextSequence("Proveedor_ComprobanteCompraDetalle");
     const newComprobanteDetalle = new ComprobanteCompraDetalle({
         _id: newId,
         comprobanteCompra,
