@@ -10,6 +10,7 @@ router.get('/', controller.getCaja);
 router.get('/por-fecha', controller.getVentasByFecha);
 router.get('/cliente/:id', controller.getVentasByCliente);
 router.get('/cuentacorriente/cliente/:id', controller.getCuentaCorrienteByCliente);
+router.get('/cuentacorriente/deudas', controller.getCuentasCorrienteConDeuda);
 
 // Operaciones por ID (SIEMPRE AL FINAL)
 router.get('/:id', controller.getCajaID);

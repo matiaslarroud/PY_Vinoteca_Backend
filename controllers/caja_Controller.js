@@ -1,5 +1,7 @@
 const Caja = require("../models/caja_Model.js");
 const Cliente = require("../models/cliente_Model.js")
+const Proveedor = require("../models/proveedor_Model.js")
+const MedioPago = require("../models/medioPago_Model.js")
 const getNextSequence = require("./counter_Controller.js");
 
 const obtenerFechaHoy = () => {
@@ -59,19 +61,41 @@ const getCaja = async (req, res) => {
   try {
     const movimientos = await Caja.find({ estado: true }).lean();
 
-    // 1️⃣ Normalizar (por si el schema cambia)
-    const movimientosNormalizados = movimientos.map(m => ({
+    const movimientosConPersona = await Promise.all(
+      movimientos.map(async (m) => {
+        let personaNombre = null;
+
+        if (m.referencia?.toLowerCase().includes('proveedor')) {
+          const proveedor = await Proveedor.findById(m.persona).lean();
+          personaNombre = proveedor?.name || null;
+        }
+
+        if (m.referencia?.toLowerCase().includes('cliente')) {
+          const cliente = await Cliente.findById(m.persona).lean();
+          personaNombre = cliente?.name + ' ' + cliente?.lastname || null;
+        }
+
+        const medioPagoEncontrado = await MedioPago.findById(m.medioPago).lean();
+        const medioPagoNombre = medioPagoEncontrado?.name || null;
+
+        return {
+          ...m,
+          personaNombre,
+          medioPagoNombre
+        };
+      })
+    );
+
+    const movimientosNormalizados = movimientosConPersona.map(m => ({
       tipo: m.tipo,
-      total: m.total
+      total: Number(m.total) || 0
     }));
 
-    // 2️⃣ Calcular totales
     const totales = calcularTotales(movimientosNormalizados);
 
-    // 3️⃣ Responder todo junto
     res.status(200).json({
       ok: true,
-      data: movimientos,
+      data: movimientosConPersona,
       resumen: totales
     });
 
@@ -83,6 +107,7 @@ const getCaja = async (req, res) => {
     });
   }
 };
+
 
 function calcularTotales(movimientos = []) {
   let totalIngresos = 0;
@@ -209,7 +234,31 @@ const getVentasByCliente = async (req, res) => {
     const movimientos = await Caja.find({
       estado: true,
       persona: clienteID
-    }).sort({ createdAt: -1 }); // opcional: últimos primero    
+    }).sort({ createdAt: -1 }).lean(); 
+
+    const movimientosConPersona = await Promise.all(
+      movimientos.map(async (m) => {
+        let personaNombre = null;
+
+        if (m.referencia?.toLowerCase().includes('proveedor')) {
+          const proveedor = await Proveedor.findById(m.persona).lean();
+          personaNombre = proveedor?.name || null;
+        }
+
+        if (m.referencia?.toLowerCase().includes('cliente')) {
+          const cliente = await Cliente.findById(m.persona).lean();
+          personaNombre = cliente?.name + ' ' + cliente?.lastname || null;
+        }
+
+        const medioPagoEncontrado = await MedioPago.findById(m.medioPago).lean();
+        const medioPagoNombre = medioPagoEncontrado?.name || null;
+        return {
+          ...m,
+          personaNombre,
+          medioPagoNombre
+        };
+      })
+    );  
 
     const movimientosNormalizados = movimientos.map(m => ({
       tipo: m.tipo,
@@ -217,10 +266,11 @@ const getVentasByCliente = async (req, res) => {
     }));
 
     const totales = calcularTotales(movimientosNormalizados);
-
+    
+        console.log(movimientosConPersona)
     return res.status(200).json({
       ok: true,
-      data: movimientos,
+      data: movimientosConPersona,
       resumen:totales,
       message: "✔️ Movimientos obtenidos correctamente."
     });
@@ -260,7 +310,32 @@ const getVentasByFecha = async (req, res) => {
         $gte: inicio,
         $lte: fin
       }
-    }).sort({ fecha: -1 }); // más lógico ordenar por fecha  
+    }).sort({ fecha: -1 }).lean(); // más lógico ordenar por fecha  
+
+    const movimientosConPersona = await Promise.all(
+      movimientos.map(async (m) => {
+        let personaNombre = null;
+
+        if (m.referencia?.toLowerCase().includes('proveedor')) {
+          const proveedor = await Proveedor.findById(m.persona).lean();
+          personaNombre = proveedor?.name || null;
+        }
+
+        if (m.referencia?.toLowerCase().includes('cliente')) {
+          const cliente = await Cliente.findById(m.persona).lean();
+          personaNombre = cliente?.name + ' ' + cliente?.lastname || null;
+        }
+
+        const medioPagoEncontrado = await MedioPago.findById(m.medioPago).lean();
+        const medioPagoNombre = medioPagoEncontrado?.name || null;
+
+        return {
+          ...m,
+          personaNombre,
+          medioPagoNombre
+        };
+      })
+    );  
 
     const movimientosNormalizados = movimientos.map(m => ({
       tipo: m.tipo,
@@ -271,7 +346,7 @@ const getVentasByFecha = async (req, res) => {
 
     return res.status(200).json({
       ok: true,
-      data: movimientos,
+      data: movimientosConPersona,
       resumen:totales,
       message: "✔️ Movimientos obtenidos correctamente."
     });
@@ -322,7 +397,32 @@ const getCuentaCorrienteByCliente = async (req, res) => {
         { tipo: 'CUENTA_CORRIENTE' },
         { referencia: { $regex: /Recibo de Pago/i } }
       ]
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).lean();
+
+    const movimientosConPersona = await Promise.all(
+      movimientos.map(async (m) => {
+        let personaNombre = null;
+
+        if (m.referencia?.toLowerCase().includes('proveedor')) {
+          const proveedor = await Proveedor.findById(m.persona).lean();
+          personaNombre = proveedor?.name || null;
+        }
+
+        if (m.referencia?.toLowerCase().includes('cliente')) {
+          const cliente = await Cliente.findById(m.persona).lean();
+          personaNombre = cliente?.name + ' ' + cliente?.lastname || null;
+        }
+
+        const medioPagoEncontrado = await MedioPago.findById(m.medioPago).lean();
+        const medioPagoNombre = medioPagoEncontrado?.name || null;
+
+        return {
+          ...m,
+          personaNombre,
+          medioPagoNombre
+        };
+      })
+    );  
 
     const movimientosNormalizados = movimientos.map(m => ({
       tipo: m.tipo,
@@ -333,7 +433,7 @@ const getCuentaCorrienteByCliente = async (req, res) => {
 
     return res.status(200).json({
       ok: true,
-      data: movimientos,
+      data: movimientosConPersona,
       resumen: totales,
       message: "✔️ Movimientos de cuenta corriente obtenidos correctamente."
     });
@@ -341,6 +441,65 @@ const getCuentaCorrienteByCliente = async (req, res) => {
   } catch (error) {
     console.error("❌ Error :", error);
 
+    return res.status(500).json({
+      ok: false,
+      message: "❌ Error interno del servidor."
+    });
+  }
+};
+
+const getCuentasCorrienteConDeuda = async (req, res) => {
+  try {
+    const movimientos = await Caja.find({
+      estado: true,
+      $or: [
+        { tipo: 'CUENTA_CORRIENTE' },
+        { referencia: { $regex: /recibo de pago/i } }
+      ]
+    }).lean();
+
+    const movimientosPorCliente = {};
+
+    for (const m of movimientos) {
+      if (!movimientosPorCliente[m.persona]) {
+        movimientosPorCliente[m.persona] = [];
+      }
+      movimientosPorCliente[m.persona].push(m);
+    }
+
+    const resultado = [];
+
+    for (const personaId of Object.keys(movimientosPorCliente)) {
+      const movimientosCliente = movimientosPorCliente[personaId];
+
+      const movimientosNormalizados = movimientosCliente.map(m => ({
+        tipo: m.tipo,
+        total: m.total
+      }));
+
+      const totales = calcularSaldoCuentaCorriente(movimientosNormalizados);
+
+      if (totales.saldoRestante > 0) {
+        const cliente = await Cliente.findById(personaId).lean();
+
+        resultado.push({
+          clienteId: personaId,
+          clienteNombre: cliente
+            ? `${cliente.name} ${cliente.lastname}`
+            : null,
+          saldoAdeudado: totales.saldoRestante
+        });
+      }
+    }
+
+    return res.status(200).json({
+      ok: true,
+      data: resultado,
+      message: "✔️ Clientes con saldo adeudado obtenidos correctamente."
+    });
+
+  } catch (error) {
+    console.error("❌ Error getCuentasCorrienteConDeuda:", error);
     return res.status(500).json({
       ok: false,
       message: "❌ Error interno del servidor."
@@ -427,4 +586,4 @@ const deleteCaja = async(req,res) => {
     })
 }
 
-module.exports = {setCaja,getVentasByFecha,getCaja,getVentasByCliente,updateCaja,deleteCaja,getCajaID,getCuentaCorrienteByCliente};
+module.exports = {setCaja,getVentasByFecha,getCaja,getVentasByCliente,updateCaja,deleteCaja,getCajaID,getCuentaCorrienteByCliente , getCuentasCorrienteConDeuda};
