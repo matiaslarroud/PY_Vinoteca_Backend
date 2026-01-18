@@ -266,8 +266,7 @@ const getVentasByCliente = async (req, res) => {
     }));
 
     const totales = calcularTotales(movimientosNormalizados);
-    
-        console.log(movimientosConPersona)
+  
     return res.status(200).json({
       ok: true,
       data: movimientosConPersona,
@@ -461,6 +460,8 @@ const getCuentasCorrienteConDeuda = async (req, res) => {
     const movimientosPorCliente = {};
 
     for (const m of movimientos) {
+      if (!m.persona) continue; // ✅ evita null
+
       if (!movimientosPorCliente[m.persona]) {
         movimientosPorCliente[m.persona] = [];
       }
@@ -470,6 +471,8 @@ const getCuentasCorrienteConDeuda = async (req, res) => {
     const resultado = [];
 
     for (const personaId of Object.keys(movimientosPorCliente)) {
+      if (!personaId || personaId === "null" || isNaN(personaId)) continue;
+
       const movimientosCliente = movimientosPorCliente[personaId];
 
       const movimientosNormalizados = movimientosCliente.map(m => ({
@@ -480,13 +483,13 @@ const getCuentasCorrienteConDeuda = async (req, res) => {
       const totales = calcularSaldoCuentaCorriente(movimientosNormalizados);
 
       if (totales.saldoRestante > 0) {
-        const cliente = await Cliente.findById(personaId).lean();
+        const cliente = await Cliente.findById(Number(personaId)).lean();
+
+        if (!cliente) continue;
 
         resultado.push({
-          clienteId: personaId,
-          clienteNombre: cliente
-            ? `${cliente.name} ${cliente.lastname}`
-            : null,
+          clienteId: Number(personaId),
+          clienteNombre: `${cliente.name} ${cliente.lastname}`,
           saldoAdeudado: totales.saldoRestante
         });
       }
