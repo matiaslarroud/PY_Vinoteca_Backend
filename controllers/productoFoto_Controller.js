@@ -1,4 +1,5 @@
 const ProductoFoto = require("../models/productoFoto_Model.js");
+const Producto = require("../models/producto_Model.js");
 const  cloudinary = require("../config/cloudinary.js") ;
 const getNextSequence = require("../controllers/counter_Controller");
 
@@ -74,14 +75,89 @@ const getProductoFoto = async (req, res) => {
 
         const fotos = await ProductoFoto.find({ productoID:productoID , estado:true })
             .sort({ orden: 1 });
+        
+        const producto = await Producto.find({_id: productoID , estado:true}).lean();
 
-        res.json({ ok: true, message:"✔️ Fotos obtenidas correctamente." , data:fotos });
+        res.json({ 
+            ok: true, 
+            message:"✔️ Fotos obtenidas correctamente." , 
+            data:fotos , 
+            producto: producto
+        });
 
     } catch (error) {
         console.log(error);
         res.status(500).json({ ok: false, message: "❌ Error al obtener fotos." });
     }
 };
+
+// CALCULO DE PRECIO FINAL PRODUCTO
+const calcularPrecioProducto = (producto) => {
+  if (
+    producto.tipoProducto === "ProductoVino" ||
+    producto.tipoProducto === "ProductoInsumo"
+  ) {
+    if (producto.precioCosto != null && producto.ganancia != null) {
+      return producto.precioCosto + (producto.precioCosto * producto.ganancia / 100);
+    }
+    return 0;
+  }
+
+  // Picadas
+  if (producto.precioVenta != null) {
+    return producto.precioVenta;
+  }
+
+  return 0;
+};
+
+
+// GET: catálogo de productos
+const getCatalogoProductos = async (req, res) => {
+  try {
+    // 1️⃣ Traer productos activos con datos necesarios
+    const productos = await Producto.find({ estado: true })
+      .select("_id name stock tipoProducto precioCosto ganancia precioVenta")
+      .lean();
+
+    // 2️⃣ Traer todas las fotos activas
+    const fotos = await ProductoFoto.find({ estado: true })
+      .sort({ orden: 1 })
+      .lean();
+
+    // 3️⃣ Mapa productoID -> imagen
+    const fotosPorProducto = {};
+
+    for (const foto of fotos) {
+      if (!fotosPorProducto[foto.productoID]) {
+        fotosPorProducto[foto.productoID] = foto.imagenURL;
+      }
+    }
+
+    // 4️⃣ Armar catálogo final con precio calculado
+    const catalogo = productos.map(prod => ({
+      _id: prod._id,
+      name: prod.name,
+      stock: prod.stock,
+      tipoProducto: prod.tipoProducto,
+      precio: calcularPrecioProducto(prod),
+      imagen: fotosPorProducto[prod._id] || null
+    }));
+
+    res.json({
+      ok: true,
+      productos: catalogo
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      ok: false,
+      message: "❌ Error al obtener catálogo"
+    });
+  }
+};
+
 
 
 // GET: foto de un producto
@@ -167,4 +243,4 @@ const deleteProductoFoto = async (req, res) => {
 };
 
 
-module.exports = {setProductoFoto , getProductoFoto , getProductoFotoID , updateProductoFoto , deleteProductoFoto }
+module.exports = {setProductoFoto , getCatalogoProductos , getProductoFoto , getProductoFotoID , updateProductoFoto , deleteProductoFoto }
