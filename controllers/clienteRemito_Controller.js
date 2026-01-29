@@ -3,74 +3,137 @@ const RemitoDetalle = require("../models/clienteRemitoDetalle_Model");
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
 const NotaPedido = require("../models/clienteNotaPedido_Model");
 const getNextSequence = require("../controllers/counter_Controller");
+const mongoose = require('mongoose');
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
   return hoy.toISOString().split("T")[0];
 }
 
-const setRemito = async (req, res) => {
-    
-    try {
-        const totalPrecio = req.body.totalPrecio;
-        const totalBultos = req.body.totalBultos;
-        const fecha = obtenerFechaHoy();
-        const comprobanteVentaID = req.body.comprobanteVentaID;
-        const transporteID = req.body.transporteID;
+const setRemitoDetalle = async ({
+  remitoID,
+  producto,
+  cantidad,
+  session
+}) => {
 
-        // Validar datos obligatorios
-        if (!totalPrecio || !totalBultos || !fecha || !comprobanteVentaID || !transporteID) {
-            return res.status(400).json({
-                ok: false,
-                message: "❌ Faltan completar algunos campos obligatorios."
-            });
-        }
+  if (
+    remitoID == null ||
+    producto == null ||
+    cantidad == null
+  ) {
+    throw new Error("❌ Faltan completar algunos campos obligatorios del detalle.");
+  }
 
-        const newId = await getNextSequence("Cliente_Remito");
-        const newRemito = new Remito({
-            _id: newId,
-            totalPrecio: totalPrecio,
-            totalBultos: totalBultos,
-            fecha: fecha,
-            comprobanteVentaID: comprobanteVentaID,
-            transporteID: transporteID,
-            estado:true
-        });
+  if (cantidad <= 0) {
+    throw new Error("❌ La cantidad debe ser mayor a 0.");
+  }
 
-        if (req.body.entregado !== undefined) {
-            newRemito.entregado = false;
-        }
-        
-        // Actualizar el comprobante de venta a remito creado
-        const updateComprobanteVentaState = await ComprobanteVenta.findByIdAndUpdate(
-            comprobanteVentaID,
-            { remitoCreado: true },
-            { new: true, runValidators: true }
-        );
+  const newId = await getNextSequence("Cliente_RemitoDetalle");
 
-        if (!updateComprobanteVentaState) {
-            return res.status(400).json({
-                ok: false,
-                message: '❌ Error al actualizar el estado del comprobante de venta.'
-            });
-        }
+  const newRemitoDetalle = new RemitoDetalle({
+    _id: newId,
+    remitoID,
+    producto: producto,
+    cantidad,
+    estado: true
+  });
 
-        await newRemito.save();
+  await newRemitoDetalle.save({ session });
 
-        return res.status(201).json({
-            ok: true,
-            message: '✔️ Remito agregado correctamente.',
-            data: newRemito
-        })
-
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({
-            ok: false,
-            message: '❌ Error interno del servidor.'
-        });
-    }
+  return newRemitoDetalle;
 };
+
+
+const setRemito = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const {
+      totalPrecio,
+      totalBultos,
+      comprobanteVenta,
+      transporteID,
+      detalles,
+      entregado
+    } = req.body;
+
+    const fecha = obtenerFechaHoy();
+
+    if (
+      !totalPrecio ||
+      !totalBultos ||
+      !comprobanteVenta ||
+      !transporteID
+    ) {
+      throw new Error("❌ Faltan completar algunos campos obligatorios.");
+    }
+
+    const newId = await getNextSequence("Cliente_Remito");
+
+    const newRemito = new Remito({
+      _id: newId,
+      totalPrecio,
+      totalBultos,
+      fecha,
+      comprobanteVenta,
+      transporteID,
+      estado: true,
+      entregado: entregado ?? false
+    });
+
+    // 🔹 Actualizar comprobante de venta
+    const updateComprobanteVentaState =
+      await ComprobanteVenta.findByIdAndUpdate(
+        comprobanteVenta,
+        { remitoCreado: true },
+        { new: true, runValidators: true, session }
+      );
+
+    if (!updateComprobanteVentaState) {
+      throw new Error(
+        '❌ Error al actualizar el estado del comprobante de venta.'
+      );
+    }
+
+    await newRemito.save({ session });
+
+    if (!Array.isArray(detalles) || detalles.length === 0) {
+      throw new Error("❌ El remito debe tener al menos un detalle.");
+    }
+
+    for (const det of detalles) {
+      await setRemitoDetalle({
+        remitoID: newId,
+        producto: det.producto,
+        cantidad: det.cantidad,
+        session
+      });
+    }
+
+    await session.commitTransaction();
+
+    return res.status(201).json({
+      ok: true,
+      message: '✔️ Remito agregado correctamente.',
+      data: newRemito
+    });
+
+  } catch (err) {
+    console.error(err);
+    await session.abortTransaction();
+
+    return res.status(500).json({
+      ok: false,
+      message: err.message || '❌ Error interno del servidor.'
+    });
+
+  } finally {
+    session.endSession();
+  }
+};
+
 
 
 const getRemito = async(req, res) => {
@@ -109,54 +172,77 @@ const getRemitoID = async(req,res) => {
     })
 }
 
-const updateRemito = async(req,res) => {
-    const id = req.params.id;
-    
-    const totalPrecio = req.body.totalPrecio;
-    const totalBultos = req.body.totalBultos;
-    const fecha = obtenerFechaHoy();
-    const comprobanteVentaID = req.body.comprobanteVentaID;
-    const transporteID = req.body.transporteID;
+const updateRemito = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'El id no llego al controlador correctamente.',
-        })
-        return
+  try {
+    const id = req.params.id;
+
+    if (!id) {
+      throw new Error('❌ El id no llegó al controlador correctamente.');
     }
-    
+
+    const {
+      totalPrecio,
+      totalBultos,
+      comprobanteVenta,
+      transporteID,
+      entregado
+    } = req.body;
+
+    const fecha = obtenerFechaHoy();
+
     const updatedRemitoData = {
-        totalPrecio: totalPrecio,
-        totalBultos: totalBultos,
-        fecha: fecha,
-        transporteID: transporteID,
-        entregado: req.body.entregado,
+      fecha
     };
-    
-    if (comprobanteVentaID) {
-        updatedRemitoData.comprobanteVentaID = comprobanteVentaID;
+
+    if (totalPrecio != null) updatedRemitoData.totalPrecio = totalPrecio;
+    if (totalBultos != null) updatedRemitoData.totalBultos = totalBultos;
+    if (transporteID) updatedRemitoData.transporteID = transporteID;
+    if (entregado != null) updatedRemitoData.entregado = entregado;
+
+    // ⚠️ regla de negocio (opcional pero recomendada)
+    if (comprobanteVenta) {
+      updatedRemitoData.comprobanteVenta = comprobanteVenta;
     }
 
     const updatedRemito = await Remito.findByIdAndUpdate(
-        id,
-        updatedRemitoData,
-        { new: true , runValidators: true }
-    )
+      id,
+      updatedRemitoData,
+      {
+        new: true,
+        runValidators: true,
+        session
+      }
+    );
 
-    if(!updatedRemito){
-        res.status(400).json({
-            ok:false,
-            message:'❌ Error al actualizar el remito.'
-        })
-        return
+    if (!updatedRemito) {
+      throw new Error('❌ Error al actualizar el remito.');
     }
-    res.status(200).json({
-        ok:true,
-        data:updatedRemito,
-        message:'✔️ Remito actualizado correctamente.',
-    })
-}
+
+    await session.commitTransaction();
+
+    return res.status(200).json({
+      ok: true,
+      data: updatedRemito,
+      message: '✔️ Remito actualizado correctamente.'
+    });
+
+  } catch (err) {
+    console.error(err);
+    await session.abortTransaction();
+
+    return res.status(500).json({
+      ok: false,
+      message: err.message || '❌ Error interno del servidor.'
+    });
+
+  } finally {
+    session.endSession();
+  }
+};
+
 
 const deleteRemito = async(req,res) => {
     const id = req.params.id;

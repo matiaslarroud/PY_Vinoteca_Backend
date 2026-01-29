@@ -3,25 +3,58 @@ const ComprobanteVentaDetalle = require("../models/clienteComprobanteVentaDetall
 const NotaPedido = require("../models/clienteNotaPedido_Model");
 const Cliente = require("../models/cliente_Model");
 const getNextSequence = require("../controllers/counter_Controller");
+const mongoose = require('mongoose');
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
   return hoy.toISOString().split("T")[0];
 }
 
+const setComprobanteVentaDetalle = async ({
+  importeP,
+  comprobanteVentaP,
+  productoID,
+  precioP,
+  cantidadP,
+  session
+}) => {
+
+  if (!importeP || !comprobanteVentaP || !productoID || !precioP || !cantidadP) {
+    throw new Error('❌ Error al cargar los datos del detalle.');
+  }
+
+  const newId = await getNextSequence("Cliente_ComprobanteVentaDetalle");
+
+  const newComprobanteVentaDetalle = new ComprobanteVentaDetalle({
+    _id: newId,
+    importe: importeP,
+    comprobanteVenta: comprobanteVentaP,
+    producto: productoID,
+    precio: precioP,
+    cantidad: cantidadP,
+    estado: true
+  });
+
+  await newComprobanteVentaDetalle.save({ session });
+
+  return newComprobanteVentaDetalle;
+};
+
+
 const setComprobanteVenta = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const totalP = req.body.total;
         const fechaP = obtenerFechaHoy();
         const tipoComprobanteP = req.body.tipoComprobante;
         const notaPedidoP = req.body.notaPedido;
+        const detalles = req.body.detalles;
 
         // Validar datos obligatorios
         if (!totalP || !fechaP || !tipoComprobanteP || !notaPedidoP) {
-            return res.status(400).json({
-                ok: false,
-                message: "❌ Faltan completar algunos campos obligatorios."
-            });
+          throw new Error("❌ Faltan completar algunos campos obligatorios.") 
         }
         
         const newId = await getNextSequence("Cliente_ComprobanteVenta");
@@ -38,7 +71,25 @@ const setComprobanteVenta = async (req, res) => {
         });
 
         // Guardar comprobante
-        await newComprobanteVenta.save();
+        await newComprobanteVenta.save({session});
+        
+        if (!Array.isArray(detalles) || detalles.length === 0) {
+          throw new Error("❌ El comprobante de venta debe tener al menos un detalle.");
+        }
+
+        // Guardar detalle  
+        for (const det of detalles) {
+                await setComprobanteVentaDetalle({
+                    importeP: det.importe,
+                    precioP: det.precio,
+                    cantidadP: det.cantidad,
+                    comprobanteVentaP: newId,
+                    productoID: det.producto,
+                    session
+                });
+            }
+
+        await session.commitTransaction();
 
         // Respuesta final única
         return res.status(201).json({
@@ -49,10 +100,13 @@ const setComprobanteVenta = async (req, res) => {
 
     } catch (err) {
         console.error(err);
+        await session.abortTransaction();
         return res.status(500).json({
             ok: false,
             message: '❌ Error interno del servidor.'
         });
+    }finally {
+        session.endSession();
     }
 };
 
@@ -134,54 +188,69 @@ const getComprobanteVentaID = async (req, res) => {
 };
 
 
-const updateComprobanteVenta = async(req,res) => {
+const updateComprobanteVenta = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
     const id = req.params.id;
-    
+
     const totalP = req.body.total;
     const fechaP = obtenerFechaHoy();
     const tipoComprobanteP = req.body.tipoComprobante;
     const notaPedidoP = req.body.notaPedido;
 
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.',
-        })
-        return
+    if (!id) {
+      throw new Error('❌ El id no llegó al controlador correctamente.');
     }
 
-     const updatedComprobanteVentaData = {
-        total: totalP , 
-        fecha: fechaP , 
-        tipoComprobante: tipoComprobanteP,
-        remitoCreado: false,
+    const updatedComprobanteVentaData = {
+      total: totalP,
+      fecha: fechaP,
+      tipoComprobante: tipoComprobanteP,
+      remitoCreado: false
     };
-    
+
     if (notaPedidoP) {
-        updatedComprobanteVentaData.notaPedido = notaPedidoP;
+      updatedComprobanteVentaData.notaPedido = notaPedidoP;
     }
 
     const updatedComprobanteVenta = await ComprobanteVenta.findByIdAndUpdate(
-        id,
-        {   
-            updatedComprobanteVentaData
-        },
-        { new: true , runValidators: true }
-    )
+      id,
+      updatedComprobanteVentaData,
+      {
+        new: true,
+        runValidators: true,
+        session
+      }
+    );
 
-    if(!updatedComprobanteVenta){
-        res.status(400).json({
-            ok:false,
-            message:'❌ Error al actualizar el comprobante de venta.'
-        })
-        return
+    if (!updatedComprobanteVenta) {
+      throw new Error('❌ Error al actualizar el comprobante de venta.');
     }
-    res.status(200).json({
-        ok:true,
-        data:updatedComprobanteVenta,
-        message:'✔️ Comprobante de venta actualizado correctamente.',
-    })
-}
+
+    await session.commitTransaction();
+
+    return res.status(200).json({
+      ok: true,
+      data: updatedComprobanteVenta,
+      message: '✔️ Comprobante de venta actualizado correctamente.'
+    });
+
+  } catch (err) {
+    console.error(err);
+    await session.abortTransaction();
+
+    return res.status(500).json({
+      ok: false,
+      message: err.message || '❌ Error interno del servidor.'
+    });
+
+  } finally {
+    session.endSession();
+  }
+};
+
 
 const deleteComprobanteVenta = async(req,res) => {
     const id = req.params.id;

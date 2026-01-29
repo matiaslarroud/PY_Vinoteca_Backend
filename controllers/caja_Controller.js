@@ -88,6 +88,7 @@ const getCaja = async (req, res) => {
 
     const movimientosNormalizados = movimientosConPersona.map(m => ({
       tipo: m.tipo,
+      referencia: m.referencia,
       total: Number(m.total) || 0
     }));
 
@@ -134,6 +135,16 @@ function calcularTotales(movimientos = []) {
         break;
     }
   }
+
+  for (const mov of movimientos) {
+    if (
+      mov.tipo === "ENTRADA" &&
+      /recibo de pago/i.test(mov.referencia)
+    ) {
+      totalCuentaCorriente -= mov.total;
+    }
+  }
+
 
   return {
     ingresos: totalIngresos,
@@ -262,6 +273,7 @@ const getVentasByCliente = async (req, res) => {
 
     const movimientosNormalizados = movimientos.map(m => ({
       tipo: m.tipo,
+      referencia: m.referencia,
       total: m.total
     }));
 
@@ -338,6 +350,7 @@ const getVentasByFecha = async (req, res) => {
 
     const movimientosNormalizados = movimientos.map(m => ({
       tipo: m.tipo,
+      referencia: m.referencia,
       total: m.total
     }));
 

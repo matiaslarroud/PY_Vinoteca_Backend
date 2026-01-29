@@ -4,58 +4,105 @@ const ProductoPicadaDetalle = require('../models/productoPicadaDetalle_Model');
 const OrdenProduccion = require('../models/ordenProduccion_Model');
 const OrdenProduccionDetalle = require("../models/ordenProduccionDetalle_Model");
 const getNextSequence = require("../controllers/counter_Controller");
+const mongoose = require('mongoose');
 
 const obtenerFechaHoy = () => {
   const hoy = new Date();
   return hoy.toISOString().split("T")[0];
 }
 
-const setOrdenProduccion =  async (req , res ) => {
-    const fechaOrden = obtenerFechaHoy();
-    const fechaElaboracionOrden = req.body.fechaElaboracion;
-    const fechaEntregaOrden = req.body.fechaEntrega;
-    const empleadoOrden = req.body.empleado;
+
+const setOrdenProduccionDetalle = async ({
+    picadaOrden ,
+    cantidadOrden ,
+    ordenProduccion ,
+    session
+}) => {
     
-    if (!fechaOrden || !fechaElaboracionOrden || !fechaEntregaOrden || !empleadoOrden) {
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
+
+    if( !picadaOrden || !cantidadOrden || !ordenProduccion ){
+        throw new Error ("❌ Faltan completar algunos campos obligatorios.")
+    }
+    const newId = await getNextSequence("OrdenProduccionDetalle");
+    const newOrdenDetalle = new OrdenProduccionDetalle ({
+        _id: newId,
+        picada: picadaOrden,
+        cantidad: cantidadOrden,
+        ordenProduccion : ordenProduccion,
+        estado:true
+    });
+    await newOrdenDetalle.save({session})
+    
+    return newOrdenDetalle;
+}
+
+const setOrdenProduccion = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const fechaOrden = obtenerFechaHoy();
+    const {
+      fechaElaboracion: fechaElaboracionOrden,
+      fechaEntrega: fechaEntregaOrden,
+      empleado: empleadoOrden,
+      detalles
+    } = req.body;
+
+    if (
+      !fechaOrden ||
+      !fechaElaboracionOrden ||
+      !fechaEntregaOrden ||
+      !empleadoOrden ||
+      !detalles
+    ) {
+      throw new Error("❌ Faltan completar algunos campos obligatorios.");
     }
 
     const newId = await getNextSequence("OrdenProduccion");
+
     const newOrden = new OrdenProduccion({
-        _id: newId,
-        fecha: fechaOrden,
-        fechaElaboracion: fechaElaboracionOrden,
-        fechaEntrega: fechaEntregaOrden,
-        empleado: empleadoOrden,
-        estadoProduccion : false,
-        estado:true
+      _id: newId,
+      fecha: fechaOrden,
+      fechaElaboracion: fechaElaboracionOrden,
+      fechaEntrega: fechaEntregaOrden,
+      empleado: empleadoOrden,
+      estadoProduccion: false,
+      estado: true
     });
 
-    if(!newOrden){
-        res.status(400).json({
-            ok:false,
-            message:"❌ Error al cargar la orden de produccion."
-        })
-        return
+    await newOrden.save({ session });
+
+    for (const item of detalles) {
+      await setOrdenProduccionDetalle({
+        picadaOrden: item.picada,
+        cantidadOrden: item.cantidad,
+        ordenProduccion: newOrden._id,
+        session
+      });
     }
 
-    await newOrden.save()
-        .then(() => { 
-            res.status(201).json({
-                ok:true ,
-                data: newOrden,
-                message:'✔️ Orden de produccion agregada correctamente.'
-            })
-        })
-        .catch((err) => {
-            res.status(400).json({
-                ok:false,
-                message:`❌  Error al agregar orden de produccion. ERROR:\n${err}`
-            })
-        })
-    
-}
+    await session.commitTransaction();
+
+    return res.status(201).json({
+      ok: true,
+      message: "✔️ Orden de producción agregada correctamente.",
+      data: newOrden
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+
+    return res.status(400).json({
+      ok: false,
+      message: error.message || "❌ Error al agregar orden de producción."
+    });
+
+  } finally {
+    session.endSession();
+  }
+};
 
 const getOrdenProduccion = async(req,res) => {
     const ordenes = await OrdenProduccion.find({estado:true}).lean();
@@ -83,51 +130,91 @@ const getOrdenProduccionID = async(req,res) => {
         data: orden
     })
 }
-const updateOrdenProduccion =  async (req , res ) => {
-    const id = req.params.id;
+const updateOrdenProduccion = async (req, res) => {
+  const session = await mongoose.startSession();
 
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.',
-        })
-        return
-    }
-    
+  try {
+    session.startTransaction();
+
+    const { id } = req.params;
+    const {
+      fechaElaboracion: fechaElaboracionOrden,
+      fechaEntrega: fechaEntregaOrden,
+      empleado: empleadoOrden,
+      detalles
+    } = req.body;
+
     const fechaOrden = obtenerFechaHoy();
-    const fechaElaboracionOrden = req.body.fechaElaboracion;
-    const fechaEntregaOrden = req.body.fechaEntrega;
-    const empleadoOrden = req.body.empleado;
-    
-    if ( !fechaElaboracionOrden || !fechaEntregaOrden || !empleadoOrden) {
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
-        return
+
+    if (!id) {
+      throw new Error("❌ El id no llegó al controlador correctamente.");
     }
-    
+
+    if (!fechaElaboracionOrden || !fechaEntregaOrden || !empleadoOrden) {
+      throw new Error("❌ Faltan completar algunos campos obligatorios.");
+    }
+
+    if (!Array.isArray(detalles) || detalles.length === 0) {
+      throw new Error("❌ La orden de producción debe tener al menos un detalle.");
+    }
+
+    // 1️⃣ Actualizar cabecera
     const updatedOrden = await OrdenProduccion.findByIdAndUpdate(
-            id, 
-            {
-                fecha: fechaOrden,
-                fechaElaboracion: fechaElaboracionOrden,
-                fechaEntrega: fechaEntregaOrden,
-                empleado: empleadoOrden
-            },
-            { new: true , runValidators: true }
-        )
-        
-    if(!updatedOrden) {
-        res.status(400).json({
-            ok:false,
-            message:"❌ Error al actualizar orden de produccion."
-        });
-        return
+      id,
+      {
+        fecha: fechaOrden,
+        fechaElaboracion: fechaElaboracionOrden,
+        fechaEntrega: fechaEntregaOrden,
+        empleado: empleadoOrden
+      },
+      {
+        new: true,
+        runValidators: true,
+        session
+      }
+    );
+
+    if (!updatedOrden) {
+      throw new Error("❌ No se encontró la orden de producción.");
     }
-    res.status(200).json({
-        ok:true , 
-        data: updatedOrden,
-        message:"✔️ Orden de produccion actualizada correctamente."
-    })    
-}
+
+    // 2️⃣ Eliminar detalles anteriores
+    await OrdenProduccionDetalle.deleteMany(
+      { ordenProduccion: id },
+      { session }
+    );
+
+    // 3️⃣ Crear nuevos detalles
+    for (const item of detalles) {
+      await setOrdenProduccionDetalle({
+        picadaOrden: item.picada,
+        cantidadOrden: item.cantidad,
+        ordenProduccion: id,
+        session
+      });
+    }
+
+    await session.commitTransaction();
+
+    return res.status(200).json({
+      ok: true,
+      message: "✔️ Orden de producción actualizada correctamente.",
+      data: updatedOrden
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+
+    return res.status(400).json({
+      ok: false,
+      message: error.message || "❌ Error al actualizar la orden de producción."
+    });
+
+  } finally {
+    session.endSession();
+  }
+};
+
 
 
 const deleteOrdenProduccion = async (req , res) => {
