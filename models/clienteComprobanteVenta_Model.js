@@ -21,6 +21,8 @@ const ComprobanteVenta_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+ComprobanteVenta_Schema.index({ estado: 1 });
+ComprobanteVenta_Schema.index({ notaPedido: 1 });
 const Cliente_ComprobanteVenta = mongoose.model("Cliente_ComprobanteVenta", ComprobanteVenta_Schema , "Cliente_ComprobanteVenta");
 
 module.exports = Cliente_ComprobanteVenta;

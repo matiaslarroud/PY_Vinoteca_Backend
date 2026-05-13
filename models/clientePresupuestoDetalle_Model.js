@@ -22,6 +22,8 @@ const PresupuestoDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+PresupuestoDetalle_Schema.index({ presupuesto: 1 });
+PresupuestoDetalle_Schema.index({ producto: 1 });
 const PresupuestoDetalle = mongoose.model("Cliente_PresupuestoDetalle", PresupuestoDetalle_Schema , "Cliente_PresupuestoDetalle");
 
 module.exports = PresupuestoDetalle;

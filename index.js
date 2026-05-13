@@ -1,15 +1,14 @@
 const express = require('express');
-const path = require('path');
 require('dotenv').config();
 const cors = require('cors');
-const connectDB = require('./db/db.js')
+const connectDB = require('./db/db.js');
+const auth = require('./middleware/auth.js');
 
-
-const routerProductVino = require('./routes/productVino_Router.js')
-const routerProductVinoDetalle = require('./routes/productVinoDetalle_Router.js')
-const routerProductVinoCrianza = require('./routes/productVino_crianza_Router.js')
-const routerBodega = require('./routes/bodega_Router.js')
-const routerParaje = require('./routes/bodega-paraje_Router.js')
+const routerProductVino = require('./routes/productVino_Router.js');
+const routerProductVinoDetalle = require('./routes/productVinoDetalle_Router.js');
+const routerProductVinoCrianza = require('./routes/productVino_crianza_Router.js');
+const routerBodega = require('./routes/bodega_Router.js');
+const routerParaje = require('./routes/bodega-paraje_Router.js');
 const routerPais = require('./routes/pais_Router.js');
 const routerProvincia = require('./routes/provincia_Router.js');
 const routerLocalidad = require('./routes/localidad_Router.js');
@@ -35,7 +34,7 @@ const routerCliente_NotaPedido = require('./routes/clienteNotaPedido_Router.js')
 const routerCliente_NotaPedidoDetalle = require('./routes/clienteNotaPedidoDetalle_Router.js');
 const routerCliente_ComprobanteVenta = require('./routes/clienteComprobanteVenta_Router.js');
 const routerCliente_ComprobanteVentaDetalle = require('./routes/clienteComprobanteVentaDetalle_Router.js');
-const routerCliente_Remito= require('./routes/clienteRemito_Router.js');
+const routerCliente_Remito = require('./routes/clienteRemito_Router.js');
 const routerCliente_RemitoDetalle = require('./routes/clienteRemitoDetalle_Router.js');
 const routerTipoComprobante = require('./routes/tipoComprobante_Router.js');
 const routerTransporte = require('./routes/transporte_Router.js');
@@ -57,68 +56,80 @@ const routerUsuario = require('./routes/usuario_Router.js');
 const pingServer = require('./routes/pingServer.js');
 const routerProductofoto = require('./routes/productoFoto_Router.js');
 const routerCaja = require('./routes/caja_Router.js');
+const routerOferta = require('./routes/productOferta_Router.js');
+const routerOfertaDetalle = require('./routes/productOfertaDetalle_Router.js');
 
 const app = express();
 
+app.use(express.json());
+app.use(cors({
+  origin: process.env.FRONTEND_URL,
+  credentials: true
+}));
+
 connectDB(app);
 
-app.use(express.json());
-app.use(cors());
+const R = process.env.ROUTE;
 
-app.use(`${process.env.ROUTE}/ping`,pingServer);
+// Rutas públicas
+app.use(`${R}/ping`, pingServer);
+app.use(`${R}/usuario`, routerUsuario);
 
-app.use(`${process.env.ROUTE}/usuario`, routerUsuario);
+// Rutas protegidas
+app.use(auth);
 
-app.use(`${process.env.ROUTE}/products/productVino`, routerProductVino);
-app.use(`${process.env.ROUTE}/products/productFoto`, routerProductofoto);
-app.use(`${process.env.ROUTE}/products/productVinoDetalle`, routerProductVinoDetalle);
-app.use(`${process.env.ROUTE}/products/productPicada`, routerPicadas);
-app.use(`${process.env.ROUTE}/products/productInsumo`, routerInsumos);
-app.use(`${process.env.ROUTE}/products/productPicadaDetalle`, routerPicadasDetalle);
-app.use(`${process.env.ROUTE}/products/ordenProduccion` , routerOrdenProduccion);
-app.use(`${process.env.ROUTE}/products/ordenProduccionDetalle` , routerOrdenProduccionDetalle);
+app.use(`${R}/products/productVino`, routerProductVino);
+app.use(`${R}/products/productFoto`, routerProductofoto);
+app.use(`${R}/products/productVinoDetalle`, routerProductVinoDetalle);
+app.use(`${R}/products/productPicada`, routerPicadas);
+app.use(`${R}/products/productInsumo`, routerInsumos);
+app.use(`${R}/products/productPicadaDetalle`, routerPicadasDetalle);
+app.use(`${R}/products/ordenProduccion`, routerOrdenProduccion);
+app.use(`${R}/products/ordenProduccionDetalle`, routerOrdenProduccionDetalle);
+app.use(`${R}/products/oferta`, routerOferta);
+app.use(`${R}/products/ofertaDetalle`, routerOfertaDetalle);
 
-app.use(`${process.env.ROUTE}/gestion/bodega` , routerBodega);
-app.use(`${process.env.ROUTE}/gestion/bodega-paraje` , routerParaje);
-app.use(`${process.env.ROUTE}/gestion/pais` , routerPais);
-app.use(`${process.env.ROUTE}/gestion/provincia` , routerProvincia);
-app.use(`${process.env.ROUTE}/gestion/localidad` , routerLocalidad);
-app.use(`${process.env.ROUTE}/gestion/barrio` , routerBarrio);
-app.use(`${process.env.ROUTE}/gestion/calle` , routerCalle);
-app.use(`${process.env.ROUTE}/gestion/crianza` , routerProductVinoCrianza);
-app.use(`${process.env.ROUTE}/gestion/uva` , routerProductVinoUva);
-app.use(`${process.env.ROUTE}/gestion/tipoVino` , routerProductVinoTipo);
-app.use(`${process.env.ROUTE}/gestion/varietal` , routerProductVinoVarietal);
-app.use(`${process.env.ROUTE}/gestion/deposito` , routerDeposito);
-app.use(`${process.env.ROUTE}/gestion/volumen` , routerVolumen);
-app.use(`${process.env.ROUTE}/gestion/mediopago` , routerMedioPago);
-app.use(`${process.env.ROUTE}/gestion/condicioniva` , routerCondicionIva);
-app.use(`${process.env.ROUTE}/gestion/cliente` , routerCliente);
-app.use(`${process.env.ROUTE}/gestion/products` , routerProducts);
-app.use(`${process.env.ROUTE}/gestion/empleado` , routerEmpleado);
-app.use(`${process.env.ROUTE}/gestion/tipoComprobante` , routerTipoComprobante);
-app.use(`${process.env.ROUTE}/gestion/transporte` , routerTransporte);
-app.use(`${process.env.ROUTE}/gestion/proveedor` , routerProveedor); 
-app.use(`${process.env.ROUTE}/gestion/caja` , routerCaja); 
+app.use(`${R}/gestion/bodega`, routerBodega);
+app.use(`${R}/gestion/bodega-paraje`, routerParaje);
+app.use(`${R}/gestion/pais`, routerPais);
+app.use(`${R}/gestion/provincia`, routerProvincia);
+app.use(`${R}/gestion/localidad`, routerLocalidad);
+app.use(`${R}/gestion/barrio`, routerBarrio);
+app.use(`${R}/gestion/calle`, routerCalle);
+app.use(`${R}/gestion/crianza`, routerProductVinoCrianza);
+app.use(`${R}/gestion/uva`, routerProductVinoUva);
+app.use(`${R}/gestion/tipoVino`, routerProductVinoTipo);
+app.use(`${R}/gestion/varietal`, routerProductVinoVarietal);
+app.use(`${R}/gestion/deposito`, routerDeposito);
+app.use(`${R}/gestion/volumen`, routerVolumen);
+app.use(`${R}/gestion/mediopago`, routerMedioPago);
+app.use(`${R}/gestion/condicioniva`, routerCondicionIva);
+app.use(`${R}/gestion/cliente`, routerCliente);
+app.use(`${R}/gestion/products`, routerProducts);
+app.use(`${R}/gestion/empleado`, routerEmpleado);
+app.use(`${R}/gestion/tipoComprobante`, routerTipoComprobante);
+app.use(`${R}/gestion/transporte`, routerTransporte);
+app.use(`${R}/gestion/proveedor`, routerProveedor);
+app.use(`${R}/gestion/caja`, routerCaja);
 
-app.use(`${process.env.ROUTE}/cliente/presupuesto` , routerCliente_Presupuesto);
-app.use(`${process.env.ROUTE}/cliente/presupuestoDetalle` , routerCliente_PresupuestoDetalle);
-app.use(`${process.env.ROUTE}/cliente/notaPedido` , routerCliente_NotaPedido);
-app.use(`${process.env.ROUTE}/cliente/notaPedidoDetalle` , routerCliente_NotaPedidoDetalle);
-app.use(`${process.env.ROUTE}/cliente/comprobanteVenta` , routerCliente_ComprobanteVenta);
-app.use(`${process.env.ROUTE}/cliente/comprobanteVentaDetalle` , routerCliente_ComprobanteVentaDetalle);
-app.use(`${process.env.ROUTE}/cliente/remito` , routerCliente_Remito);
-app.use(`${process.env.ROUTE}/cliente/remitoDetalle` , routerCliente_RemitoDetalle);
-app.use(`${process.env.ROUTE}/cliente/reciboPago` , routerCliente_ReciboPago);
+app.use(`${R}/cliente/presupuesto`, routerCliente_Presupuesto);
+app.use(`${R}/cliente/presupuestoDetalle`, routerCliente_PresupuestoDetalle);
+app.use(`${R}/cliente/notaPedido`, routerCliente_NotaPedido);
+app.use(`${R}/cliente/notaPedidoDetalle`, routerCliente_NotaPedidoDetalle);
+app.use(`${R}/cliente/comprobanteVenta`, routerCliente_ComprobanteVenta);
+app.use(`${R}/cliente/comprobanteVentaDetalle`, routerCliente_ComprobanteVentaDetalle);
+app.use(`${R}/cliente/remito`, routerCliente_Remito);
+app.use(`${R}/cliente/remitoDetalle`, routerCliente_RemitoDetalle);
+app.use(`${R}/cliente/reciboPago`, routerCliente_ReciboPago);
 
-app.use(`${process.env.ROUTE}/proveedor/solicitudPresupuesto` , routerProveedor_SolicitudPresupuesto);
-app.use(`${process.env.ROUTE}/proveedor/solicitudPresupuestoDetalle` , routerProveedor_SolicitudPresupuestoDetalle);
-app.use(`${process.env.ROUTE}/proveedor/presupuesto` , routerProveedor_Presupuesto);
-app.use(`${process.env.ROUTE}/proveedor/presupuestoDetalle` , routerProveedor_PresupuestoDetalle);
-app.use(`${process.env.ROUTE}/proveedor/ordenCompra` , routerProveedor_OrdenCompra);
-app.use(`${process.env.ROUTE}/proveedor/ordenCompraDetalle` , routerProveedor_OrdenCompraDetalle);
-app.use(`${process.env.ROUTE}/proveedor/comprobanteCompra` , routerProveedor_ComprobanteCompra);
-app.use(`${process.env.ROUTE}/proveedor/comprobanteCompraDetalle` , routerProveedor_ComprobanteCompraDetalle);
-app.use(`${process.env.ROUTE}/proveedor/comprobantePago` , routerProveedor_ComprobantePago);
-app.use(`${process.env.ROUTE}/proveedor/remito` , routerProveedor_Remito);
-app.use(`${process.env.ROUTE}/proveedor/remitoDetalle` , routerProveedor_RemitoDetalle);
+app.use(`${R}/proveedor/solicitudPresupuesto`, routerProveedor_SolicitudPresupuesto);
+app.use(`${R}/proveedor/solicitudPresupuestoDetalle`, routerProveedor_SolicitudPresupuestoDetalle);
+app.use(`${R}/proveedor/presupuesto`, routerProveedor_Presupuesto);
+app.use(`${R}/proveedor/presupuestoDetalle`, routerProveedor_PresupuestoDetalle);
+app.use(`${R}/proveedor/ordenCompra`, routerProveedor_OrdenCompra);
+app.use(`${R}/proveedor/ordenCompraDetalle`, routerProveedor_OrdenCompraDetalle);
+app.use(`${R}/proveedor/comprobanteCompra`, routerProveedor_ComprobanteCompra);
+app.use(`${R}/proveedor/comprobanteCompraDetalle`, routerProveedor_ComprobanteCompraDetalle);
+app.use(`${R}/proveedor/comprobantePago`, routerProveedor_ComprobantePago);
+app.use(`${R}/proveedor/remito`, routerProveedor_Remito);
+app.use(`${R}/proveedor/remitoDetalle`, routerProveedor_RemitoDetalle);

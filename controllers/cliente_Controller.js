@@ -75,9 +75,9 @@ const getClienteID = async(req,res) => {
         return
     }
 
-    const cliente = await Cliente.findById(id);
+    const cliente = await Cliente.findById(id).lean();
     if(!cliente){
-        res.status(400).json({
+        res.status(404).json({
             ok:false,
             message:'❌ El id no corresponde a un cliente.'
         })
@@ -255,69 +255,32 @@ const deleteCliente = async(req,res) => {
 
 const buscarCliente = async(req,res) => {
   try {
-    const nombreC = req.body.name;
-    const apellidoC = req.body.lastname;
-    const telefonoC = req.body.telefono;
-    const emailC = req.body.email;
-    const cuitC = req.body.cuit;
-    const paisC = req.body.pais;
-    const provinciaC = req.body.provincia;
-    const localidadC = req.body.localidad;
-    const barrioC = req.body.barrio;
-    const calleC = req.body.calle;
-    const alturaC = req.body.altura;
-    const deptoNumeroC = req.body.deptoNumero;
-    const deptoLetraC = req.body.deptoLetra;
-    const condicionIvaC = req.body.condicionIva;
-    const cuentaCorrienteC = req.body.cuentaCorriente;
-// Primero traemos todos los clientes
-const clientes = await Cliente.find();
+    const {
+      name, lastname, telefono, email, cuit,
+      pais, provincia, localidad, barrio, calle,
+      altura, deptoNumero, deptoLetra, condicionIva, cuentaCorriente
+    } = req.body;
 
-// Luego filtramos dinámicamente
-const clientesFiltrados = clientes.filter(c => {
-  // Cada condición solo se evalúa si el campo tiene valor
-  const coincideEstado = c.estado === true;
-  const coincideNombre = nombreC ? c.name?.toLowerCase().includes(nombreC.toLowerCase()) : true;
-  const coincideApellido = apellidoC ? c.lastname?.toLowerCase().includes(apellidoC.toLowerCase()) : true;
-  const coincideTelefono = telefonoC ? c.telefono?.toLowerCase().includes(telefonoC.toLowerCase()) : true;
-  const coincideEmail = emailC ? c.email?.toLowerCase().includes(emailC.toLowerCase()) : true;
-  const coincideCuit = cuitC ? c.cuit?.toLowerCase().includes(cuitC.toLowerCase()) : true;
-  const coincidePais = paisC ? String(c.pais) === String(paisC) : true;
-  const coincideProvincia = provinciaC ? String(c.provincia) === String(provinciaC) : true;
-  const coincideLocalidad = localidadC ? String(c.localidad) === String(localidadC) : true;
-  const coincideBarrio = barrioC ? String(c.barrio) === String(barrioC) : true;
-  const coincideCalle = calleC ? String(c.calle) === String(calleC) : true;
-  const coincideAltura = alturaC ? Number(c.altura) === Number(alturaC) : true;
-  const coincideDeptoNumero = deptoNumeroC ? Number(c.deptoNumero) === Number(deptoNumeroC) : true;
-  const coincideDeptoLetra = deptoLetraC ? c.deptoLetra?.toLowerCase() === deptoLetraC.toLowerCase() : true;
-  const coincideCondicionIva = condicionIvaC ? String(c.condicionIva) === String(condicionIvaC) : true;
-  const coincideCuentaCorriente = typeof cuentaCorrienteC === "boolean" ? c.cuentaCorriente === cuentaCorrienteC : true;
+    const query = { estado: true };
+    if (name)         query.name      = { $regex: name, $options: 'i' };
+    if (lastname)     query.lastname  = { $regex: lastname, $options: 'i' };
+    if (telefono)     query.telefono  = { $regex: telefono, $options: 'i' };
+    if (email)        query.email     = { $regex: email, $options: 'i' };
+    if (cuit)         query.cuit      = { $regex: cuit, $options: 'i' };
+    if (pais)         query.pais      = pais;
+    if (provincia)    query.provincia = provincia;
+    if (localidad)    query.localidad = localidad;
+    if (barrio)       query.barrio    = barrio;
+    if (calle)        query.calle     = calle;
+    if (altura)       query.altura    = Number(altura);
+    if (deptoNumero)  query.deptoNumero = Number(deptoNumero);
+    if (deptoLetra)   query.deptoLetra = { $regex: `^${deptoLetra}$`, $options: 'i' };
+    if (condicionIva) query.condicionIva = condicionIva;
+    if (typeof cuentaCorriente === 'boolean') query.cuentaCorriente = cuentaCorriente;
 
-  // Si todos los criterios activos coinciden => mantener cliente
-  return (
-    coincideEstado &&
-    coincideNombre &&
-    coincideApellido &&
-    coincideTelefono &&
-    coincideEmail &&
-    coincideCuit &&
-    coincidePais &&
-    coincideProvincia &&
-    coincideLocalidad &&
-    coincideBarrio &&
-    coincideCalle &&
-    coincideAltura &&
-    coincideDeptoNumero &&
-    coincideDeptoLetra &&
-    coincideCondicionIva &&
-    coincideCuentaCorriente
-  );
-});
-
-
-    res.status(200).json({ ok: true, message: "✔️ Clientes obtenidos correctamente.", data: clientesFiltrados });
+    const clientes = await Cliente.find(query).lean();
+    res.status(200).json({ ok: true, message: "✔️ Clientes obtenidos correctamente.", data: clientes });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ ok: false, message: "❌ Error al buscar clientes" });
   }
 }

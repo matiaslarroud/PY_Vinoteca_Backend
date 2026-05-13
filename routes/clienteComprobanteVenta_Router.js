@@ -7,8 +7,8 @@ const imprimir = require('../src/comprobanteVentaCliente_imprimir');
 router.post('/', controller.setComprobanteVenta);
 router.post('/buscar', controller.buscarComprobanteVenta);
 router.get('/', controller.getComprobanteVenta);
-router.get('/:id',controller.getComprobanteVentaID);
-router.get("/imprimir/:id" , imprimir.imprimir);
+router.get('/imprimir/:id', imprimir.imprimir);
+router.get('/:id', controller.getComprobanteVentaID);
 router.put('/:id', controller.updateComprobanteVenta);
 router.delete('/:id', controller.deleteComprobanteVenta);
 

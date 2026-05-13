@@ -5,10 +5,7 @@ const Cliente = require("../models/cliente_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 const mongoose = require('mongoose');
 
-const obtenerFechaHoy = () => {
-  const hoy = new Date();
-  return hoy.toISOString().split("T")[0];
-}
+const { obtenerFechaHoy } = require('../utils/fecha');
 
 const setComprobanteVentaDetalle = async ({
   importeP,
@@ -112,12 +109,12 @@ const setComprobanteVenta = async (req, res) => {
 
 
 const getComprobanteVenta = async(req, res) => {
+  try {
     const comprobanteVentas = await ComprobanteVenta.find({estado:true}).lean();
-
-    res.status(200).json({
-        ok:true,
-        data: comprobanteVentas
-    })
+    res.status(200).json({ ok: true, data: comprobanteVentas });
+  } catch {
+    res.status(500).json({ ok: false, message: '❌ Error al obtener comprobantes de venta.' });
+  }
 }
 
 const getComprobanteVentaID = async (req, res) => {
@@ -140,8 +137,11 @@ const getComprobanteVentaID = async (req, res) => {
       });
     }
 
-    // Buscar nota de pedido asociada
-    const notaPedido = await NotaPedido.findById(comprobanteVenta.notaPedido);
+    const [notaPedido, detalles] = await Promise.all([
+      NotaPedido.findById(comprobanteVenta.notaPedido).lean(),
+      ComprobanteVentaDetalle.find({ comprobanteVenta: comprobanteVenta._id }).lean()
+    ]);
+
     if (!notaPedido) {
       return res.status(404).json({
         ok: false,
@@ -149,13 +149,7 @@ const getComprobanteVentaID = async (req, res) => {
       });
     }
 
-    // Buscar cliente asociado a la nota de pedido
-    const cliente = await Cliente.findById(notaPedido.cliente);
-
-    // Buscar detalles del comprobante
-    const detalles = await ComprobanteVentaDetalle.find({
-      comprobanteVentaID: comprobanteVenta._id,
-    }).populate("productoID", "nombre precioVenta");
+    const cliente = await Cliente.findById(notaPedido.cliente).lean();
 
 
     // Construir respuesta
@@ -253,140 +247,70 @@ const updateComprobanteVenta = async (req, res) => {
 
 
 const deleteComprobanteVenta = async(req,res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
     const id = req.params.id;
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.'
-        })
-        return
-    }
+    if(!id) throw new Error('❌ El id no llego al controlador correctamente.');
 
-    const deletedComprobanteVenta = await ComprobanteVenta.findByIdAndUpdate(
-        id,
-        {   
-            estado:false
-        },
-        { new: true , runValidators: true }
-    )
-    if(!deletedComprobanteVenta){
-        res.status(400).json({
-            ok:false,
-            message: '❌ Error durante el borrado.'
-        })
-        return
-    }
+    const deleted = await ComprobanteVenta.findByIdAndUpdate(
+        id, { estado: false }, { new: true, runValidators: true, session }
+    );
+    if(!deleted) throw new Error('❌ Comprobante no encontrado.');
 
-    const deletedComprobanteVentaDetalle = await ComprobanteVentaDetalle.updateMany(
-        {comprobanteVenta:id},
-        {   
-            estado:false
-        },
-        { new: true , runValidators: true }
-    )
-    if(!deletedComprobanteVentaDetalle){
-        res.status(400).json({
-            ok:false,
-            message: '❌ Error durante el borrado.'
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        message:'✔️ Comprobante de venta eliminado correctamente.',
-    })
+    await ComprobanteVentaDetalle.updateMany(
+        { comprobanteVenta: id }, { estado: false }, { session }
+    );
+
+    await session.commitTransaction();
+    res.status(200).json({ ok: true, message: '✔️ Comprobante de venta eliminado correctamente.' });
+  } catch(error) {
+    await session.abortTransaction();
+    res.status(400).json({ ok: false, message: error.message });
+  } finally {
+    session.endSession();
+  }
 }
 
 const buscarComprobanteVenta = async (req, res) => {
   try {
-    const comprobanteID = req.body.comprobanteVentaID;
-    const clienteP = req.body.cliente;
-    const detallesP = req.body.detalles || [];
-    const notaPedidoP = req.body.notaPedido;
-    const totalP = Number(req.body.total) || 0;
-    const fechaP = req.body.fecha ? new Date(req.body.fecha) : null;
+    const { comprobanteVentaID, cliente, detalles = [], notaPedido, total, fecha } = req.body;
 
-    // 1️⃣ Buscar notas de pedido del cliente (si hay cliente seleccionado)
-    let notasPedidoCliente = [];
-    if (clienteP) {
-      notasPedidoCliente = await NotaPedido.find({ cliente: clienteP }).select("_id");
-    }
+    // Si hay filtro por producto, buscar en detalles primero
+    const productosBuscados = detalles.map(d => d.producto).filter(Boolean);
+    let comprobantesIDsDeDetalles = null;
 
-    const idsNotasCliente = notasPedidoCliente.map(np => String(np._id));
-
-    // 2️⃣ Buscar los comprobantes según productos (si hay detalles)
-    const productosBuscados = detallesP.length > 0
-      ? detallesP.map(d => d.producto)
-      : [];
-
-    let detallesFiltrados = [];
     if (productosBuscados.length > 0) {
-      detallesFiltrados = await ComprobanteVentaDetalle.find({
-        producto: { $in: productosBuscados },
-      });
-    } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "Error al buscar presupuestos" });       
-    } else {
-      detallesFiltrados = await ComprobanteVentaDetalle.find();
+      const detallesFiltrados = await ComprobanteVentaDetalle.find(
+        { producto: { $in: productosBuscados } },
+        'comprobanteVenta'
+      ).lean();
+      if (detallesFiltrados.length === 0) {
+        return res.status(200).json({ ok: true, data: [], message: "Sin resultados." });
+      }
+      comprobantesIDsDeDetalles = [...new Set(detallesFiltrados.map(d => d.comprobanteVenta).filter(Boolean))];
     }
 
-    const comprobantesIDs = [
-      ...new Set(
-        detallesFiltrados
-          .map(d => d.comprobanteVenta)
-          .filter(id => id !== undefined && id !== null)
-      ),
-    ];
-
-    let comprobantes = await ComprobanteVenta.find(
-      comprobantesIDs.length > 0 ? { _id: { $in: comprobantesIDs } } : {}
-    );
-
-    // ⚠️ 3️⃣ Verificar si no hay ningún filtro activo
-    const sinFiltrosActivos =
-      !comprobanteID &&
-      !clienteP &&
-      !notaPedidoP &&
-      !fechaP &&
-      (totalP === 0 || totalP === "") &&
-      detallesP.length === 0;
-
-    if (sinFiltrosActivos) {
-      console.log("🔄 Búsqueda sin filtros: devolviendo todos los comprobantes");
-      return res.status(200).json({ ok: true, data: comprobantes });
+    // Si hay filtro por cliente, obtener sus notas de pedido
+    let notasPedidoIDs = null;
+    if (cliente) {
+      const notas = await NotaPedido.find({ cliente }, '_id').lean();
+      notasPedidoIDs = notas.map(n => n._id);
     }
 
-    // 4️⃣ Aplicar filtros
-    const comprobantesFiltrados = comprobantes.filter(p => {
-      const coincideEstado = p.estado === true;
-      const coincideComprobante = comprobanteID ? (p._id) === Number(comprobanteID) : true;
-      const coincideTotal = totalP ? Number(p.total) === totalP : true;
-      const coincideFecha = fechaP
-        ? String(new Date(p.fecha).toISOString().split("T")[0]) ===
-          String(fechaP.toISOString().split("T")[0])
-        : true;
-      const coincidePedido = notaPedidoP
-        ? String(p.notaPedido) === String(notaPedidoP)
-        : true;
-      const coincideCliente = clienteP
-        ? p.notaPedido && idsNotasCliente.includes(String(p.notaPedido))
-        : true;
+    // Construir query directamente en MongoDB
+    const query = { estado: true };
+    if (comprobanteVentaID) query._id = Number(comprobanteVentaID);
+    if (total) query.total = Number(total);
+    if (fecha) query.fecha = fecha;
+    if (notaPedido) query.notaPedido = notaPedido;
+    if (notasPedidoIDs) query.notaPedido = { $in: notasPedidoIDs };
+    if (comprobantesIDsDeDetalles) query._id = { $in: comprobantesIDsDeDetalles };
 
-      return coincideCliente && coincideTotal && coincideEstado &&
-             coincideFecha && coincidePedido && coincideComprobante;
-    });
-
-    console.log("✅ Comprobantes filtrados:", comprobantesFiltrados.length);
-
-    if (comprobantesFiltrados.length > 0) {
-      res.status(200).json({ ok: true, data: comprobantesFiltrados });
-    } else {
-      res.status(200).json({ ok: false, message: "No se encontraron comprobantes con esos filtros" });
-    }
-
+    const comprobantes = await ComprobanteVenta.find(query).lean();
+    res.status(200).json({ ok: true, data: comprobantes });
   } catch (error) {
-    console.error("❌ Error al buscar comprobantes:", error);
-    res.status(500).json({ ok: false, message: "Error interno del servidor" });
+    res.status(500).json({ ok: false, message: "❌ Error interno del servidor" });
   }
 };
 

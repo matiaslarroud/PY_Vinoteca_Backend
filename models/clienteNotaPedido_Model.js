@@ -75,6 +75,9 @@ const NotaPedido_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+NotaPedido_Schema.index({ estado: 1 });
+NotaPedido_Schema.index({ cliente: 1 });
+NotaPedido_Schema.index({ presupuesto: 1 });
 const Cliente_NotaPedido = mongoose.model("Cliente_NotaPedido", NotaPedido_Schema , "Cliente_NotaPedido");
 
 module.exports = Cliente_NotaPedido;

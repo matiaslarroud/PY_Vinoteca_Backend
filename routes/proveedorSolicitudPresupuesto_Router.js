@@ -6,9 +6,9 @@ const imprimir = require('../src/solicitudPresupuestoProveedor_imprimir');
 router.post('/', controller.setSolicitudPresupuesto);
 router.post('/buscar', controller.buscarSolicitudPresupuesto);
 router.get('/', controller.getSolicitudPresupuesto);
-router.get('/:id',controller.getSolicitudPresupuestoID);
-router.get('/proveedor/:id' , controller.getSolicitudPresupuestoByProveedor);
-router.get("/imprimir/:id" , imprimir.imprimir);
+router.get('/imprimir/:id', imprimir.imprimir);
+router.get('/proveedor/:id', controller.getSolicitudPresupuestoByProveedor);
+router.get('/:id', controller.getSolicitudPresupuestoID);
 router.put('/:id', controller.updateSolicitudPresupuesto);
 router.delete('/:id', controller.deleteSolicitudPresupuesto);
 

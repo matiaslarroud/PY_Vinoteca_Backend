@@ -5,10 +5,7 @@ const getNextSequence = require("../controllers/counter_Controller");
 const Producto = require("../models/producto_Model");
 const mongoose = require('mongoose');
 
-const obtenerFechaHoy = () => {
-  const hoy = new Date();
-  return hoy.toISOString().split("T")[0];
-}
+const { obtenerFechaHoy } = require('../utils/fecha');
 
 const setPresupuestoDetalle = async ({
     importe,
@@ -138,9 +135,9 @@ const getPresupuestoID = async(req,res) => {
         return
     }
 
-    const presupuesto = await Presupuesto.findById(id);
+    const presupuesto = await Presupuesto.findById(id).lean();
     if(!presupuesto){
-        res.status(400).json({
+        res.status(404).json({
             ok:false,
             message:'❌ El id no corresponde a un presupuesto.'
         })
@@ -247,98 +244,74 @@ const updatePresupuesto = async(req,res) => {
 //Validaciones de eliminacion
 
 const deletePresupuesto = async(req,res) => {
-    const id = req.params.id;
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.'
-        })
-        return
-    }
-    
-    const tieneNotasPedido = await NotaPedido.exists({ presupuesto: id });
-    if (tieneNotasPedido) {
-      return res.status(400).json({
-        ok: false,
-        message: '❌ No se puede eliminar el presupuesto porque posee servicios asociados.'
-      });
-    }    
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const id = req.params.id;
+        if(!id){
+            throw new Error('❌ El id no llego al controlador correctamente.');
+        }
 
-    const deletedPresupuesto = await Presupuesto.findByIdAndUpdate(
-        id,
-        {   
-            estado:false
-        },
-        { new: true , runValidators: true }
-    )
+        const tieneNotasPedido = await NotaPedido.exists({ presupuesto: id });
+        if (tieneNotasPedido) {
+            throw new Error('❌ No se puede eliminar el presupuesto porque posee servicios asociados.');
+        }
 
-    if(!deletedPresupuesto){
-        res.status(400).json({
-            ok:false,
-            message: '❌ Error durante el borrado.'
-        })
-        return
+        const deletedPresupuesto = await Presupuesto.findByIdAndUpdate(
+            id,
+            { estado: false },
+            { new: true, runValidators: true, session }
+        );
+        if(!deletedPresupuesto){
+            throw new Error('❌ Error durante el borrado.');
+        }
+
+        await PresupuestoDetalle.updateMany(
+            { presupuesto: id },
+            { estado: false },
+            { session }
+        );
+
+        await session.commitTransaction();
+        res.status(200).json({ ok: true, message: '✔️ Presupuesto eliminado correctamente.' });
+    } catch(error) {
+        await session.abortTransaction();
+        res.status(400).json({ ok: false, message: error.message });
+    } finally {
+        session.endSession();
     }
-    const deletedPresupuestoDetalle = await PresupuestoDetalle.updateMany(
-        {presupuesto:id},
-        {   
-            estado:false
-        },
-        { new: true , runValidators: true }
-    )
-    if(!deletedPresupuestoDetalle){
-        res.status(400).json({
-            ok:false,
-            message: '❌ Error durante el borrado del detalle.'
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        message:'✔️ Presupuesto eliminado correctamente.'
-    })
 }
 
 const buscarPresupuesto = async (req, res) => {
-    const { presupuestoID , cliente, empleado, total, detalles } = req.body;
-    // 1️⃣ Obtenemos todos los productos que vienen en los detalles
-    const productosBuscados = detalles && detalles.length > 0
-      ? detalles.map(d => d.producto)
-      : [];
+    try {
+        const { presupuestoID, cliente, empleado, total, detalles } = req.body;
 
-    // 2️⃣ Buscamos los PresupuestoDetalle que contengan alguno de esos productos
-    let detallesFiltrados = [];
-    if (productosBuscados.length > 0) {
-      detallesFiltrados = await PresupuestoDetalle.find({
-        producto: { $in: productosBuscados },
-      });
-    } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "❌ Error al buscar presupuestos" });       
-    } else if (!detalles) {
-      detallesFiltrados = await PresupuestoDetalle.find();
-    }
+        // Si hay filtro por producto, primero buscamos en detalles
+        const productosBuscados = detalles?.length > 0 ? detalles.map(d => d.producto) : [];
+        let presupuestosIDsDeDetalles = null;
 
-    // 3️⃣ Obtenemos los IDs únicos de los presupuestos asociados
-    const presupuestosIDs = [...new Set(detallesFiltrados.map(d => String(d.presupuesto)))];
+        if (productosBuscados.length > 0) {
+            const detallesFiltrados = await PresupuestoDetalle.find(
+                { producto: { $in: productosBuscados } },
+                'presupuesto'
+            ).lean();
+            if (detallesFiltrados.length === 0) {
+                return res.status(200).json({ ok: true, data: [], message: "Sin resultados." });
+            }
+            presupuestosIDsDeDetalles = [...new Set(detallesFiltrados.map(d => d.presupuesto))];
+        }
 
-    // 4️⃣ Buscamos los presupuestos relacionados
-    let presupuestos = await Presupuesto.find(
-      presupuestosIDs.length > 0 ? { _id: { $in: presupuestosIDs } } : {}
-    );
+        // Construir query de MongoDB directamente
+        const query = { estado: true };
+        if (presupuestoID) query._id = Number(presupuestoID);
+        if (cliente) query.cliente = cliente;
+        if (empleado) query.empleado = empleado;
+        if (total) query.total = Number(total);
+        if (presupuestosIDsDeDetalles) query._id = { $in: presupuestosIDsDeDetalles };
 
-    // 5️⃣ Filtramos adicionalmente por cliente, empleado o total si existen
-    const presupuestosFiltrados = presupuestos.filter(p => {
-        const coincideEstado = p.estado === true;
-      const coincidePresupuesto = presupuestoID ? (p._id) === Number(presupuestoID) : true;
-      const coincideCliente = cliente ? String(p.cliente) === String(cliente) : true;
-      const coincideEmpleado = empleado ? String(p.empleado) === String(empleado) : true;
-      const coincideTotal = total ? Number(p.total) === Number(total) : true;
-      return coincideCliente && coincideEmpleado && coincideTotal && coincidePresupuesto && coincideEstado;
-    });
-
-    if(presupuestosFiltrados.length > 0){
-        res.status(200).json({ ok: true, message: "✔️ Presupuestos obtenidos" , data: presupuestosFiltrados });
-    } else {
+        const presupuestos = await Presupuesto.find(query).lean();
+        res.status(200).json({ ok: true, message: "✔️ Presupuestos obtenidos", data: presupuestos });
+    } catch(error) {
         res.status(500).json({ ok: false, message: "❌ Error al buscar presupuestos" });
     }
 };

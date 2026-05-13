@@ -60,6 +60,9 @@ const Cliente_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+Cliente_Schema.index({ estado: 1 });
+Cliente_Schema.index({ name: 1, lastname: 1 });
+Cliente_Schema.index({ cuit: 1 }, { unique: true });
 const Cliente = mongoose.model('Cliente', Cliente_Schema , "Cliente");
 
 module.exports = Cliente;

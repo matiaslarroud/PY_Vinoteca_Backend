@@ -1,156 +1,111 @@
-const Usuario = require("../models/usuario_Model.js");
-const getNextSequence = require("./counter_Controller.js");
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const Usuario = require('../models/usuario_Model.js');
+const getNextSequence = require('./counter_Controller.js');
 
+const SALT_ROUNDS = 10;
 
-const setUsuario = async(req,res) => {
-    const nameU = req.body.name;
-    const passwordU = req.body.password;
-    const rolU = req.body.rol;
-    if(!nameU || !passwordU || !rolU){
-        res.status(400).json({
-            ok:false,
-            message:"❌ Faltan completar algunos campos obligatorios."
-        })
-        return
+const setUsuario = async (req, res) => {
+  try {
+    const { name, password, rol } = req.body;
+    if (!name || !password || !rol) {
+      return res.status(400).json({ ok: false, message: '❌ Faltan completar algunos campos obligatorios.' });
     }
-    const newId = await getNextSequence("Usuario");
-    const newUsuario = await new Usuario({
-        _id: newId,
-        name:nameU,
-        password:passwordU , 
-        rol:rolU , 
-        estado:true});
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    const newId = await getNextSequence('Usuario');
+    const newUsuario = new Usuario({ _id: newId, name, password: hashedPassword, rol, estado: true });
+    await newUsuario.save();
+    res.status(201).json({ ok: true, message: '✔️ Usuario agregado correctamente.' });
+  } catch {
+    res.status(400).json({ ok: false, message: '❌ Error al agregar Usuario.' });
+  }
+};
 
-    if(!newUsuario){
-        res.status(400).json({
-            ok:false,
-            message:"❌ Error al agregar nuevo usuario."
-        })
-        return
+const getUsuario = async (req, res) => {
+  try {
+    const usuarios = await Usuario.find({ estado: true }, '-password').lean();
+    res.status(200).json({ ok: true, data: usuarios });
+  } catch {
+    res.status(500).json({ ok: false, message: '❌ Error al obtener usuarios.' });
+  }
+};
+
+const getUsuarioID = async (req, res) => {
+  try {
+    const usuarioEncontrado = await Usuario.findById(req.params.id, '-password').lean();
+    if (!usuarioEncontrado) {
+      return res.status(404).json({ ok: false, message: '❌ Usuario no encontrado.' });
     }
-    await newUsuario.save()
-        .then(()=>{
-            res.status(201).json({
-                ok:true,
-                message:"✔️ Usuario agregado correctamente."
-            })
-        })
-        .catch((err)=>{
-            res.status(400).json({
-                ok:false,
-                message:"❌ Error al agregar Usuario."
-            })
-            return
-        })    
-}
+    res.status(200).json({ ok: true, data: usuarioEncontrado, message: '✔️ Usuario obtenido correctamente.' });
+  } catch {
+    res.status(500).json({ ok: false, message: '❌ Error al buscar usuario.' });
+  }
+};
 
-const getUsuario = async(req,res) => {
-    const usuarios = await Usuario.find({estado:true}).lean();
-   
-    res.status(200).json({
-        ok:true,
-        data: usuarios
-    })
-}
-
-const getUsuarioID = async(req,res) => {
-    const usuarioID = req.params.id;
-    if(!usuarioID){
-        res.status(400).json({
-            ok:false,
-            message:"❌ Error al buscar usuario solicitado."
-        })
-        return
+const updateUsuario = async (req, res) => {
+  try {
+    const { name, password, rol } = req.body;
+    if (!req.params.id || !name || !password || !rol) {
+      return res.status(400).json({ ok: false, message: '❌ Faltan completar algunos campos obligatorios.' });
     }
-    const usuarioEncontrado = await Usuario.findById(usuarioID);
-    if(!usuarioEncontrado){
-        res.status(400).json({
-            ok:false,
-            message:"❌ Error al buscar usuario solicitado."
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        data:usuarioEncontrado,
-        message:"✔️ Usuario obtenido correctamente."
-    })
-}
-
-const updateUsuario = async(req,res) => {
-    const usuarioID = req.params.id;
-    const nameU = req.body.name;
-    const passwordU = req.body.password;
-    const rolU = req.body.rol;
-
-    if(!usuarioID || !nameU || !passwordU || !rolU){
-        res.status(400).json({
-            ok:false,
-            message:"❌ Faltan completar algunos campos obligatorios."
-        })
-        return
-    }
-
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     const updatedUsuario = await Usuario.findByIdAndUpdate(
-        usuarioID,
-        {name:nameU , password:passwordU , rol:rolU},
-        { new: true , runValidators: true }
-    )
-    if(!updatedUsuario){
-        res.status(400).json({
-            ok:false,
-            message:"❌ Error al actualizar usuario."
-        })
-        return
+      req.params.id,
+      { name, password: hashedPassword, rol },
+      { new: true, runValidators: true }
+    );
+    if (!updatedUsuario) {
+      return res.status(404).json({ ok: false, message: '❌ Usuario no encontrado.' });
     }
-    res.status(200).json({
-        ok:true,
-        message:"✔️ Usuario actualizado correctamente."
-    })
-}
+    res.status(200).json({ ok: true, message: '✔️ Usuario actualizado correctamente.' });
+  } catch {
+    res.status(500).json({ ok: false, message: '❌ Error al actualizar usuario.' });
+  }
+};
 
-const deleteUsuario = async(req,res) => {
-    const usuarioID = req.params.id;
-    if(!usuarioID){
-        res.status(400).json({
-            ok:false,
-            message:"Error validar ID del usuario a eliminar."
-        })
-        return
-    }
+const deleteUsuario = async (req, res) => {
+  try {
     const deletedUsuario = await Usuario.findByIdAndUpdate(
-        usuarioID,
-        {estado:false},
-        { new: true , runValidators: true }
-    )
-    
-    if(!deletedUsuario){
-        res.status(400).json({
-            ok:false,
-            message:"❌ Error eliminar usuario."
-        })
-        return
+      req.params.id,
+      { estado: false },
+      { new: true, runValidators: true }
+    );
+    if (!deletedUsuario) {
+      return res.status(404).json({ ok: false, message: '❌ Usuario no encontrado.' });
     }
-    res.status(200).json({
-        ok:true,
-        message:"✔️ Usuario eliminado correctamente."
-    })
-}
+    res.status(200).json({ ok: true, message: '✔️ Usuario eliminado correctamente.' });
+  } catch {
+    res.status(500).json({ ok: false, message: '❌ Error al eliminar usuario.' });
+  }
+};
 
 const Login = async (req, res) => {
-  const { usuario, password } = req.body;
-
-  const user = await Usuario.findOne({ name:usuario });
-
-  if (!user || user.password !== password) {
-
-    return res.json({ ok: false, msg: "❌ Credenciales inválidas" });
+  try {
+    const { usuario, password } = req.body;
+    if (!usuario || !password) {
+      return res.status(400).json({ ok: false, msg: '❌ Credenciales requeridas.' });
+    }
+    const user = await Usuario.findOne({ name: usuario, estado: true });
+    if (!user) {
+      return res.status(401).json({ ok: false, msg: '❌ Credenciales inválidas.' });
+    }
+    const passwordOk = await bcrypt.compare(password, user.password);
+    if (!passwordOk) {
+      return res.status(401).json({ ok: false, msg: '❌ Credenciales inválidas.' });
+    }
+    const token = jwt.sign(
+      { id: user._id, name: user.name, rol: user.rol },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+    res.json({ ok: true, token, usuario: { usuario: user.name, rol: user.rol } });
+  } catch {
+    res.status(500).json({ ok: false, msg: '❌ Error interno del servidor.' });
   }
+};
 
-  res.json({
-    ok: true,
-    usuario: { usuario: user.name, rol: user.rol },
-  });
-}
+const getMe = (req, res) => {
+  res.json({ ok: true, usuario: { usuario: req.user.name, rol: req.user.rol } });
+};
 
-module.exports = {setUsuario,getUsuario,getUsuarioID,updateUsuario,deleteUsuario , Login };
+module.exports = { setUsuario, getUsuario, getUsuarioID, updateUsuario, deleteUsuario, Login, getMe };

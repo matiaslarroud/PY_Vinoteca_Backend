@@ -25,6 +25,9 @@ const productSchema = mongoose.Schema({
         timestamps: true
     }
 )
+productSchema.index({ estado: 1 });
+productSchema.index({ tipoProducto: 1 });
+productSchema.index({ stock: 1 });
 
 const Product = mongoose.model("Producto", productSchema , "Producto");
 

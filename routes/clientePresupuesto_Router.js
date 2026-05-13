@@ -6,9 +6,9 @@ const imprimir = require('../src/presupuestoCliente_imprimir');
 router.post('/', controller.setPresupuesto);
 router.post('/buscar', controller.buscarPresupuesto);
 router.get('/', controller.getPresupuesto);
-router.get('/:id',controller.getPresupuestoID);
-router.get("/imprimir/:id" , imprimir.imprimir);
+router.get('/imprimir/:id', imprimir.imprimir);
+router.get('/:id', controller.getPresupuestoID);
 router.put('/:id', controller.updatePresupuesto);
 router.delete('/:id', controller.deletePresupuesto);
 
-module.exports=router;
+module.exports = router;

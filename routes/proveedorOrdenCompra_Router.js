@@ -6,8 +6,8 @@ const imprimir = require('../src/ordenCompraProveedor_imprimir');
 router.post('/', controller.setOrdenCompra);
 router.post('/buscar', controller.buscarOrdenCompra);
 router.get('/', controller.getOrdenCompra);
-router.get('/:id',controller.getOrdenCompraID);
-router.get("/imprimir/:id" , imprimir.imprimir);
+router.get('/imprimir/:id', imprimir.imprimir);
+router.get('/:id', controller.getOrdenCompraID);
 router.put('/:id', controller.updateOrdenCompra);
 router.delete('/:id', controller.deleteOrdenCompra);
 
