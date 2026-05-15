@@ -63,8 +63,15 @@ const app = express();
 
 app.use(express.json());
 app.use(cors({
-  origin: process.env.BASE_URL,
-  credentials: true
+  origin: (origin, callback) => {
+    const allowed = process.env.BASE_URL;
+    if (!origin || origin === allowed || /^http:\/\/localhost:\d+$/.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origen no permitido: ${origin}`));
+    }
+  },
+  credentials: true,
 }));
 
 connectDB(app);
