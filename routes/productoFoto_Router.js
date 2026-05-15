@@ -8,6 +8,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post('/:productoID', upload.array("fotos", 20), controller.setProductoFoto);
 router.get('/producto/:productoID', controller.getProductoFoto);
 router.get('/catalogo', controller.getCatalogoProductos);
+router.get('/ofertas', controller.getProductosEnOferta);
 router.get('/foto/:fotoID', controller.getProductoFotoID);
 router.put('/:fotoID', controller.updateProductoFoto);
 router.delete('/:fotoID', controller.deleteProductoFoto);

@@ -14,6 +14,8 @@ router.get('/lowStock/proveedor/:id' , controller.lowStockProductsByProveedor)
 
 router.put('/stock/:id', controller.stockUpdate)
 
+router.patch('/oferta/:id', controller.updateOfertaProducto)
+
 router.get('/tipos/:id' , controller.getProductTipoID)
 
 router.get('/:id' , controller.getProductID)

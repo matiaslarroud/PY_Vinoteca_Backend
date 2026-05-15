@@ -19,6 +19,12 @@ const productSchema = mongoose.Schema({
             required: false
         } ,
     tipoProducto:{type: String , require:true},
+    enOferta: { type: Boolean, default: false },
+    precioOferta: {
+        type: Number,
+        required: false,
+        min: [0, 'El precio de oferta no puede ser negativo']
+    },
     estado: {type: Boolean , require:true},
     },
     {
@@ -28,6 +34,7 @@ const productSchema = mongoose.Schema({
 productSchema.index({ estado: 1 });
 productSchema.index({ tipoProducto: 1 });
 productSchema.index({ stock: 1 });
+productSchema.index({ enOferta: 1 });
 
 const Product = mongoose.model("Producto", productSchema , "Producto");
 

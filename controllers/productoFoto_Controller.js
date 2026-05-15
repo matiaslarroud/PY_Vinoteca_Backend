@@ -141,6 +141,8 @@ const getCatalogoProductos = async (req, res) => {
       stock: prod.stock,
       tipoProducto: prod.tipoProducto,
       precio: calcularPrecioProducto(prod),
+      enOferta: prod.enOferta || false,
+      precioOferta: prod.enOferta ? prod.precioOferta : null,
       imagen: fotosPorProducto[prod._id] || null
     }));
 
@@ -243,4 +245,42 @@ const deleteProductoFoto = async (req, res) => {
 };
 
 
-module.exports = {setProductoFoto , getCatalogoProductos , getProductoFoto , getProductoFotoID , updateProductoFoto , deleteProductoFoto }
+// GET: productos actualmente en oferta (para la vitrina)
+const getProductosEnOferta = async (req, res) => {
+  try {
+    const productos = await Producto.find({ estado: true, enOferta: true })
+      .select('_id name stock tipoProducto precioCosto ganancia precioVenta enOferta precioOferta')
+      .lean();
+
+    const fotos = await ProductoFoto.find({ estado: true }).sort({ orden: 1 }).lean();
+    const fotosPorProducto = {};
+    for (const foto of fotos) {
+      if (!fotosPorProducto[foto.productoID]) {
+        fotosPorProducto[foto.productoID] = foto.imagenURL;
+      }
+    }
+
+    const ofertas = productos.map(prod => {
+      const precioOriginal = calcularPrecioProducto(prod);
+      const descuento = precioOriginal > 0
+        ? Math.round((1 - prod.precioOferta / precioOriginal) * 100)
+        : 0;
+      return {
+        _id: prod._id,
+        name: prod.name,
+        stock: prod.stock,
+        tipoProducto: prod.tipoProducto,
+        precioOriginal,
+        precioOferta: prod.precioOferta,
+        descuento,
+        imagen: fotosPorProducto[prod._id] || null
+      };
+    });
+
+    res.json({ ok: true, productos: ofertas });
+  } catch {
+    res.status(500).json({ ok: false, message: '❌ Error al obtener productos en oferta.' });
+  }
+};
+
+module.exports = {setProductoFoto , getCatalogoProductos , getProductosEnOferta , getProductoFoto , getProductoFotoID , updateProductoFoto , deleteProductoFoto }

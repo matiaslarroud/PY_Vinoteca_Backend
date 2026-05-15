@@ -332,4 +332,35 @@ const getProduct_query = async (req , res) => {
     });
 }
 
-module.exports = {setProduct , getProduct , getProductID , lowStockProducts , lowStockProductsByProveedor , updateProduct , deleteProduct , getProduct_query , getProductTipos , getProductTipoID , stockUpdate};
+const updateOfertaProducto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const enOferta = Boolean(req.body.enOferta);
+    const precioOferta = req.body.precioOferta != null ? Number(req.body.precioOferta) : null;
+
+    if (enOferta && (!precioOferta || precioOferta <= 0)) {
+      return res.status(400).json({
+        ok: false,
+        message: '❌ Se requiere un precio de oferta mayor a 0 para activar la promoción.'
+      });
+    }
+
+    const update = { enOferta };
+    update.precioOferta = enOferta ? precioOferta : null;
+
+    const updated = await Product.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+    if (!updated) {
+      return res.status(404).json({ ok: false, message: '❌ Producto no encontrado.' });
+    }
+
+    res.json({
+      ok: true,
+      message: `✔️ Oferta ${enOferta ? 'activada' : 'desactivada'} correctamente.`,
+      data: { _id: updated._id, enOferta: updated.enOferta, precioOferta: updated.precioOferta }
+    });
+  } catch {
+    res.status(500).json({ ok: false, message: '❌ Error al actualizar la oferta del producto.' });
+  }
+};
+
+module.exports = {setProduct , getProduct , getProductID , lowStockProducts , lowStockProductsByProveedor , updateProduct , deleteProduct , getProduct_query , getProductTipos , getProductTipoID , stockUpdate , updateOfertaProducto};
