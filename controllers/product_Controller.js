@@ -80,13 +80,26 @@ const stockUpdate = async(req,res) => {
 
 }
 
-const getProductTipos = async(req,res) => {
-    const discriminadores = Product.discriminators || {}
-    const tipos = Object.keys(discriminadores).map(tipo => tipo.replace('Producto_', '')) 
-    res.status(200).json({
-        ok:true,
-        data:tipos,
-    })
+const getProductTipos = async(req, res) => {
+    try {
+        // Obtener solo los tipos de productos que tienen documentos en la BD
+        const tipos = await Product.distinct('__t');
+        
+        // Limpiar el prefijo 'Producto_' si lo tienen
+        const tiposLimpios = tipos
+            .filter(tipo => tipo) // Eliminar null/undefined
+            .map(tipo => tipo.replace('Producto_', ''));
+        
+        res.status(200).json({
+            ok: true,
+            data: tiposLimpios,
+        });
+    } catch (error) {
+        res.status(500).json({
+            ok: false,
+            error: error.message,
+        });
+    }
 }
 
 // const lowStockProducts = async (req, res) => {
