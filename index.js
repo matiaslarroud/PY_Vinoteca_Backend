@@ -53,7 +53,9 @@ const routerProveedor_ComprobantePago = require('./routes/proveedorComprobantePa
 const routerProveedor_Remito = require('./routes/proveedorRemito_Router.js');
 const routerProveedor_RemitoDetalle = require('./routes/proveedorRemitoDetalle_Router.js');
 const routerUsuario = require('./routes/usuario_Router.js');
+const routerTienda_NotaPedido = require('./routes/tiendaNotaPedido_Router.js');
 const pingServer = require('./routes/pingServer.js');
+const routerSwitchDb = require('./routes/switchDb_Router.js');
 const routerProductofoto = require('./routes/productoFoto_Router.js');
 const routerCaja = require('./routes/caja_Router.js');
 const routerOferta = require('./routes/productOferta_Router.js');
@@ -80,6 +82,7 @@ const R = process.env.ROUTE;
 
 // Rutas públicas
 app.use(`${R}/ping`, pingServer);
+app.use(`${R}/ping/switchDb`, routerSwitchDb);
 app.use(`${R}/usuario`, routerUsuario);
 
 // Rutas protegidas
@@ -128,6 +131,8 @@ app.use(`${R}/cliente/comprobanteVentaDetalle`, routerCliente_ComprobanteVentaDe
 app.use(`${R}/cliente/remito`, routerCliente_Remito);
 app.use(`${R}/cliente/remitoDetalle`, routerCliente_RemitoDetalle);
 app.use(`${R}/cliente/reciboPago`, routerCliente_ReciboPago);
+
+app.use(`${R}/tienda/notaPedido`, routerTienda_NotaPedido);
 
 app.use(`${R}/proveedor/solicitudPresupuesto`, routerProveedor_SolicitudPresupuesto);
 app.use(`${R}/proveedor/solicitudPresupuestoDetalle`, routerProveedor_SolicitudPresupuestoDetalle);

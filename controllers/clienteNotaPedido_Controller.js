@@ -122,30 +122,9 @@ const setNotaPedido = async (req,res) => {
             throw new Error("❌ Cliente o medio de pago inválido.");
         }
 
-        // ⭐ VALIDAR CUENTA CORRIENTE
-        if (medioPago.name === "Cuenta Corriente") {
-
-            // 1️⃣ ¿El cliente tiene CC habilitada?
-            if (!cliente.cuentaCorriente) {
-                throw new Error("❌ El cliente no tiene habilitada la Cuenta Corriente.");
-            }
-
-            // 2️⃣ ¿Tiene saldo suficiente?
-            if (cliente.saldoActualCuentaCorriente < totalP) {
-                throw new Error(`❌ Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`)
-            }
-
-            // 3️⃣ Descontar el saldo
-            if(descuento){
-            cliente.saldoActualCuentaCorriente -= totalP - ((totalP*descuento)/100);
-            } else if (!descuento){
-            cliente.saldoActualCuentaCorriente -= totalP;
-            }
-            
-
-            // 4️⃣ Guardar el nuevo saldo antes de continuar
-            await cliente.save({ session });
-        }
+        // NOTA: el movimiento de Caja y el descuento de Cuenta Corriente ya NO se realizan
+        // al crear la nota. La nota es un documento de reserva de stock; la Caja y el saldo CC
+        // se registran al generar el Comprobante de Venta (ver clienteComprobanteVenta_Controller).
 
         await newNotaPedido.save({ session });
 
@@ -164,53 +143,6 @@ const setNotaPedido = async (req,res) => {
                 });
             }
 
-        
-        // AGREGAMOS MOVIMIENTO A LA CAJA
-        if(medioPago.name !== "Cuenta Corriente" ){
-          const newIdCaja = await getNextSequence("Caja");
-          const newCaja = await new Caja({
-              _id: newIdCaja,
-              fecha:obtenerFechaHoy(),
-              tipo: 'ENTRADA',
-              persona:clienteID , 
-              referencia:`Nota de Pedido Cliente N°: ${newId}.`, 
-              medioPago:medioPago , 
-              estado:true
-          });
-          if (descuento > 0) {
-              newNotaPedido.descuento = descuento;
-              newCaja.total = totalP - ((totalP*descuento)/100)
-          } else {
-              newCaja.total = totalP
-          }
-      
-          if(!newCaja){
-              throw new Error("❌ Error al agregar movimiento de caja.")
-          }
-          await newCaja.save({ session })
-        } else {
-          const newIdCaja = await getNextSequence("Caja");
-          const newCaja = await new Caja({
-              _id: newIdCaja,
-              fecha:obtenerFechaHoy(),
-              tipo: 'CUENTA_CORRIENTE',
-              persona:clienteID , 
-              referencia:`Nota de Pedido Cliente N°: ${newId}.`, 
-              medioPago:medioPago , 
-              estado:true
-          });
-          if (descuento > 0) {
-              newNotaPedido.descuento = descuento;
-              newCaja.total = totalP - ((totalP*descuento)/100)
-          } else {
-              newCaja.total = totalP
-          }
-      
-          if(!newCaja){
-              throw new Error("❌ Error al agregar movimiento de caja.")
-          }
-          await newCaja.save({ session })
-        }
 
         await session.commitTransaction();
 
@@ -360,52 +292,16 @@ const updateNotaPedido = async (req, res) => {
       throw new Error("❌ Pedido o cliente inválido.");
     }
 
-    const medioPagoAnterior = await MedioPago.findById(pedido.medioPago).session(session);
-    const medioPagoActual = await MedioPago.findById(medioPago).session(session);
-
     // ===============================
-    // 📊 Totales viejo vs nuevo
+    // 📊 Total nuevo (con descuento aplicado)
     // ===============================
-    const totalAnterior = pedido.descuento
-      ? pedido.total - ((pedido.total * pedido.descuento) / 100)
-      : pedido.total;
-
     const totalNuevo = descuento
       ? total - ((total * descuento) / 100)
       : total;
 
-    // ===============================
-    // ⭐ CUENTA CORRIENTE
-    // ===============================
-
-    if (medioPagoAnterior.name === "Cuenta Corriente" &&
-        medioPagoActual.name !== "Cuenta Corriente") {
-
-      clienteDB.saldoActualCuentaCorriente += totalAnterior;
-    }
-
-    else if (medioPagoAnterior.name !== "Cuenta Corriente" &&
-             medioPagoActual.name === "Cuenta Corriente") {
-
-      if (!clienteDB.cuentaCorriente) {
-        throw new Error("❌ El cliente no tiene CC.");
-      }
-
-      if (clienteDB.saldoActualCuentaCorriente < totalNuevo) {
-        throw new Error(`❌ Saldo insuficiente: $${clienteDB.saldoActualCuentaCorriente}`);
-      }
-
-      clienteDB.saldoActualCuentaCorriente -= totalNuevo;
-    }
-
-    else if (medioPagoAnterior.name === "Cuenta Corriente" &&
-             medioPagoActual.name === "Cuenta Corriente") {
-
-      clienteDB.saldoActualCuentaCorriente =
-        clienteDB.saldoActualCuentaCorriente + totalAnterior - totalNuevo;
-    }
-
-    await clienteDB.save({ session });
+    // NOTA: la nota se puede editar libremente porque todavía no tiene Caja ni saldo CC
+    // asociados. El movimiento de Caja y el descuento de Cuenta Corriente se registran
+    // recién al generar el Comprobante de Venta.
 
     // ===============================
     // 📝 UPDATE PEDIDO
@@ -484,106 +380,6 @@ const updateNotaPedido = async (req, res) => {
             session
         });
     }
-            
-    // 1️⃣ Buscar TODOS los movimientos de caja de la Nota de Pedido
-    const movimientosCaja = await Caja.find({
-      estado: true,
-      referencia: { $regex: `Nota de Pedido Cliente N°: ${id}` }
-    }).session(session);
-
-     if (!movimientosCaja || movimientosCaja.length === 0) {
-      throw new Error("❌ No se encontraron movimientos de caja para esta Nota de Pedido.");
-    }
-
-    // 2️⃣ Calcular TOTAL REAL ACTUAL de caja
-    const totalActualCaja = movimientosCaja.reduce((acc, mov) => {
-      return mov.tipo ? acc + mov.total : acc - mov.total;
-    }, 0);
-
-    // 3️⃣ Calcular nuevo total correcto
-    let nuevoTotalCaja;
-    if (descuento > 0) {
-      nuevoTotalCaja = total - ((total * descuento) / 100);
-    } else {
-      nuevoTotalCaja = total;
-    }
-
-    // 4️⃣ Calcular diferencia REAL
-    const diferencia = nuevoTotalCaja - totalActualCaja
-    
-    // 5️⃣ Crear ajuste SOLO si hay diferencia
-    if (diferencia !== 0) {
-    // HAY DIFERENCIA DE PLATA → SE GENERA UN NUEVO MOVIMIENTO
-    const newIdCaja = await getNextSequence("Caja");
-
-    if (medioPagoActual.name !== "Cuenta Corriente") {
-
-      const tipoMovimiento = diferencia > 0 ? 'ENTRADA' : 'SALIDA';
-
-      const ajusteCaja = new Caja({
-        _id: newIdCaja,
-        fecha: obtenerFechaHoy(),
-        tipo: tipoMovimiento,
-        persona: cliente,
-        referencia: `Ajuste Nota de Pedido Cliente N°: ${id}.`,
-        medioPago: medioPagoActual._id,
-        total: Math.abs(diferencia),
-        estado: true
-      });
-
-      await ajusteCaja.save({ session });
-
-    } else {
-      // AJUSTE POR CUENTA CORRIENTE
-      const ajusteCaja = new Caja({
-        _id: newIdCaja,
-        fecha: obtenerFechaHoy(),
-        tipo: 'CUENTA_CORRIENTE',
-        persona: cliente,
-        referencia: `Ajuste Nota de Pedido Cliente N°: ${id}.`,
-        medioPago: medioPagoActual._id,
-        total: Math.abs(diferencia),
-        estado: true
-      });
-
-      await ajusteCaja.save({ session });
-    }
-
-  } else {
-    // NO HAY DIFERENCIA → SOLO SE ACTUALIZA EL MOVIMIENTO EXISTENTE
-
-    if (medioPagoActual.name !== "Cuenta Corriente") {
-
-      const cajaUpdated = await Caja.findByIdAndUpdate(
-        movimientosCaja[0]._id,
-        { 
-          tipo: 'ENTRADA',
-          medioPago: medioPagoActual
-        },
-        { new: true, runValidators: true, session }
-      );
-
-      if (!cajaUpdated) {
-        throw new Error("❌ Error al actualizar movimiento de caja.");
-      }
-
-    } else {
-
-      const cajaUpdated = await Caja.findByIdAndUpdate(
-        movimientosCaja[0]._id,
-        { 
-          tipo: 'CUENTA_CORRIENTE',
-          medioPago: medioPagoActual
-        },
-        { new: true, runValidators: true, session }
-      );
-
-      if (!cajaUpdated) {
-        throw new Error("❌ Error al actualizar movimiento de caja.");
-      }
-    }
-  }
-
 
     // ✅ TODO OK
     await session.commitTransaction();
@@ -740,4 +536,4 @@ const buscarNotaPedido = async (req, res) => {
     }
 };
 
-module.exports = { setNotaPedido , getNotaPedido , getNotaPedidoID , getNotaPedidoByCliente , updateNotaPedido , deleteNotaPedido , buscarNotaPedido };
+module.exports = { setNotaPedido , getNotaPedido , getNotaPedidoID , getNotaPedidoByCliente , updateNotaPedido , deleteNotaPedido , buscarNotaPedido , setNotaPedidoDetalle };

@@ -5,6 +5,11 @@ const Usuario_Schema = mongoose.Schema({
     name: {type: String , require:true},
     password: {type: String , require:true},
     rol: {type: String , require:true},
+    cliente: {
+        type: Number,
+        ref: 'Cliente',
+        required: false
+    },
     estado: {type: Boolean , require:true},
     },
     

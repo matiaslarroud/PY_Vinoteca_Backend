@@ -1,19 +1,32 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Usuario = require('../models/usuario_Model.js');
+const Cliente = require('../models/cliente_Model.js');
 const getNextSequence = require('./counter_Controller.js');
 
 const SALT_ROUNDS = 10;
 
 const setUsuario = async (req, res) => {
   try {
-    const { name, password, rol } = req.body;
+    const { name, password, rol, cliente } = req.body;
     if (!name || !password || !rol) {
       return res.status(400).json({ ok: false, message: '❌ Faltan completar algunos campos obligatorios.' });
+    }
+    if (rol === 'cliente') {
+      if (!cliente) {
+        return res.status(400).json({ ok: false, message: '❌ Debe asociar un cliente al usuario con rol cliente.' });
+      }
+      const clienteDB = await Cliente.findById(cliente);
+      if (!clienteDB) {
+        return res.status(400).json({ ok: false, message: '❌ El cliente asociado no existe.' });
+      }
     }
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     const newId = await getNextSequence('Usuario');
     const newUsuario = new Usuario({ _id: newId, name, password: hashedPassword, rol, estado: true });
+    if (rol === 'cliente') {
+      newUsuario.cliente = cliente;
+    }
     await newUsuario.save();
     res.status(201).json({ ok: true, message: '✔️ Usuario agregado correctamente.' });
   } catch {
@@ -44,14 +57,27 @@ const getUsuarioID = async (req, res) => {
 
 const updateUsuario = async (req, res) => {
   try {
-    const { name, password, rol } = req.body;
+    const { name, password, rol, cliente } = req.body;
     if (!req.params.id || !name || !password || !rol) {
       return res.status(400).json({ ok: false, message: '❌ Faltan completar algunos campos obligatorios.' });
     }
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    const updateOps = { $set: { name, rol, password: hashedPassword } };
+    if (rol === 'cliente') {
+      if (!cliente) {
+        return res.status(400).json({ ok: false, message: '❌ Debe asociar un cliente al usuario con rol cliente.' });
+      }
+      const clienteDB = await Cliente.findById(cliente);
+      if (!clienteDB) {
+        return res.status(400).json({ ok: false, message: '❌ El cliente asociado no existe.' });
+      }
+      updateOps.$set.cliente = cliente;
+    } else {
+      updateOps.$unset = { cliente: '' };
+    }
     const updatedUsuario = await Usuario.findByIdAndUpdate(
       req.params.id,
-      { name, password: hashedPassword, rol },
+      updateOps,
       { new: true, runValidators: true }
     );
     if (!updatedUsuario) {
@@ -94,18 +120,18 @@ const Login = async (req, res) => {
       return res.status(401).json({ ok: false, msg: '❌ Credenciales inválidas.' });
     }
     const token = jwt.sign(
-      { id: user._id, name: user.name, rol: user.rol },
+      { id: user._id, name: user.name, rol: user.rol, cliente: user.cliente },
       process.env.JWT_SECRET,
       { expiresIn: '8h' }
     );
-    res.json({ ok: true, token, usuario: { usuario: user.name, rol: user.rol } });
+    res.json({ ok: true, token, usuario: { usuario: user.name, rol: user.rol, cliente: user.cliente } });
   } catch {
     res.status(500).json({ ok: false, msg: '❌ Error interno del servidor.' });
   }
 };
 
 const getMe = (req, res) => {
-  res.json({ ok: true, usuario: { usuario: req.user.name, rol: req.user.rol } });
+  res.json({ ok: true, usuario: { usuario: req.user.name, rol: req.user.rol, cliente: req.user.cliente } });
 };
 
 module.exports = { setUsuario, getUsuario, getUsuarioID, updateUsuario, deleteUsuario, Login, getMe };
