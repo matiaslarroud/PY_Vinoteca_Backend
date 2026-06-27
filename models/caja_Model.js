@@ -12,6 +12,7 @@ const Caja_Schema = mongoose.Schema({
             ref: 'MedioPago',
             required: true
         },
+    tipoPersona: { type: String, enum: ['CLIENTE', 'PROVEEDOR'], required: false },
     estado: {type: Boolean , require:true},
     },
     

@@ -1,5 +1,6 @@
 const Cliente = require("../models/cliente_Model");
 const getNextSequence = require("../controllers/counter_Controller");
+const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
 
 const setCliente = async (req,res) => {
     const nombreC = req.body.name;
@@ -285,4 +286,80 @@ const buscarCliente = async(req,res) => {
   }
 }
 
-module.exports = { setCliente , getCliente , getClienteID , updateCliente , deleteCliente , buscarCliente };
+const getClientesInactivos = async (req, res) => {
+  try {
+    const dias = parseInt(req.query.dias) || 30;
+    const umbral = new Date();
+    umbral.setDate(umbral.getDate() - dias);
+
+    // 1. Mapa notaPedidoID → clienteID
+    const notasPedido = await NotaPedido.find({ estado: true }).lean();
+    const mapaNotaCliente = {};
+    for (const np of notasPedido) {
+      mapaNotaCliente[np._id] = np.cliente;
+    }
+
+    // 2. Agrupar comprobantes por cliente: MAX(fecha) y SUM(total)
+    const comprobantes = await ComprobanteVenta.find({ estado: true }).lean();
+    const mapaCliente = {};
+    for (const cv of comprobantes) {
+      const clienteID = mapaNotaCliente[cv.notaPedido];
+      if (!clienteID) continue;
+      if (!mapaCliente[clienteID]) {
+        mapaCliente[clienteID] = { ultimaCompra: cv.fecha, totalHistorico: 0 };
+      }
+      if (new Date(cv.fecha) > new Date(mapaCliente[clienteID].ultimaCompra)) {
+        mapaCliente[clienteID].ultimaCompra = cv.fecha;
+      }
+      mapaCliente[clienteID].totalHistorico += Number(cv.total) || 0;
+    }
+
+    // 3. Filtrar clientes sin compras recientes
+    const clientes = await Cliente.find({ estado: true }).lean();
+    const hoy = new Date();
+    const resultado = [];
+
+    for (const c of clientes) {
+      const datos = mapaCliente[c._id];
+      const ultimaCompra = datos?.ultimaCompra || null;
+
+      if (!ultimaCompra || new Date(ultimaCompra) < umbral) {
+        const diasSinComprar = ultimaCompra
+          ? Math.floor((hoy - new Date(ultimaCompra)) / (1000 * 60 * 60 * 24))
+          : null;
+
+        resultado.push({
+          clienteID: c._id,
+          nombre: `${c.name} ${c.lastname}`,
+          email: c.email,
+          telefono: c.telefono,
+          fechaUltimaCompra: ultimaCompra ? new Date(ultimaCompra).toISOString().split('T')[0] : null,
+          diasSinComprar,
+          totalHistorico: datos?.totalHistorico || 0,
+          cuentaCorriente: c.cuentaCorriente
+        });
+      }
+    }
+
+    resultado.sort((a, b) => {
+      if (a.diasSinComprar === null) return 1;
+      if (b.diasSinComprar === null) return -1;
+      return b.diasSinComprar - a.diasSinComprar;
+    });
+
+    return res.status(200).json({
+      ok: true,
+      data: resultado,
+      message: `✔️ ${resultado.length} cliente(s) inactivos encontrados.`
+    });
+
+  } catch (error) {
+    console.error('❌ Error getClientesInactivos:', error);
+    return res.status(500).json({
+      ok: false,
+      message: '❌ Error interno del servidor.'
+    });
+  }
+};
+
+module.exports = { setCliente , getCliente , getClienteID , updateCliente , deleteCliente , buscarCliente , getClientesInactivos };

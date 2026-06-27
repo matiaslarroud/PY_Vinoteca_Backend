@@ -63,9 +63,10 @@ const setReciboPago = async (req, res) => {
             fecha:obtenerFechaHoy(),
             tipo: 'ENTRADA',
             total: total,
-            persona:clienteID , 
-            referencia:`Recibo de Pago Cliente N°: ${newId}.`, 
-            medioPago:medioPagoID , 
+            persona:clienteID ,
+            tipoPersona: 'CLIENTE',
+            referencia:`Recibo de Pago Cliente N°: ${newId}.`,
+            medioPago:medioPagoID ,
             estado:true
         });
         await newCaja.save();
@@ -227,9 +228,10 @@ const updateReciboPago = async (req, res) => {
             _id: newIdCaja,
             fecha: obtenerFechaHoy(),
             tipo: tipoMovimiento,
-            persona: cliente,
+            persona: cliente._id,
+            tipoPersona: 'CLIENTE',
             referencia: `Ajuste Recibo de Pago Cliente N°: ${id}.`,
-            medioPago: movimientosCaja[0].medioPago, // tomamos el medio de pago original
+            medioPago: movimientosCaja[0].medioPago,
             total: Math.abs(diferencia),
             estado: true
           });

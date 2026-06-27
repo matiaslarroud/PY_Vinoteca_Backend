@@ -28,10 +28,11 @@ const setCaja = async(req,res) => {
         _id: newId,
         fecha:fecha,
         tipo: tipo,
-        total:total , 
-        persona:persona , 
-        referencia:referencia , 
-        medioPago:medioPago , 
+        total:total ,
+        persona:persona ,
+        tipoPersona: req.body.tipoPersona,
+        referencia:referencia ,
+        medioPago:medioPago ,
         estado:true
     });
 
@@ -244,8 +245,9 @@ const getVentasByCliente = async (req, res) => {
     // Buscamos movimientos de caja
     const movimientos = await Caja.find({
       estado: true,
-      persona: clienteID
-    }).sort({ createdAt: -1 }).lean(); 
+      persona: clienteID,
+      tipoPersona: 'CLIENTE'
+    }).sort({ createdAt: -1 }).lean();
 
     const movimientosConPersona = await Promise.all(
       movimientos.map(async (m) => {
@@ -405,6 +407,7 @@ const getCuentaCorrienteByCliente = async (req, res) => {
     const movimientos = await Caja.find({
       estado: true,
       persona: clienteID,
+      tipoPersona: 'CLIENTE',
       $or: [
         { tipo: 'CUENTA_CORRIENTE' },
         { referencia: { $regex: /Recibo de Pago/i } }

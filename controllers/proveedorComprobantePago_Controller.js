@@ -53,9 +53,10 @@ const setComprobantePago = async (req,res) => {
           fecha:obtenerFechaHoy(),
           tipo: 'SALIDA',
           total: total,
-          persona:proveedorID , 
-          referencia: `Comprobante de Pago Proveedor N°: ${newId}`, 
-          medioPago:medioPago , 
+          persona:proveedorID ,
+          tipoPersona: 'PROVEEDOR',
+          referencia: `Comprobante de Pago Proveedor N°: ${newId}`,
+          medioPago:medioPago ,
           estado:true
       });
   
@@ -266,8 +267,9 @@ const updateComprobantePago = async(req,res) => {
         fecha: obtenerFechaHoy(),
         tipo: tipoMovimiento,
         persona: proveedorID,
+        tipoPersona: 'PROVEEDOR',
         referencia: `Ajuste Comprobante de Pago Proveedor N°: ${id}.`,
-        medioPago: movimientosCaja[0].medioPago, // tomamos el medio de pago original
+        medioPago: movimientosCaja[0].medioPago,
         total: Math.abs(diferencia),
         estado: true
       });

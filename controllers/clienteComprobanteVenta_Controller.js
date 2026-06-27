@@ -113,6 +113,7 @@ const setComprobanteVenta = async (req, res) => {
           _id: newIdCaja,
           fecha: fechaP,
           persona: cliente._id,
+          tipoPersona: 'CLIENTE',
           total: totalP,
           medioPago: medioPago._id,
           referencia: `Comprobante de Venta Cliente N°: ${newId}.`,

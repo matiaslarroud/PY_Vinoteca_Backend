@@ -4,6 +4,7 @@ const controller = require('../controllers/clienteComprobanteVentaDetalle_Contro
 
 router.post('/', controller.setComprobanteVentaDetalle);
 router.get('/', controller.getComprobanteVentaDetalle);
+router.get('/mas-vendidos', controller.getVinosMasVendidos);
 router.get('/:id',controller.getComprobanteVentaDetalleID);
 router.get('/ComprobanteVenta/:id', controller.getComprobanteVentaDetalleByComprobanteVenta);
 router.put('/:id', controller.updateComprobanteVentaDetalle);

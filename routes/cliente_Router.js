@@ -9,6 +9,8 @@ router.post('/buscar', controller.buscarCliente);
 
 router.get('/' , controller.getCliente)
 
+router.get('/inactivos', controller.getClientesInactivos)
+
 router.get('/:id' , controller.getClienteID)
 
 router.put('/:id' , controller.updateCliente)
