@@ -3,7 +3,6 @@ const ComprobanteVentaDetalle = require("../models/clienteComprobanteVentaDetall
 const NotaPedido = require("../models/clienteNotaPedido_Model");
 const Cliente = require("../models/cliente_Model");
 const MedioPago = require("../models/medioPago_Model");
-const Caja = require("../models/caja_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 const mongoose = require('mongoose');
 
@@ -89,8 +88,8 @@ const setComprobanteVenta = async (req, res) => {
             }
 
         // ===============================
-        // 💰 MOVIMIENTO DE CAJA + CUENTA CORRIENTE
-        // La Caja se registra recién al facturar (Comprobante de Venta), no al crear la nota.
+        // El Comprobante de Venta es solo facturación: NO genera movimientos de Caja
+        // ni descuenta Cuenta Corriente (eso ocurre al crear la Nota de Pedido).
         // ===============================
         const nota = await NotaPedido.findById(notaPedidoP).session(session);
         if (!nota) {
@@ -98,43 +97,9 @@ const setComprobanteVenta = async (req, res) => {
         }
 
         const medioPago = await MedioPago.findById(nota.medioPago).session(session);
-        const cliente = await Cliente.findById(nota.cliente).session(session);
-
-        if (!medioPago || !cliente) {
-          throw new Error("❌ Medio de pago o cliente inválido en la nota de pedido.");
-        }
-
-        if (medioPago.name === "A coordinar") {
+        if (medioPago && medioPago.name === "A coordinar") {
           throw new Error("❌ No se puede facturar con medio de pago 'A coordinar'. Edite la nota de pedido y seleccione el medio de pago real.");
         }
-
-        const newIdCaja = await getNextSequence("Caja");
-        const movimientoCaja = new Caja({
-          _id: newIdCaja,
-          fecha: fechaP,
-          persona: cliente._id,
-          tipoPersona: 'CLIENTE',
-          total: totalP,
-          medioPago: medioPago._id,
-          referencia: `Comprobante de Venta Cliente N°: ${newId}.`,
-          estado: true
-        });
-
-        if (medioPago.name === "Cuenta Corriente") {
-          if (!cliente.cuentaCorriente) {
-            throw new Error("❌ El cliente no tiene habilitada la Cuenta Corriente.");
-          }
-          if (cliente.saldoActualCuentaCorriente < totalP) {
-            throw new Error(`❌ Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`);
-          }
-          cliente.saldoActualCuentaCorriente -= totalP;
-          await cliente.save({ session });
-          movimientoCaja.tipo = 'CUENTA_CORRIENTE';
-        } else {
-          movimientoCaja.tipo = 'ENTRADA';
-        }
-
-        await movimientoCaja.save({ session });
 
         await session.commitTransaction();
 
@@ -312,27 +277,8 @@ const deleteComprobanteVenta = async(req,res) => {
         { comprobanteVenta: id }, { estado: false }, { session }
     );
 
-    // ===============================
-    // 💰 REVERTIR MOVIMIENTO DE CAJA + CUENTA CORRIENTE
-    // (no se reintegra stock: el stock queda ligado a la Nota de Pedido)
-    // ===============================
-    const movimientosCaja = await Caja.find({
-      estado: true,
-      referencia: `Comprobante de Venta Cliente N°: ${id}.`
-    }).session(session);
-
-    for (const mov of movimientosCaja) {
-      // Si era Cuenta Corriente, devolver el saldo al cliente
-      if (mov.tipo === 'CUENTA_CORRIENTE') {
-        const cliente = await Cliente.findById(mov.persona).session(session);
-        if (cliente) {
-          cliente.saldoActualCuentaCorriente += mov.total;
-          await cliente.save({ session });
-        }
-      }
-      mov.estado = false;
-      await mov.save({ session });
-    }
+    // El Comprobante de Venta no genera Caja ni CC (ocurre en la Nota de Pedido),
+    // por lo tanto su borrado no revierte movimientos de Caja ni stock.
 
     await session.commitTransaction();
     res.status(200).json({ ok: true, message: '✔️ Comprobante de venta eliminado correctamente.' });

@@ -13,6 +13,161 @@ const obtenerFechaHoy = () => {
   return hoy.toISOString().split("T")[0];
 }
 
+// Registra el movimiento de Caja (y descuento de Cuenta Corriente) de una Nota de Pedido.
+// La Caja nace al crear la nota; el Comprobante de Venta es solo facturación.
+const registrarCajaNota = async ({ nota, total, session }) => {
+  const medioPago = await MedioPago.findById(nota.medioPago).session(session);
+  const cliente = await Cliente.findById(nota.cliente).session(session);
+
+  if (!medioPago || !cliente) {
+    throw new Error("❌ Medio de pago o cliente inválido.");
+  }
+
+  // Defensa: una nota con "A coordinar" no genera Caja (la tienda ya no crea notas).
+  if (medioPago.name === "A coordinar") return;
+
+  const newIdCaja = await getNextSequence("Caja");
+  const movimientoCaja = new Caja({
+    _id: newIdCaja,
+    fecha: obtenerFechaHoy(),
+    persona: cliente._id,
+    tipoPersona: 'CLIENTE',
+    total,
+    medioPago: medioPago._id,
+    referencia: `Nota de Pedido Cliente N°: ${nota._id}.`,
+    estado: true
+  });
+
+  if (medioPago.name === "Cuenta Corriente") {
+    if (!cliente.cuentaCorriente) {
+      throw new Error("❌ El cliente no tiene habilitada la Cuenta Corriente.");
+    }
+    if (cliente.saldoActualCuentaCorriente < total) {
+      throw new Error(`❌ Saldo insuficiente. Saldo actual: $${cliente.saldoActualCuentaCorriente}`);
+    }
+    cliente.saldoActualCuentaCorriente -= total;
+    await cliente.save({ session });
+    movimientoCaja.tipo = 'CUENTA_CORRIENTE';
+  } else {
+    movimientoCaja.tipo = 'ENTRADA';
+  }
+
+  await movimientoCaja.save({ session });
+};
+
+// Anula TODA la Caja de una nota (movimiento original + ajustes) y reintegra el saldo de
+// Cuenta Corriente si correspondía. Se usa al ELIMINAR la nota (no en la modificación).
+const revertirCajaNota = async ({ notaId, session }) => {
+  const movimientos = await Caja.find({
+    estado: true,
+    referencia: { $in: [
+      `Nota de Pedido Cliente N°: ${notaId}.`,
+      `Ajuste Nota de Pedido Cliente N°: ${notaId}.`
+    ] }
+  }).session(session);
+
+  for (const mov of movimientos) {
+    if (mov.tipo === 'CUENTA_CORRIENTE') {
+      const cliente = await Cliente.findById(mov.persona).session(session);
+      if (cliente) {
+        cliente.saldoActualCuentaCorriente += mov.total;
+        await cliente.save({ session });
+      }
+    }
+    mov.estado = false;
+    await mov.save({ session });
+  }
+};
+
+const esCuentaCorriente = (nombre) => nombre === "Cuenta Corriente";
+// Un medio de pago genera movimiento de caja en efectivo (ENTRADA/SALIDA) si no es CC ni "A coordinar".
+const esCajaEfectivo = (nombre) => !!nombre && nombre !== "Cuenta Corriente" && nombre !== "A coordinar";
+
+// Registra los AJUSTES de Caja por la modificación de una nota, SIN eliminar los movimientos
+// originales (no se tocan con estado:false). El ajuste respeta el medio de pago:
+//  - Efectivo/contado: movimiento ENTRADA (sube) o SALIDA (baja) por la diferencia.
+//  - Cuenta Corriente: movimiento CUENTA_CORRIENTE por la diferencia (con signo) + corrección
+//    del saldo de la cuenta corriente del/los cliente/s (deshace el cargo viejo y aplica el nuevo).
+const ajustarCajaNota = async ({ pedidoAnterior, notaActualizada, totalNuevo, session }) => {
+  const totalAnterior = pedidoAnterior.total;
+
+  const medioViejo = await MedioPago.findById(pedidoAnterior.medioPago).session(session);
+  const medioNuevo = await MedioPago.findById(notaActualizada.medioPago).session(session);
+  if (!medioNuevo) {
+    throw new Error("❌ Medio de pago inválido.");
+  }
+
+  const nombreViejo = medioViejo ? medioViejo.name : null;
+  const nombreNuevo = medioNuevo.name;
+
+  // --- Saldo de Cuenta Corriente: deshacer el cargo viejo y aplicar el nuevo ---
+  if (esCuentaCorriente(nombreViejo)) {
+    const clienteViejo = await Cliente.findById(pedidoAnterior.cliente).session(session);
+    if (clienteViejo) {
+      clienteViejo.saldoActualCuentaCorriente += totalAnterior;
+      await clienteViejo.save({ session });
+    }
+  }
+  if (esCuentaCorriente(nombreNuevo)) {
+    const clienteNuevo = await Cliente.findById(notaActualizada.cliente).session(session);
+    if (!clienteNuevo) {
+      throw new Error("❌ Cliente inválido.");
+    }
+    if (!clienteNuevo.cuentaCorriente) {
+      throw new Error("❌ El cliente no tiene habilitada la Cuenta Corriente.");
+    }
+    if (clienteNuevo.saldoActualCuentaCorriente < totalNuevo) {
+      throw new Error(`❌ Saldo insuficiente. Saldo actual: $${clienteNuevo.saldoActualCuentaCorriente}`);
+    }
+    clienteNuevo.saldoActualCuentaCorriente -= totalNuevo;
+    await clienteNuevo.save({ session });
+  }
+
+  const referencia = `Ajuste Nota de Pedido Cliente N°: ${notaActualizada._id}.`;
+
+  // --- Bucket efectivo (ENTRADA/SALIDA): ajuste por la diferencia, total siempre positivo ---
+  const cajaViejo = esCajaEfectivo(nombreViejo) ? totalAnterior : 0;
+  const cajaNuevo = esCajaEfectivo(nombreNuevo) ? totalNuevo : 0;
+  const diffCaja = cajaNuevo - cajaViejo;
+  if (diffCaja !== 0) {
+    const medioCaja = esCajaEfectivo(nombreNuevo) ? medioNuevo : medioViejo;
+    const newIdCaja = await getNextSequence("Caja");
+    const ajuste = new Caja({
+      _id: newIdCaja,
+      fecha: obtenerFechaHoy(),
+      persona: notaActualizada.cliente,
+      tipoPersona: 'CLIENTE',
+      total: Math.abs(diffCaja),
+      medioPago: medioCaja._id,
+      referencia,
+      tipo: diffCaja > 0 ? 'ENTRADA' : 'SALIDA',
+      estado: true
+    });
+    await ajuste.save({ session });
+  }
+
+  // --- Bucket Cuenta Corriente: ajuste por la diferencia (total con signo) ---
+  const ccViejo = esCuentaCorriente(nombreViejo) ? totalAnterior : 0;
+  const ccNuevo = esCuentaCorriente(nombreNuevo) ? totalNuevo : 0;
+  const diffCC = ccNuevo - ccViejo;
+  if (diffCC !== 0) {
+    const medioCC = esCuentaCorriente(nombreNuevo) ? medioNuevo : medioViejo;
+    const newIdCaja = await getNextSequence("Caja");
+    const ajusteCC = new Caja({
+      _id: newIdCaja,
+      fecha: obtenerFechaHoy(),
+      persona: notaActualizada.cliente,
+      tipoPersona: 'CLIENTE',
+      total: diffCC, // con signo: positivo aumenta el saldo de CC del bucket, negativo lo reduce
+      medioPago: medioCC._id,
+      referencia,
+      tipo: 'CUENTA_CORRIENTE',
+      estado: true
+    });
+    await ajusteCC.save({ session });
+  }
+};
+
 const setNotaPedidoDetalle = async ({
     importeP,
     precioP,
@@ -122,10 +277,6 @@ const setNotaPedido = async (req,res) => {
             throw new Error("❌ Cliente o medio de pago inválido.");
         }
 
-        // NOTA: el movimiento de Caja y el descuento de Cuenta Corriente ya NO se realizan
-        // al crear la nota. La nota es un documento de reserva de stock; la Caja y el saldo CC
-        // se registran al generar el Comprobante de Venta (ver clienteComprobanteVenta_Controller).
-
         await newNotaPedido.save({ session });
 
         if (!detalles || detalles.length === 0) {
@@ -143,6 +294,8 @@ const setNotaPedido = async (req,res) => {
                 });
             }
 
+        // El movimiento de Caja (y el descuento de Cuenta Corriente) se registra al crear la nota.
+        await registrarCajaNota({ nota: newNotaPedido, total: newNotaPedido.total, session });
 
         await session.commitTransaction();
 
@@ -299,10 +452,6 @@ const updateNotaPedido = async (req, res) => {
       ? total - ((total * descuento) / 100)
       : total;
 
-    // NOTA: la nota se puede editar libremente porque todavía no tiene Caja ni saldo CC
-    // asociados. El movimiento de Caja y el descuento de Cuenta Corriente se registran
-    // recién al generar el Comprobante de Venta.
-
     // ===============================
     // 📝 UPDATE PEDIDO
     // ===============================
@@ -343,6 +492,13 @@ const updateNotaPedido = async (req, res) => {
     if (!updatedPedido) {
       throw new Error("❌ Error al actualizar la nota de pedido.");
     }
+
+    // ===============================
+    // 💰 AJUSTE DE CAJA: se conservan los movimientos originales y se registra un
+    // movimiento "Ajuste Nota de Pedido Cliente N°: X" por la diferencia (tipado según
+    // el medio de pago). Cubre cambios de total y de medio de pago.
+    // ===============================
+    await ajustarCajaNota({ pedidoAnterior: pedido, notaActualizada: updatedPedido, totalNuevo, session });
 
     const detallesViejos = await NotaPedidoDetalle
         .find({ notaPedido: id, estado: true })
@@ -405,53 +561,51 @@ const updateNotaPedido = async (req, res) => {
 
 
 const deleteNotaPedido = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { id } = req.params;
 
     if (!id) {
-      return res.status(400).json({
-        ok: false,
-        message: '❌ El ID no llegó correctamente al controlador.'
-      });
+      throw new Error('❌ El ID no llegó correctamente al controlador.');
     }
 
-    const nota = await NotaPedido.findById(id);
+    const nota = await NotaPedido.findById(id).session(session);
     if (!nota) {
-      return res.status(404).json({
-        ok: false,
-        message: '❌ La nota de pedido no fue encontrada.'
-      });
+      throw new Error('❌ La nota de pedido no fue encontrada.');
     }
 
     const comprobanteAsociado = await ComprobanteVenta.exists({ notaPedido: id , estado:true});
     if (comprobanteAsociado) {
-      return res.status(400).json({
-        ok: false,
-        message: '❌ No se puede eliminar la nota de pedido porque posee servicios asociados.'
-      });
+      throw new Error('❌ No se puede eliminar la nota de pedido porque posee servicios asociados.');
     }
 
-    const detalles = await NotaPedidoDetalle.find({ notaPedido: id, estado: true });
-    
+    const detalles = await NotaPedidoDetalle.find({ notaPedido: id, estado: true }).session(session);
+
     for (const detalle of detalles) {
       await Producto.findByIdAndUpdate(
         detalle.producto,
         { $inc: { stock: detalle.cantidad } }, // suma la cantidad al stock
-        { new: true }
+        { new: true, session }
       );
     }
+
+    // Revertir el movimiento de Caja (y reintegrar saldo CC si correspondía).
+    await revertirCajaNota({ notaId: id, session });
 
     await NotaPedido.findByIdAndUpdate(
       id,
       { estado: false },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true, session }
     );
 
     await NotaPedidoDetalle.updateMany(
       { notaPedido: id },
       { estado: false },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true, session }
     );
+
+    await session.commitTransaction();
 
     res.status(200).json({
       ok: true,
@@ -459,10 +613,13 @@ const deleteNotaPedido = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({
+    await session.abortTransaction();
+    res.status(400).json({
       ok: false,
-      message: '❌ Error interno del servidor.'
+      message: error.message || '❌ Error interno del servidor.'
     });
+  } finally {
+    session.endSession();
   }
 };
 

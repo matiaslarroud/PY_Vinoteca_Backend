@@ -53,7 +53,7 @@ const routerProveedor_ComprobantePago = require('./routes/proveedorComprobantePa
 const routerProveedor_Remito = require('./routes/proveedorRemito_Router.js');
 const routerProveedor_RemitoDetalle = require('./routes/proveedorRemitoDetalle_Router.js');
 const routerUsuario = require('./routes/usuario_Router.js');
-const routerTienda_NotaPedido = require('./routes/tiendaNotaPedido_Router.js');
+const routerTienda_Presupuesto = require('./routes/tiendaPresupuesto_Router.js');
 const pingServer = require('./routes/pingServer.js');
 const routerSwitchDb = require('./routes/switchDb_Router.js');
 const routerProductofoto = require('./routes/productoFoto_Router.js');
@@ -132,7 +132,7 @@ app.use(`${R}/cliente/remito`, routerCliente_Remito);
 app.use(`${R}/cliente/remitoDetalle`, routerCliente_RemitoDetalle);
 app.use(`${R}/cliente/reciboPago`, routerCliente_ReciboPago);
 
-app.use(`${R}/tienda/notaPedido`, routerTienda_NotaPedido);
+app.use(`${R}/tienda/presupuesto`, routerTienda_Presupuesto);
 
 app.use(`${R}/proveedor/solicitudPresupuesto`, routerProveedor_SolicitudPresupuesto);
 app.use(`${R}/proveedor/solicitudPresupuestoDetalle`, routerProveedor_SolicitudPresupuestoDetalle);

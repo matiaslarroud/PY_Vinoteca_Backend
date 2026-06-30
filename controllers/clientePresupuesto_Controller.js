@@ -316,4 +316,4 @@ const buscarPresupuesto = async (req, res) => {
     }
 };
 
-module.exports = { setPresupuesto , getPresupuesto , getPresupuestoID , updatePresupuesto , deletePresupuesto , buscarPresupuesto };
+module.exports = { setPresupuesto , getPresupuesto , getPresupuestoID , updatePresupuesto , deletePresupuesto , buscarPresupuesto , setPresupuestoDetalle };
