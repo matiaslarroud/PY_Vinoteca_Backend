@@ -1,5 +1,7 @@
 const NotaPedidoDetalle = require("../models/clienteNotaPedidoDetalle_Model");
+const NotaPedido = require("../models/clienteNotaPedido_Model");
 const Product = require("../models/producto_Model");
+const ProductoVino = require("../models/productoVino_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
 const setNotaPedidoDetalle = async (req,res) => {
@@ -207,5 +209,94 @@ const deleteNotaPedidoDetalle = async (req, res) => {
     });
 };
 
+const getVinosMasVendidos = async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin, top } = req.query;
+    const topN = top === 'todos' ? null : (parseInt(top) || 10);
 
-module.exports = { setNotaPedidoDetalle , getNotaPedidoDetalle , getNotaPedidoDetalleID , updateNotaPedidoDetalle , deleteNotaPedidoDetalle , getNotaPedidoDetalleByNotaPedido };
+    // 1. Si hay fechas, filtrar Notas de Pedido por rango
+    let idsNotasValidas = null;
+    if (fechaInicio && fechaFin) {
+      const inicio = new Date(fechaInicio);
+      const fin = new Date(fechaFin);
+      fin.setHours(23, 59, 59, 999);
+      const notas = await NotaPedido.find({
+        estado: true,
+        fecha: { $gte: inicio, $lte: fin }
+      }, '_id').lean();
+      idsNotasValidas = notas.map(c => c._id);
+    }
+
+    // 2. Obtener detalles (filtrados o todos)
+    const filtroDetalle = { estado: true };
+    if (idsNotasValidas) {
+      filtroDetalle.notaPedido = { $in: idsNotasValidas };
+    }
+    const detalles = await NotaPedidoDetalle.find(filtroDetalle).lean();
+
+    // 3. Agrupar por productoID
+    const mapaProducto = {};
+    for (const det of detalles) {
+      const pid = det.producto;
+      if (!mapaProducto[pid]) {
+        mapaProducto[pid] = { cantidadVendida: 0, importeTotal: 0, notas: new Set() };
+      }
+      mapaProducto[pid].cantidadVendida += Number(det.cantidad) || 0;
+      mapaProducto[pid].importeTotal    += Number(det.importe)  || 0;
+      mapaProducto[pid].notas.add(det.notaPedido);
+    }
+
+    // 4. Ordenar desc por cantidad y cortar al topN
+    let ranking = Object.entries(mapaProducto)
+      .map(([productoID, datos]) => ({
+        productoID: Number(productoID),
+        cantidadVendida: datos.cantidadVendida,
+        importeTotal: datos.importeTotal,
+        nroComprobantes: datos.notas.size
+      }))
+      .sort((a, b) => b.cantidadVendida - a.cantidadVendida);
+
+    if (topN) ranking = ranking.slice(0, topN);
+
+    // 5. Enriquecer con datos del vino (1 sola query con populate)
+    const idsProductos = ranking.map(r => r.productoID);
+    const vinos = await ProductoVino.find({ _id: { $in: idsProductos } })
+      .populate('bodega',   'name')
+      .populate('varietal', 'name')
+      .populate('tipo',     'name')
+      .populate('volumen',  'name')
+      .lean();
+
+    const mapaVinos = {};
+    for (const v of vinos) mapaVinos[v._id] = v;
+
+    const resultado = ranking.map((r, i) => {
+      const vino = mapaVinos[r.productoID] || {};
+      return {
+        ranking:         i + 1,
+        productoID:      r.productoID,
+        nombre:          vino.name             || '—',
+        bodega:          vino.bodega?.name     || '—',
+        varietal:        vino.varietal?.name   || '—',
+        tipo:            vino.tipo?.name       || '—',
+        volumen:         vino.volumen?.name    || '—',
+        cantidadVendida: r.cantidadVendida,
+        importeTotal:    r.importeTotal,
+        nroComprobantes: r.nroComprobantes
+      };
+    });
+
+    return res.status(200).json({
+      ok: true,
+      data: resultado,
+      message: `✔️ Top ${resultado.length} vinos más vendidos obtenidos correctamente.`
+    });
+
+  } catch (error) {
+    console.error('❌ Error getVinosMasVendidos:', error);
+    return res.status(500).json({ ok: false, message: '❌ Error interno del servidor.' });
+  }
+};
+
+
+module.exports = { setNotaPedidoDetalle , getNotaPedidoDetalle , getNotaPedidoDetalleID , updateNotaPedidoDetalle , deleteNotaPedidoDetalle , getNotaPedidoDetalleByNotaPedido , getVinosMasVendidos};

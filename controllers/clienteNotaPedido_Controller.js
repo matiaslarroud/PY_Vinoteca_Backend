@@ -8,10 +8,7 @@ const Caja = require("../models/caja_Model")
 const getNextSequence = require("../controllers/counter_Controller");
 const mongoose = require('mongoose');
 
-const obtenerFechaHoy = () => {
-  const hoy = new Date();
-  return hoy.toISOString().split("T")[0];
-}
+const { obtenerFechaHoy } = require('../utils/fecha');
 
 // Registra el movimiento de Caja (y descuento de Cuenta Corriente) de una Nota de Pedido.
 // La Caja nace al crear la nota; el Comprobante de Venta es solo facturación.

@@ -2,10 +2,7 @@
 const PDFDocument = require("pdfkit");
 const ReciboPago = require("../models/clienteReciboPago_Model");
 
-const obtenerFechaHoy = () => {
-  const hoy = new Date();
-  return hoy.toISOString().split("T")[0];
-};
+const { obtenerFechaHoy } = require('../utils/fecha');
 
 const imprimir = async (req, res) => {
   try {

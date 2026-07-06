@@ -3,10 +3,7 @@ const PDFDocument = require("pdfkit");
 const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
 const OrdenCompraDetalle = require("../models/proveedorOrdenCompraDetalle_Model");
 
-const obtenerFechaHoy = () => {
-  const hoy = new Date();
-  return hoy.toISOString().split("T")[0];
-};
+const { obtenerFechaHoy } = require('../utils/fecha');
 
 const imprimir = async (req, res) => {
   try {

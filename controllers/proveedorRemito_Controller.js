@@ -7,10 +7,7 @@ const Producto = require("../models/producto_Model");
 const ComprobanteCompraDetalle = require("../models/proveedorComprobanteCompraDetalle_Model");
 const mongoose = require('mongoose');
 
-const obtenerFechaHoy = () => {
-  const hoy = new Date();
-  return hoy.toISOString().split("T")[0];
-}
+const { obtenerFechaHoy } = require('../utils/fecha');
 
 const setRemitoDetalle = async ({
   remito,

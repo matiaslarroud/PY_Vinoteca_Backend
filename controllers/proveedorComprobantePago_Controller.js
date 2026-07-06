@@ -4,10 +4,7 @@ const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
 const Caja = require("../models/caja_Model");
 const getNextSequence = require("./counter_Controller");
 
-const obtenerFechaHoy = () => {
-  const hoy = new Date();
-  return hoy.toISOString().split("T")[0];
-}
+const { obtenerFechaHoy } = require('../utils/fecha');
 
 const setComprobantePago = async (req,res) => {
     const total = req.body.total;

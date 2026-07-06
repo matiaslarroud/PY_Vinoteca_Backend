@@ -4,10 +4,7 @@ const ComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
 const getNextSequence = require("./counter_Controller");
 const mongoose = require('mongoose');
 
-const obtenerFechaHoy = () => {
-  const hoy = new Date();
-  return hoy.toISOString().split("T")[0];
-}
+const { obtenerFechaHoy } = require('../utils/fecha');
 
 const setOrdenCompraDetalle = async ({
     ordenCompra,

@@ -6,10 +6,7 @@ const OrdenProduccionDetalle = require("../models/ordenProduccionDetalle_Model")
 const getNextSequence = require("../controllers/counter_Controller");
 const mongoose = require('mongoose');
 
-const obtenerFechaHoy = () => {
-  const hoy = new Date();
-  return hoy.toISOString().split("T")[0];
-}
+const { obtenerFechaHoy } = require('../utils/fecha');
 
 
 const setOrdenProduccionDetalle = async ({
