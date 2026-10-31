@@ -141,8 +141,6 @@ const updateOrdenProduccion = async (req, res) => {
       detalles
     } = req.body;
 
-    const fechaOrden = obtenerFechaHoy();
-
     if (!id) {
       throw new Error("❌ El id no llegó al controlador correctamente.");
     }
@@ -155,11 +153,19 @@ const updateOrdenProduccion = async (req, res) => {
       throw new Error("❌ La orden de producción debe tener al menos un detalle.");
     }
 
-    // 1️⃣ Actualizar cabecera
+    // Una orden finalizada ya movió stock: no se puede modificar.
+    const ordenActual = await OrdenProduccion.findOne({ _id: id, estado: true }).session(session).lean();
+    if (!ordenActual) {
+      throw new Error("❌ No se encontró la orden de producción.");
+    }
+    if (ordenActual.estadoProduccion) {
+      throw new Error("❌ La orden de producción ya fue finalizada y no se puede modificar.");
+    }
+
+    // 1️⃣ Actualizar cabecera (la fecha de emisión no cambia)
     const updatedOrden = await OrdenProduccion.findByIdAndUpdate(
       id,
       {
-        fecha: fechaOrden,
         fechaElaboracion: fechaElaboracionOrden,
         fechaEntrega: fechaEntregaOrden,
         empleado: empleadoOrden
@@ -267,126 +273,100 @@ const deleteOrdenProduccion = async (req , res) => {
     res.status(200).json({ok:true , message:"✔️ Orden de produccion eliminada correctamente."});
 }
 
+// Error con el detalle de insumos faltantes, para responder 400 con la lista.
+class StockInsuficienteError extends Error {
+  constructor(faltantes) {
+    super("Stock insuficiente para finalizar la orden de producción.");
+    this.faltantes = faltantes;
+  }
+}
+
+// Finaliza una orden de producción: suma stock de picadas y descuenta los insumos usados.
+// Todo ocurre en una transacción, y la orden se "toma" con un update condicional
+// (estadoProduccion: false → true), así un doble clic o un reintento no duplica el stock.
 const updateStock_Picada_Insumos = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
-    const ordenID = req.params.id;
+    let ordenFinalizada;
+    await session.withTransaction(async () => {
+      const ordenID = Number(req.params.id);
 
-    // Buscar la orden
-    const orden = await OrdenProduccion.findById(ordenID);
-    if (!orden) {
-      return res.status(404).json({ ok: false, message: "Orden no encontrada." });
-    }
+      ordenFinalizada = await OrdenProduccion.findOneAndUpdate(
+        { _id: ordenID, estado: true, estadoProduccion: { $ne: true } },
+        { estadoProduccion: true },
+        { new: true, session }
+      );
+      if (!ordenFinalizada) {
+        const existe = await OrdenProduccion.exists({ _id: ordenID, estado: true }).session(session);
+        throw Object.assign(
+          new Error(existe ? "La orden ya fue finalizada." : "Orden no encontrada."),
+          { status: existe ? 409 : 404 }
+        );
+      }
 
-    // Buscar los detalles
-    const detalles = await OrdenProduccionDetalle.find({ 
-      ordenProduccion: ordenID,
-      estado: true
-    });
+      const detalles = await OrdenProduccionDetalle.find({ ordenProduccion: ordenID, estado: true })
+        .session(session).lean();
+      if (detalles.length === 0) {
+        throw Object.assign(new Error("La orden no tiene detalles."), { status: 400 });
+      }
 
-    if (detalles.length === 0) {
-      return res.status(404).json({ ok: false, message: "La orden no tiene detalles." });
-    }
-
-    // ======================================================
-    // VALIDACIÓN PREVIA: AGRUPAR INSUMOS Y SUMAR REQUERIDOS
-    // ======================================================
-    const requeridosTotales = {};  // insumoID -> { nombre, requerido }
-
-    for (const det of detalles) {
-
-      const picada = await ProductoPicada.findById(det.picada);
-      if (!picada) continue;
-
-      const picadaDetalles = await ProductoPicadaDetalle.find({
-        picada: picada._id,
-        estado: true,
-      });
-
-      for (const pd of picadaDetalles) {
-        const insumo = await ProductoInsumo.findById(pd.insumo);
-        if (!insumo) continue;
-
-        const cantidadNecesaria = det.cantidad * pd.cantidad;
-
-        if (!requeridosTotales[insumo._id]) {
-          requeridosTotales[insumo._id] = {
-            insumoID: insumo._id,
-            insumoNombre: insumo.name,
-            requerido: 0,
-            disponible: insumo.stock
-          };
+      // Insumos requeridos por todas las picadas de la orden (consultas en lote, sin N+1).
+      const picadaIDs = detalles.map(d => d.picada);
+      const recetas = await ProductoPicadaDetalle.find({ picada: { $in: picadaIDs }, estado: true })
+        .session(session).lean();
+      const requeridos = new Map(); // insumoID -> cantidad
+      for (const det of detalles) {
+        for (const r of recetas.filter(r => Number(r.picada) === Number(det.picada))) {
+          const id = Number(r.insumo);
+          requeridos.set(id, (requeridos.get(id) || 0) + det.cantidad * r.cantidad);
         }
-
-        // Sumar total requerido
-        requeridosTotales[insumo._id].requerido += cantidadNecesaria;
       }
-    }
 
-    // Verificar faltantes
-    const faltantes = Object.values(requeridosTotales).filter(i => i.disponible < i.requerido);
+      const insumos = await ProductoInsumo.find({ _id: { $in: [...requeridos.keys()] } }, 'name stock')
+        .session(session).lean();
+      const faltantes = insumos
+        .filter(i => i.stock < requeridos.get(i._id))
+        .map(i => ({
+          insumoID: i._id,
+          insumoNombre: i.name,
+          requerido: requeridos.get(i._id),
+          disponible: i.stock,
+          faltante: requeridos.get(i._id) - i.stock,
+        }));
+      if (faltantes.length > 0) throw new StockInsuficienteError(faltantes);
 
-    if (faltantes.length > 0) {
-      return res.status(400).json({
-        ok: false,
-        message: "Stock insuficiente para finalizar la orden de producción.",
-        faltantes: faltantes.map(f => ({
-          insumoID: f.insumoID,
-          insumoNombre: f.insumoNombre,
-          requerido: f.requerido,
-          disponible: f.disponible,
-          faltante: f.requerido - f.disponible,
-        })),
-      });
-    }
-
-    // ======================================================
-    // 2️⃣ SI HAY STOCK → ACTUALIZAR STOCK
-    // ======================================================
-    for (const det of detalles) {
-
-      const picada = await ProductoPicada.findById(det.picada);
-      if (!picada) continue;
-
-      // Actualizar stock de la picada
-      picada.stock += det.cantidad;
-      await picada.save();
-
-      const picadaDetalles = await ProductoPicadaDetalle.find({
-        picada: picada._id,
-        estado: true
-      });
-
-      for (const pd of picadaDetalles) {
-
-        const insumo = await ProductoInsumo.findById(pd.insumo);
-        if (!insumo) continue;
-
-        const cantidadConsumida = det.cantidad * pd.cantidad;
-
-        insumo.stock -= cantidadConsumida;
-        await insumo.save();
+      // Descuento condicional: si otra operación consumió el insumo en el medio, falla y se revierte todo.
+      for (const [insumoID, cantidad] of requeridos) {
+        const r = await ProductoInsumo.updateOne(
+          { _id: insumoID, stock: { $gte: cantidad } },
+          { $inc: { stock: -cantidad } },
+          { session }
+        );
+        if (r.matchedCount === 0) throw new StockInsuficienteError([{ insumoID, requerido: cantidad }]);
       }
-    }
 
-    // Marcar orden como finalizada
-    orden.estadoProduccion = true;
-    await orden.save();
+      for (const det of detalles) {
+        await ProductoPicada.updateOne({ _id: det.picada }, { $inc: { stock: det.cantidad } }, { session });
+      }
+    });
 
     return res.json({
       ok: true,
       message: "Orden finalizada. Stock de picadas incrementado y stock de insumos descontado.",
-      data: orden,
+      data: ordenFinalizada,
     });
-
   } catch (error) {
+    if (error instanceof StockInsuficienteError) {
+      return res.status(400).json({ ok: false, message: error.message, faltantes: error.faltantes });
+    }
+    if (error.status) {
+      return res.status(error.status).json({ ok: false, message: error.message });
+    }
     console.error("Error al procesar producción:", error);
     res.status(500).json({ ok: false, message: "Error al procesar la orden de producción." });
+  } finally {
+    session.endSession();
   }
 };
-
-
-
-
-
 
 module.exports = {setOrdenProduccion , getOrdenProduccion , getOrdenProduccionID , updateOrdenProduccion, updateStock_Picada_Insumos , deleteOrdenProduccion};

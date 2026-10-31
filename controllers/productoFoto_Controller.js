@@ -1,3 +1,4 @@
+const { calcularPrecioProducto } = require('../utils/precios');
 const ProductoFoto = require("../models/productoFoto_Model.js");
 const Producto = require("../models/producto_Model.js");
 const  cloudinary = require("../config/cloudinary.js") ;
@@ -92,24 +93,7 @@ const getProductoFoto = async (req, res) => {
 };
 
 // CALCULO DE PRECIO FINAL PRODUCTO
-const calcularPrecioProducto = (producto) => {
-  if (
-    producto.tipoProducto === "ProductoVino" ||
-    producto.tipoProducto === "ProductoInsumo"
-  ) {
-    if (producto.precioCosto != null && producto.ganancia != null) {
-      return producto.precioCosto + (producto.precioCosto * producto.ganancia / 100);
-    }
-    return 0;
-  }
 
-  // Picadas
-  if (producto.precioVenta != null) {
-    return producto.precioVenta;
-  }
-
-  return 0;
-};
 
 
 // GET: catálogo de productos
@@ -117,7 +101,7 @@ const getCatalogoProductos = async (req, res) => {
   try {
     // 1️⃣ Traer productos activos con datos necesarios
     const productos = await Producto.find({ estado: true })
-      .select("_id name stock tipoProducto precioCosto ganancia precioVenta")
+      .select("_id name stock tipoProducto precioCosto ganancia precioVenta enOferta precioOferta")
       .lean();
 
     // 2️⃣ Traer todas las fotos activas

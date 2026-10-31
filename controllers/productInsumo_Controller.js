@@ -11,7 +11,7 @@ const setProduct =  async (req , res ) => {
     const proveedorProducto = req.body.proveedor;
     const productType = 'ProductoInsumo';
     
-    if (!nombreProducto || !productType || !precioProducto || !stockProducto ||  !gananciaProducto || !depositoProducto || !proveedorProducto) {
+    if (!nombreProducto || !productType || !precioProducto || stockProducto == null || stockProducto === "" ||  !gananciaProducto || !depositoProducto || !proveedorProducto) {
         res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'});
         return
     }
@@ -87,7 +87,7 @@ const updateProduct =  async (req , res ) => {
     const depositoProducto = req.body.deposito;
     const proveedorProducto = req.body.proveedor;
     
-    if (!nombreProducto || !precioProducto || !stockProducto ||  !gananciaProducto || !depositoProducto || !proveedorProducto) {
+    if (!nombreProducto || !precioProducto || stockProducto == null || stockProducto === "" ||  !gananciaProducto || !depositoProducto || !proveedorProducto) {
         res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'});
         return
     }

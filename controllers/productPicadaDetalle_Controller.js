@@ -175,7 +175,7 @@ const productosFiltrados = productos.filter(c => {
 
   // Si todos los criterios activos coinciden => mantener cliente
   return (
-    coindiceInsumo
+    coincideInsumo
   );
 });
 

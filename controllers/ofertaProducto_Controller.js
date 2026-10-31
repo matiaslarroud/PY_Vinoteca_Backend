@@ -8,13 +8,13 @@ const setOferta =  async (req , res ) => {
     const total = req.body.total;
     const estadoPromocion = req.body.estadoPromocion;
     
-    if (!name || !total || !estadoPromocion ) {
+    if (!name || !total || estadoPromocion == null) {
         res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
     }
 
     const newId = await getNextSequence("ProductoOferta");
-    const newProduct = new Product({
+    const newProduct = new OfertaProducto({
         _id: newId,
         name: name , 
         total: total , 
@@ -79,7 +79,7 @@ const updateOferta =  async (req , res ) => {
     const total = req.body.total;
     const estadoPromocion = req.body.estadoPromocion;
     
-    if (!name || !total || !estadoPromocion) {
+    if (!name || !total || estadoPromocion == null) {
         res.status(400).json({
             ok:false , 
             message:"❌ Faltan completar algunos campos obligatorios."
@@ -87,7 +87,7 @@ const updateOferta =  async (req , res ) => {
         return
     }
     
-    const updatedProduct = await Product.findByIdAndUpdate(
+    const updatedProduct = await OfertaProducto.findByIdAndUpdate(
             id, 
             {
                 name: name , 

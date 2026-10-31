@@ -23,6 +23,11 @@ const ComprobanteVenta_Schema = mongoose.Schema({
 )
 ComprobanteVenta_Schema.index({ estado: 1 });
 ComprobanteVenta_Schema.index({ notaPedido: 1 });
+// Una nota de pedido no puede tener más de un comprobante activo (evita la doble facturación).
+ComprobanteVenta_Schema.index(
+    { notaPedido: 1 },
+    { unique: true, partialFilterExpression: { estado: true }, name: 'notaPedido_unico_activo' }
+);
 const Cliente_ComprobanteVenta = mongoose.model("Cliente_ComprobanteVenta", ComprobanteVenta_Schema , "Cliente_ComprobanteVenta");
 
 module.exports = Cliente_ComprobanteVenta;

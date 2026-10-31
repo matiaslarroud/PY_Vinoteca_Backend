@@ -6,126 +6,72 @@ const getNextSequence = require("../controllers/counter_Controller");
 const mongoose = require('mongoose');
 
 const { obtenerFechaHoy } = require('../utils/fecha');
+const { httpError } = require('../utils/http');
+const { validarCantidad } = require('../utils/stock');
 
-const setRemitoDetalle = async ({
-  remitoID,
-  producto,
-  cantidad,
-  session
-}) => {
-
-  if (
-    remitoID == null ||
-    producto == null ||
-    cantidad == null
-  ) {
-    throw new Error("❌ Faltan completar algunos campos obligatorios del detalle.");
-  }
-
-  if (cantidad <= 0) {
-    throw new Error("❌ La cantidad debe ser mayor a 0.");
-  }
-
-  const newId = await getNextSequence("Cliente_RemitoDetalle");
-
-  const newRemitoDetalle = new RemitoDetalle({
-    _id: newId,
-    remitoID,
-    producto: producto,
-    cantidad,
-    estado: true
-  });
-
-  await newRemitoDetalle.save({ session });
-
-  return newRemitoDetalle;
-};
-
+const responderError = (res, error) =>
+  res.status(error.status && error.status < 500 ? error.status : 400).json({ ok: false, message: error.message });
 
 const setRemito = async (req, res) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const {
-      totalPrecio,
-      totalBultos,
-      comprobanteVenta,
-      transporteID,
-      detalles,
-      entregado
-    } = req.body;
+    let newRemito;
+    await session.withTransaction(async () => {
+      const { totalPrecio, totalBultos, comprobanteVenta, transporteID, detalles, entregado } = req.body;
 
-    const fecha = obtenerFechaHoy();
+      if (!totalPrecio || !totalBultos || !comprobanteVenta || !transporteID) {
+        throw httpError(400, "❌ Faltan completar algunos campos obligatorios.");
+      }
+      if (!Array.isArray(detalles) || detalles.length === 0) {
+        throw httpError(400, "❌ El remito debe tener al menos un detalle.");
+      }
 
-    if (
-      !totalPrecio ||
-      !totalBultos ||
-      !comprobanteVenta ||
-      !transporteID
-    ) {
-      throw new Error("❌ Faltan completar algunos campos obligatorios.");
-    }
-
-    const newId = await getNextSequence("Cliente_Remito");
-
-    const newRemito = new Remito({
-      _id: newId,
-      totalPrecio,
-      totalBultos,
-      fecha,
-      comprobanteVenta,
-      transporteID,
-      estado: true,
-      entregado: entregado ?? false
-    });
-
-    // 🔹 Actualizar comprobante de venta
-    const updateComprobanteVentaState =
-      await ComprobanteVenta.findByIdAndUpdate(
-        comprobanteVenta,
+      // Marca el comprobante como "con remito" solo si estaba activo y sin remito:
+      // funciona como bloqueo y evita dos remitos para la misma factura.
+      const comprobante = await ComprobanteVenta.findOneAndUpdate(
+        { _id: comprobanteVenta, estado: true, remitoCreado: { $ne: true } },
         { remitoCreado: true },
-        { new: true, runValidators: true, session }
+        { new: true, session }
       );
+      if (!comprobante) {
+        throw httpError(409, '❌ El comprobante de venta no existe, fue anulado o ya tiene un remito.');
+      }
 
-    if (!updateComprobanteVentaState) {
-      throw new Error(
-        '❌ Error al actualizar el estado del comprobante de venta.'
-      );
-    }
-
-    await newRemito.save({ session });
-
-    if (!Array.isArray(detalles) || detalles.length === 0) {
-      throw new Error("❌ El remito debe tener al menos un detalle.");
-    }
-
-    for (const det of detalles) {
-      await setRemitoDetalle({
-        remitoID: newId,
-        producto: det.producto,
-        cantidad: det.cantidad,
-        session
+      const newId = await getNextSequence("Cliente_Remito", session);
+      newRemito = new Remito({
+        _id: newId,
+        totalPrecio,
+        totalBultos,
+        fecha: obtenerFechaHoy(),
+        // El schema define "comprobanteVentaID": antes se guardaba como "comprobanteVenta"
+        // y Mongoose lo descartaba, por lo que el remito nunca quedaba vinculado a su factura.
+        comprobanteVentaID: comprobante._id,
+        transporteID,
+        estado: true,
+        entregado: entregado ?? false
       });
-    }
+      await newRemito.save({ session });
 
-    await session.commitTransaction();
+      const primerId = await getNextSequence("Cliente_RemitoDetalle", session, detalles.length);
+      await RemitoDetalle.insertMany(detalles.map((det, i) => {
+        if (det.producto == null) throw httpError(400, "❌ Falta el producto en un detalle del remito.");
+        return {
+          _id: primerId + i,
+          remitoID: newId,
+          producto: det.producto,
+          cantidad: validarCantidad(det.cantidad),
+          estado: true
+        };
+      }), { session });
+    });
 
     return res.status(201).json({
       ok: true,
       message: '✔️ Remito agregado correctamente.',
       data: newRemito
     });
-
   } catch (err) {
-    console.error(err);
-    await session.abortTransaction();
-
-    return res.status(500).json({
-      ok: false,
-      message: err.message || '❌ Error interno del servidor.'
-    });
-
+    return responderError(res, err);
   } finally {
     session.endSession();
   }
@@ -153,9 +99,9 @@ const getRemitoID = async(req,res) => {
         return
     }
 
-    const remitoEncontrado = await Remito.findById(id);
+    const remitoEncontrado = await Remito.findById(id).lean();
     if(!remitoEncontrado){
-        res.status(400).json({
+        res.status(404).json({
             ok:false,
             message:'❌ El id no corresponde a un remito.'
         })
@@ -169,218 +115,101 @@ const getRemitoID = async(req,res) => {
     })
 }
 
+// Se pueden corregir los datos de entrega (bultos, precio, transporte, entregado).
+// La fecha de emisión y el comprobante asociado no cambian.
 const updateRemito = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const { totalPrecio, totalBultos, transporteID, entregado } = req.body;
 
-  try {
-    const id = req.params.id;
+  const updatedRemitoData = {};
+  if (totalPrecio != null) updatedRemitoData.totalPrecio = totalPrecio;
+  if (totalBultos != null) updatedRemitoData.totalBultos = totalBultos;
+  if (transporteID) updatedRemitoData.transporteID = transporteID;
+  if (entregado != null) updatedRemitoData.entregado = entregado;
 
-    if (!id) {
-      throw new Error('❌ El id no llegó al controlador correctamente.');
-    }
-
-    const {
-      totalPrecio,
-      totalBultos,
-      comprobanteVenta,
-      transporteID,
-      entregado
-    } = req.body;
-
-    const fecha = obtenerFechaHoy();
-
-    const updatedRemitoData = {
-      fecha
-    };
-
-    if (totalPrecio != null) updatedRemitoData.totalPrecio = totalPrecio;
-    if (totalBultos != null) updatedRemitoData.totalBultos = totalBultos;
-    if (transporteID) updatedRemitoData.transporteID = transporteID;
-    if (entregado != null) updatedRemitoData.entregado = entregado;
-
-    // ⚠️ regla de negocio (opcional pero recomendada)
-    if (comprobanteVenta) {
-      updatedRemitoData.comprobanteVenta = comprobanteVenta;
-    }
-
-    const updatedRemito = await Remito.findByIdAndUpdate(
-      id,
-      updatedRemitoData,
-      {
-        new: true,
-        runValidators: true,
-        session
-      }
-    );
-
-    if (!updatedRemito) {
-      throw new Error('❌ Error al actualizar el remito.');
-    }
-
-    await session.commitTransaction();
-
-    return res.status(200).json({
-      ok: true,
-      data: updatedRemito,
-      message: '✔️ Remito actualizado correctamente.'
-    });
-
-  } catch (err) {
-    console.error(err);
-    await session.abortTransaction();
-
-    return res.status(500).json({
-      ok: false,
-      message: err.message || '❌ Error interno del servidor.'
-    });
-
-  } finally {
-    session.endSession();
+  const updatedRemito = await Remito.findOneAndUpdate(
+    { _id: req.params.id, estado: true },
+    updatedRemitoData,
+    { new: true, runValidators: true }
+  );
+  if (!updatedRemito) {
+    return res.status(404).json({ ok: false, message: '❌ Remito no encontrado.' });
   }
+
+  return res.status(200).json({
+    ok: true,
+    data: updatedRemito,
+    message: '✔️ Remito actualizado correctamente.'
+  });
 };
 
 
-const deleteRemito = async(req,res) => {
-    const id = req.params.id;
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.'
-        })
-        return
-    }
+const deleteRemito = async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const id = Number(req.params.id);
+      const remito = await Remito.findOneAndUpdate(
+        { _id: id, estado: true }, { estado: false }, { new: true, session }
+      );
+      if (!remito) throw httpError(404, '❌ Remito no encontrado.');
 
-    const deletedRemito = await Remito.findByIdAndUpdate(
-        id,
-        {estado:false},
-        { new: true , runValidators: true }
-    )
-    if(!deletedRemito){
-        res.status(400).json({
-            ok:false,
-            message: '❌ Error durante el borrado.'
-        })
-        return
-    }
+      await RemitoDetalle.updateMany({ remitoID: id }, { estado: false }, { session });
 
-    const deletedRemitoDetalle = await RemitoDetalle.updateMany(
-        {remitoID:id},
-        {   
-            estado:false
-        },
-        { new: true , runValidators: true }
-    )
-    if(!deletedRemitoDetalle){
-        res.status(400).json({
-            ok:false,
-            message: '❌ Error durante el borrado.'
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        message:'✔️ Remito eliminado correctamente.',
-    })
+      // Libera el comprobante para poder emitir un nuevo remito.
+      if (remito.comprobanteVentaID) {
+        await ComprobanteVenta.updateOne({ _id: remito.comprobanteVentaID }, { remitoCreado: false }, { session });
+      }
+    });
+    res.status(200).json({ ok: true, message: '✔️ Remito eliminado correctamente.' });
+  } catch (error) {
+    return responderError(res, error);
+  } finally {
+    session.endSession();
+  }
 }
 
 const buscarRemito = async (req, res) => {
   try {
-    const remitoID = req.body.remitoID;
-    const clienteP = req.body.cliente;
-    const detallesP = req.body.detalles || [];
-    const comprobanteVentaIDP = req.body.comprobanteVentaID;
-    const transporteP = req.body.transporteID;
-    const totalPrecioP = Number(req.body.totalPrecio) || 0;
-    const totalBultosP = Number(req.body.totalBultos) || 0;
-    const fechaP = req.body.fecha ? new Date(req.body.fecha) : null;
-    const entregadoP = req.body.entregado;
+    const { remitoID, cliente, comprobanteVentaID, transporteID, entregado, fecha } = req.body;
+    const detalles = Array.isArray(req.body.detalles) ? req.body.detalles : [];
+    const totalPrecio = Number(req.body.totalPrecio) || 0;
+    const totalBultos = Number(req.body.totalBultos) || 0;
 
-    // 1️⃣ Buscar notas de pedido del cliente (si hay cliente seleccionado)
-    let notasPedidoCliente = [];
-    let comprobantesCliente = [];
-    let idsNotasCliente = [];
-    if (clienteP) {
-      notasPedidoCliente = await NotaPedido.find({ cliente: clienteP }).select("_id");
-      idsNotasCliente = notasPedidoCliente.map(np => String(np._id));
-      comprobantesCliente = await ComprobanteVenta.find({ notaPedido: { $in : idsNotasCliente} }).select("_id");
+    const query = { estado: true };
+    const condiciones = [];
+
+    if (remitoID) condiciones.push({ _id: Number(remitoID) });
+
+    // Productos: remitos que contengan alguno de los productos buscados.
+    const productos = detalles.map(d => Number(d.producto)).filter(Boolean);
+    if (productos.length > 0) {
+      const ids = await RemitoDetalle.distinct('remitoID', { producto: { $in: productos }, estado: true });
+      condiciones.push({ _id: { $in: ids } });
     }
 
-    const idsComprobantesCliente = comprobantesCliente.map(np => String(np._id));
+    if (comprobanteVentaID) condiciones.push({ comprobanteVentaID: Number(comprobanteVentaID) });
 
-    // 2️⃣ Buscar los comprobantes según productos (si hay detalles)
-    const productosBuscados = detallesP.length > 0
-      ? detallesP.map(d => d.producto)
-      : [];
-
-    let detallesFiltrados = [];
-    if (productosBuscados.length > 0) {
-      detallesFiltrados = await RemitoDetalle.find({
-        producto: { $in: productosBuscados },
-      });
-    } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "❌ Error al buscar remitos" });       
-    } else {
-      detallesFiltrados = await RemitoDetalle.find();
+    // Cliente: remitos de los comprobantes de sus notas de pedido.
+    if (cliente) {
+      const notas = await NotaPedido.distinct('_id', { cliente: Number(cliente) });
+      const comprobantes = await ComprobanteVenta.distinct('_id', { notaPedido: { $in: notas } });
+      condiciones.push({ comprobanteVentaID: { $in: comprobantes } });
     }
 
-    const remitosIDs = [
-      ...new Set(
-        detallesFiltrados
-          .map(d => d.remitoID)
-          .filter(id => id !== undefined && id !== null)
-      ),
-    ];
-
-    let remitos = await Remito.find(
-      remitosIDs.length > 0 ? { _id: { $in: remitosIDs } } : {}
-    );
-
-    // ⚠️ 3️⃣ Verificar si no hay ningún filtro activo
-    const sinFiltrosActivos =
-      !clienteP &&
-      !comprobanteVentaIDP &&
-      !fechaP &&
-      !entregadoP &&
-      !transporteP &&
-      (totalBultosP === 0 || totalBultosP === "") &&
-      (totalPrecioP === 0 || totalPrecioP === "") &&
-      detallesP.length === 0;
-
-    if (sinFiltrosActivos) {
-      console.log("🔄 Búsqueda sin filtros: devolviendo todos los remitos");
-      return res.status(200).json({ ok: true, data: remitos });
+    if (transporteID) query.transporteID = Number(transporteID);
+    if (typeof entregado === 'boolean') query.entregado = entregado;
+    if (totalPrecio) query.totalPrecio = totalPrecio;
+    if (totalBultos) query.totalBultos = totalBultos;
+    if (fecha) {
+      const inicio = new Date(String(fecha).slice(0, 10));
+      if (!Number.isNaN(inicio.getTime())) {
+        query.fecha = { $gte: inicio, $lt: new Date(inicio.getTime() + 24 * 60 * 60 * 1000) };
+      }
     }
+    if (condiciones.length) query.$and = condiciones;
 
-    // 4️⃣ Aplicar filtros
-    const remitosFiltrados = remitos.filter(p => {
-        const coincideEstado = p.estado === true;
-      const coincideRemito = remitoID ? (p._id) === Number(remitoID) : true;
-      const coincideTotalBultos = totalBultosP ? Number(p.totalBultos) === totalBultosP : true;
-      const coincideTotalPrecio = totalPrecioP ? Number(p.totalPrecio) === totalPrecioP : true;
-      const coincideFecha = fechaP
-        ? String(new Date(p.fecha).toISOString().split("T")[0]) ===
-          String(fechaP.toISOString().split("T")[0])
-        : true;
-      const coincideComprobante = comprobanteVentaIDP ? String(p.comprobanteVentaID) === String(comprobanteVentaIDP) : true;
-      const coincideCliente = clienteP
-        ? p.comprobanteVentaID && idsComprobantesCliente.includes(String(p.comprobanteVentaID))
-        : true;
-      const coincideEntregado = typeof envio === "boolean" ? p.envio === envio : true;
-      const coincideTransporte = transporteP ? String(p.transporteID) === String(transporteP) : true;
-
-      return coincideCliente && coincideTotalBultos && coincideTotalPrecio && coincideComprobante &&
-             coincideFecha && coincideEntregado && coincideTransporte && coincideRemito && coincideEstado;
-    });
-
-    console.log("✅ Remitos filtrados:", remitosFiltrados.length);
-
-    if (remitosFiltrados.length > 0) {
-      res.status(200).json({ ok: true, data: remitosFiltrados });
-    } else {
-      res.status(200).json({ ok: false, message: "❌ No se encontraron remitos con esos filtros" });
-    }
-
+    const remitos = await Remito.find(query).lean();
+    res.status(200).json({ ok: true, data: remitos });
   } catch (error) {
     res.status(500).json({ ok: false, message: "❌ Error interno del servidor" });
   }

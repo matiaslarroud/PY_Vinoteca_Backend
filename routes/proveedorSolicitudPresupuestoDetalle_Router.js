@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
+// Solo lectura: las líneas se crean, modifican y anulan a través del documento (cabecera),
+// dentro de una transacción que mantiene stock, totales y caja consistentes.
 const controller = require('../controllers/proveedorSolicitudPresupuestoDetalle_Controller');
 
-router.post('/', controller.setSolicitudPresupuestoDetalle);
 router.get('/', controller.getSolicitudPresupuestoDetalle);
 router.get('/:id',controller.getSolicitudPresupuestoDetalleID);
 router.get('/solicitudPresupuesto/:id', controller.getSolicitudPresupuestoDetalleBySolicitudPresupuesto);
-router.put('/:id', controller.updateSolicitudPresupuestoDetalle);
-router.delete('/:id', controller.deleteSolicitudPresupuestoDetalle);
 
 module.exports=router;

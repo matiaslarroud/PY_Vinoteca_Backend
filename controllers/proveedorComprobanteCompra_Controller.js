@@ -1,4 +1,6 @@
 const ComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
+const ProveedorRemito = require("../models/proveedorRemito_Model");
+const ComprobantePago = require("../models/proveedorComprobantePago_Model");
 const ComprobanteCompraDetalle = require("../models/proveedorComprobanteCompraDetalle_Model");
 const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
 const OrdenCompraDetalle = require("../models/proveedorOrdenCompraDetalle_Model");
@@ -97,6 +99,27 @@ const setComprobanteCompraDetalle = async ({
 
 
 
+// Marca la Orden de Compra como completa si todo lo pedido ya fue facturado
+// (suma de comprobantes de compra activos). Se llama al crear, modificar y anular comprobantes.
+const recalcularCompletoOC = async (ordenCompraID, session) => {
+    const [detallesOC, idsComprobantes] = await Promise.all([
+        OrdenCompraDetalle.find({ ordenCompra: ordenCompraID, estado: true }).session(session).lean(),
+        ComprobanteCompra.distinct('_id', { ordenCompra: ordenCompraID, estado: true }).session(session),
+    ]);
+    const entregas = await ComprobanteCompraDetalle.find({
+        comprobanteCompra: { $in: idsComprobantes },
+        estado: true
+    }).session(session).lean();
+
+    const mapaEntregas = {};
+    for (const det of entregas) {
+        mapaEntregas[det.producto] = (mapaEntregas[det.producto] || 0) + Number(det.cantidad);
+    }
+    const ordenCompleta = detallesOC.every(det => (mapaEntregas[det.producto] || 0) >= det.cantidad);
+
+    await OrdenCompra.updateOne({ _id: ordenCompraID }, { completo: ordenCompleta }, { session });
+};
+
 const setComprobanteCompra = async (req, res) => {
     const session = await mongoose.startSession();
 
@@ -137,49 +160,7 @@ const setComprobanteCompra = async (req, res) => {
             });
         }
 
-        // =====================================================
-        //   VERIFICAR SI LA ORDEN DE COMPRA QUEDA COMPLETA
-        // =====================================================
-
-        const detallesOC = await OrdenCompraDetalle.find({
-            ordenCompra,
-            estado: true
-        }).session(session).lean();
-
-        const comprobantes = await ComprobanteCompra.find({
-            ordenCompra,
-            estado: true
-        }).session(session).lean();
-
-        const idsComprobantes = comprobantes.map(c => c._id);
-
-        const entregas = await ComprobanteCompraDetalle.find({
-            comprobanteCompra: { $in: idsComprobantes },
-            estado: true
-        }).session(session).lean();
-
-        // Mapa entregas
-        const mapaEntregas = {};
-        for (const det of entregas) {
-            mapaEntregas[det.producto] =
-                (mapaEntregas[det.producto] || 0) + Number(det.cantidad);
-        }
-
-        let ordenCompleta = true;
-
-        for (const det of detallesOC) {
-            const entregado = mapaEntregas[det.producto] || 0;
-            if (entregado < det.cantidad) {
-                ordenCompleta = false;
-                break;
-            }
-        }
-
-        await OrdenCompra.findByIdAndUpdate(
-            ordenCompra,
-            { completo: ordenCompleta },
-            { session }
-        );
+        await recalcularCompletoOC(ordenCompra, session);
 
         // ✅ Commit
         await session.commitTransaction();
@@ -196,8 +177,7 @@ const setComprobanteCompra = async (req, res) => {
 
         res.status(400).json({
             ok: false,
-            message: "❌ Error al agregar comprobante de compra.",
-            error: error.message
+            message: error.message || "❌ Error al agregar comprobante de compra."
         });
 
     } finally {
@@ -458,12 +438,24 @@ const updateComprobanteCompra = async (req, res) => {
             throw new Error("❌ Faltan completar algunos campos obligatorios.");
         }
 
-        // 🔹 Actualizar cabecera
+        const comprobanteAnterior = await ComprobanteCompra.findOne({ _id: id, estado: true }).session(session).lean();
+        if (!comprobanteAnterior) {
+            throw new Error("❌ El comprobante de compra no existe o fue anulado.");
+        }
+        const tieneMovimientos = await Promise.all([
+            ProveedorRemito.exists({ comprobanteCompra: id, estado: true }).session(session),
+            ComprobantePago.exists({ comprobanteCompra: id, estado: true }).session(session),
+        ]);
+        if (tieneMovimientos.some(Boolean) &&
+            (Array.isArray(detalles) || Number(comprobanteAnterior.ordenCompra) !== Number(ordenCompra))) {
+            throw new Error("❌ El comprobante ya tiene remitos o pagos: no se pueden cambiar sus líneas ni su orden de compra.");
+        }
+
+        // 🔹 Actualizar cabecera (la fecha de emisión no cambia)
         const updatedComprobanteCompra = await ComprobanteCompra.findByIdAndUpdate(
             id,
             {
                 total,
-                fecha,
                 ordenCompra
             },
             {
@@ -500,48 +492,10 @@ const updateComprobanteCompra = async (req, res) => {
             }
         }
 
-        // =====================================================
-        //   REVERIFICAR SI LA ORDEN DE COMPRA QUEDA COMPLETA
-        // =====================================================
-
-        const detallesOC = await OrdenCompraDetalle.find({
-            ordenCompra,
-            estado: true
-        }).session(session).lean();
-
-        const comprobantes = await ComprobanteCompra.find({
-            ordenCompra,
-            estado: true
-        }).session(session).lean();
-
-        const idsComprobantes = comprobantes.map(c => c._id);
-
-        const entregas = await ComprobanteCompraDetalle.find({
-            comprobanteCompra: { $in: idsComprobantes },
-            estado: true
-        }).session(session).lean();
-
-        const mapaEntregas = {};
-        for (const det of entregas) {
-            mapaEntregas[det.producto] =
-                (mapaEntregas[det.producto] || 0) + Number(det.cantidad);
+        await recalcularCompletoOC(ordenCompra, session);
+        if (Number(comprobanteAnterior.ordenCompra) !== Number(ordenCompra)) {
+            await recalcularCompletoOC(comprobanteAnterior.ordenCompra, session);
         }
-
-        let ordenCompleta = true;
-
-        for (const det of detallesOC) {
-            const entregado = mapaEntregas[det.producto] || 0;
-            if (entregado < det.cantidad) {
-                ordenCompleta = false;
-                break;
-            }
-        }
-
-        await OrdenCompra.findByIdAndUpdate(
-            ordenCompra,
-            { completo: ordenCompleta },
-            { session }
-        );
 
         // ✅ Commit
         await session.commitTransaction();
@@ -558,8 +512,7 @@ const updateComprobanteCompra = async (req, res) => {
 
         res.status(400).json({
             ok: false,
-            message: "❌ Error al actualizar el comprobante de compra.",
-            error: error.message
+            message: error.message || "❌ Error al actualizar el comprobante de compra."
         });
 
     } finally {
@@ -568,63 +521,39 @@ const updateComprobanteCompra = async (req, res) => {
 };
 
 
-//Validaciones de eliminacion
-const ProveedorRemito = require("../models/proveedorRemito_Model");
 
-const deleteComprobanteCompra = async(req,res) => {
-    const id = req.params.id;
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.'
-        })
-        return
-    }
+const deleteComprobanteCompra = async (req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        await session.withTransaction(async () => {
+            const id = Number(req.params.id);
+            const comprobante = await ComprobanteCompra.findOne({ _id: id, estado: true }).session(session).lean();
+            if (!comprobante) {
+                throw Object.assign(new Error('❌ Comprobante de compra no encontrado.'), { status: 404 });
+            }
 
-    const remitos = await ProveedorRemito.find({comprobanteCompra:id , estado:true}).lean();
-    
-    if(remitos.length !== 0 ){
-        res.status(400).json({
-            ok:false,
-            message:"❌ Error al eliminar. Existen tablas relacionadas a este comprobante de compra."
-        })
-        return
-    }
+            const [tieneRemitos, tienePagos] = await Promise.all([
+                ProveedorRemito.exists({ comprobanteCompra: id, estado: true }).session(session),
+                ComprobantePago.exists({ comprobanteCompra: id, estado: true }).session(session),
+            ]);
+            if (tieneRemitos || tienePagos) {
+                throw new Error("❌ Error al eliminar. El comprobante de compra tiene remitos o pagos asociados.");
+            }
 
-    const deletedComprobanteCompra = await ComprobanteCompra.findByIdAndUpdate(
-        id,
-        {   
-            estado:false
-        },
-        { new: true , runValidators: true }
-    )
-;
-    if(!deletedComprobanteCompra){
-        res.status(400).json({
-            ok:false,
-            message: '❌ Error durante el borrado.'
-        })
-        return
+            await ComprobanteCompra.updateOne({ _id: id }, { estado: false }, { session });
+            await ComprobanteCompraDetalle.updateMany({ comprobanteCompra: id }, { estado: false }, { session });
+            await recalcularCompletoOC(comprobante.ordenCompra, session);
+        });
+
+        res.status(200).json({
+            ok: true,
+            message: '✔️ Comprobante de compra eliminado correctamente.'
+        });
+    } catch (error) {
+        res.status(error.status || 400).json({ ok: false, message: error.message });
+    } finally {
+        session.endSession();
     }
-    const deletedComprobanteCompraDetalle = await ComprobanteCompraDetalle.updateMany(
-        {comprobanteCompra:id},
-        {   
-            estado:false
-        },
-        { new: true , runValidators: true }
-    )
-    
-    if(!deletedComprobanteCompraDetalle){
-        res.status(400).json({
-            ok:false,
-            message: '❌ Error durante el borrado del detalle.'
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        message:'✔️ Comprobante de compra eliminado correctamente.'
-    })
 }
 
 // const { comprobanteCompraID , proveedor, ordenCompra , total , detalles } = req.body;
@@ -655,10 +584,11 @@ const buscarComprobanteCompra = async (req, res) => {
       detallesFiltrados = await ComprobanteCompraDetalle.find({
         producto: { $in: productosBuscados },
       });
-    } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "❌ Error al buscar presupuestos" });       
-    } else {
-      detallesFiltrados = await ComprobanteCompraDetalle.find();
+    }
+    // Se filtró por productos y ninguno coincide: no hay resultados.
+    // (Sin filtro de productos no hace falta cargar los detalles: se buscan todos los documentos.)
+    if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
+        return res.status(200).json({ ok: true, data: [], message: "Sin resultados." });
     }
 
     const comprobantesIDs = [

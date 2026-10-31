@@ -6,6 +6,37 @@ const getNextSequence = require("./counter_Controller.js");
 
 const { obtenerFechaHoy } = require('../utils/fecha');
 
+// Agrega nombre de persona y de medio de pago a cada movimiento con 3 consultas en lote
+// (antes eran 2-3 consultas POR movimiento: miles de consultas por pedido).
+const esProveedor = (m) => m.tipoPersona === 'PROVEEDOR' || (!m.tipoPersona && m.referencia?.toLowerCase().includes('proveedor'));
+const esCliente = (m) => m.tipoPersona === 'CLIENTE' || (!m.tipoPersona && m.referencia?.toLowerCase().includes('cliente'));
+
+const enriquecerMovimientos = async (movimientos) => {
+  const idsProveedores = [...new Set(movimientos.filter(esProveedor).map(m => m.persona).filter(v => v != null))];
+  const idsClientes = [...new Set(movimientos.filter(esCliente).map(m => m.persona).filter(v => v != null))];
+  const idsMedios = [...new Set(movimientos.map(m => m.medioPago).filter(v => v != null))];
+
+  const [proveedores, clientes, medios] = await Promise.all([
+    Proveedor.find({ _id: { $in: idsProveedores } }, 'name').lean(),
+    Cliente.find({ _id: { $in: idsClientes } }, 'name lastname').lean(),
+    MedioPago.find({ _id: { $in: idsMedios } }, 'name').lean(),
+  ]);
+  const proveedorPorId = new Map(proveedores.map(p => [p._id, p]));
+  const clientePorId = new Map(clientes.map(c => [c._id, c]));
+  const medioPorId = new Map(medios.map(m => [m._id, m]));
+
+  return movimientos.map((m) => {
+    let personaNombre = null;
+    if (esProveedor(m)) {
+      personaNombre = proveedorPorId.get(m.persona)?.name || null;
+    } else if (esCliente(m)) {
+      const c = clientePorId.get(m.persona);
+      personaNombre = c ? [c.name, c.lastname].filter(Boolean).join(' ') : null;
+    }
+    return { ...m, personaNombre, medioPagoNombre: medioPorId.get(m.medioPago)?.name || null };
+  });
+};
+
 const setCaja = async(req,res) => {
     const fecha = obtenerFechaHoy();
     const total = req.body.total;
@@ -13,6 +44,12 @@ const setCaja = async(req,res) => {
     const persona = req.body.persona;
     const referencia = req.body.referencia;
     const medioPago = req.body.medioPago;
+    if (!['ENTRADA', 'SALIDA'].includes(tipo) || !(Number(total) > 0)) {
+        return res.status(400).json({
+            ok:false,
+            message:"❌ Un movimiento manual debe ser ENTRADA o SALIDA y tener un total mayor a 0."
+        })
+    }
     if( !tipo ||!total || !referencia || !medioPago){
         res.status(400).json({
             ok:false,
@@ -50,7 +87,7 @@ const setCaja = async(req,res) => {
         .catch((err) => {
             res.status(400).json({
                 ok:false,
-                message:`❌  Error al agregar movimiento. ERROR:\n${err}`
+                message: err.message || '❌ Error al agregar movimiento.'
             })
         }) 
 }
@@ -59,30 +96,7 @@ const getCaja = async (req, res) => {
   try {
     const movimientos = await Caja.find({ estado: true }).lean();
 
-    const movimientosConPersona = await Promise.all(
-      movimientos.map(async (m) => {
-        let personaNombre = null;
-
-        if (m.referencia?.toLowerCase().includes('proveedor')) {
-          const proveedor = await Proveedor.findById(m.persona).lean();
-          personaNombre = proveedor?.name || null;
-        }
-
-        if (m.referencia?.toLowerCase().includes('cliente')) {
-          const cliente = await Cliente.findById(m.persona).lean();
-          personaNombre = cliente?.name + ' ' + cliente?.lastname || null;
-        }
-
-        const medioPagoEncontrado = await MedioPago.findById(m.medioPago).lean();
-        const medioPagoNombre = medioPagoEncontrado?.name || null;
-
-        return {
-          ...m,
-          personaNombre,
-          medioPagoNombre
-        };
-      })
-    );
+    const movimientosConPersona = await enriquecerMovimientos(movimientos);
 
     const movimientosNormalizados = movimientosConPersona.map(m => ({
       tipo: m.tipo,
@@ -134,13 +148,12 @@ function calcularTotales(movimientos = []) {
     }
   }
 
+  // Los recibos de pago (y sus ajustes) cancelan deuda de Cuenta Corriente: ENTRADA la reduce
+  // y un ajuste SALIDA la vuelve a subir. Misma regla que calcularSaldoCuentaCorriente.
   for (const mov of movimientos) {
-    if (
-      mov.tipo === "ENTRADA" &&
-      /recibo de pago/i.test(mov.referencia)
-    ) {
-      totalCuentaCorriente -= mov.total;
-    }
+    if (!/recibo de pago/i.test(mov.referencia || '')) continue;
+    if (mov.tipo === "ENTRADA") totalCuentaCorriente -= mov.total;
+    if (mov.tipo === "SALIDA") totalCuentaCorriente += mov.total;
   }
 
 
@@ -158,11 +171,11 @@ const getCajaID = async(req,res) => {
     if(!id){
         res.status(400).json({
             ok:false,
-            message:`❌  Error con el id del movimiento de caja. ERROR:\n${err}`
+            message:'❌ Error con el id del movimiento de caja.'
         })
     }
 
-    const cajaEncontrada = await Caja.findById(id);
+    const cajaEncontrada = await Caja.findById(id).lean();
     
     if(!cajaEncontrada){
         res.status(400).json({
@@ -246,29 +259,7 @@ const getVentasByCliente = async (req, res) => {
       tipoPersona: 'CLIENTE'
     }).sort({ createdAt: -1 }).lean();
 
-    const movimientosConPersona = await Promise.all(
-      movimientos.map(async (m) => {
-        let personaNombre = null;
-
-        if (m.referencia?.toLowerCase().includes('proveedor')) {
-          const proveedor = await Proveedor.findById(m.persona).lean();
-          personaNombre = proveedor?.name || null;
-        }
-
-        if (m.referencia?.toLowerCase().includes('cliente')) {
-          const cliente = await Cliente.findById(m.persona).lean();
-          personaNombre = cliente?.name + ' ' + cliente?.lastname || null;
-        }
-
-        const medioPagoEncontrado = await MedioPago.findById(m.medioPago).lean();
-        const medioPagoNombre = medioPagoEncontrado?.name || null;
-        return {
-          ...m,
-          personaNombre,
-          medioPagoNombre
-        };
-      })
-    );  
+    const movimientosConPersona = await enriquecerMovimientos(movimientos);  
 
     const movimientosNormalizados = movimientos.map(m => ({
       tipo: m.tipo,
@@ -322,30 +313,7 @@ const getVentasByFecha = async (req, res) => {
       }
     }).sort({ fecha: -1 }).lean(); // más lógico ordenar por fecha  
 
-    const movimientosConPersona = await Promise.all(
-      movimientos.map(async (m) => {
-        let personaNombre = null;
-
-        if (m.referencia?.toLowerCase().includes('proveedor')) {
-          const proveedor = await Proveedor.findById(m.persona).lean();
-          personaNombre = proveedor?.name || null;
-        }
-
-        if (m.referencia?.toLowerCase().includes('cliente')) {
-          const cliente = await Cliente.findById(m.persona).lean();
-          personaNombre = cliente?.name + ' ' + cliente?.lastname || null;
-        }
-
-        const medioPagoEncontrado = await MedioPago.findById(m.medioPago).lean();
-        const medioPagoNombre = medioPagoEncontrado?.name || null;
-
-        return {
-          ...m,
-          personaNombre,
-          medioPagoNombre
-        };
-      })
-    );  
+    const movimientosConPersona = await enriquecerMovimientos(movimientos);  
 
     const movimientosNormalizados = movimientos.map(m => ({
       tipo: m.tipo,
@@ -411,30 +379,7 @@ const getCuentaCorrienteByCliente = async (req, res) => {
       ]
     }).sort({ createdAt: -1 }).lean();
 
-    const movimientosConPersona = await Promise.all(
-      movimientos.map(async (m) => {
-        let personaNombre = null;
-
-        if (m.referencia?.toLowerCase().includes('proveedor')) {
-          const proveedor = await Proveedor.findById(m.persona).lean();
-          personaNombre = proveedor?.name || null;
-        }
-
-        if (m.referencia?.toLowerCase().includes('cliente')) {
-          const cliente = await Cliente.findById(m.persona).lean();
-          personaNombre = cliente?.name + ' ' + cliente?.lastname || null;
-        }
-
-        const medioPagoEncontrado = await MedioPago.findById(m.medioPago).lean();
-        const medioPagoNombre = medioPagoEncontrado?.name || null;
-
-        return {
-          ...m,
-          personaNombre,
-          medioPagoNombre
-        };
-      })
-    );  
+    const movimientosConPersona = await enriquecerMovimientos(movimientos);  
 
     const movimientosNormalizados = movimientos.map(m => ({
       tipo: m.tipo,
@@ -464,6 +409,7 @@ const getCuentasCorrienteConDeuda = async (req, res) => {
   try {
     const movimientos = await Caja.find({
       estado: true,
+      tipoPersona: { $ne: 'PROVEEDOR' }, // solo clientes (los IDs de proveedores pueden coincidir)
       $or: [
         { tipo: 'CUENTA_CORRIENTE' },
         { referencia: { $regex: /recibo de pago/i } }
@@ -482,6 +428,11 @@ const getCuentasCorrienteConDeuda = async (req, res) => {
     }
 
     const resultado = [];
+    const clientes = await Cliente.find(
+      { _id: { $in: Object.keys(movimientosPorCliente).map(Number).filter(n => !isNaN(n)) } },
+      'name lastname'
+    ).lean();
+    const clientePorId = new Map(clientes.map(c => [c._id, c]));
 
     for (const personaId of Object.keys(movimientosPorCliente)) {
       if (!personaId || personaId === "null" || isNaN(personaId)) continue;
@@ -496,7 +447,7 @@ const getCuentasCorrienteConDeuda = async (req, res) => {
       const totales = calcularSaldoCuentaCorriente(movimientosNormalizados);
 
       if (totales.saldoRestante > 0) {
-        const cliente = await Cliente.findById(Number(personaId)).lean();
+        const cliente = clientePorId.get(Number(personaId));
 
         if (!cliente) continue;
 
@@ -550,6 +501,16 @@ const updateCaja = async(req,res) => {
         return
     }
 
+    // Los movimientos generados por notas, recibos o pagos se corrigen desde su documento:
+    // editarlos acá desincronizaría la caja con la Cuenta Corriente.
+    const movimientoActual = await Caja.findById(req.params.id).lean();
+    if (!movimientoActual) {
+        return res.status(404).json({ ok:false, message:'❌ Movimiento no encontrado.' });
+    }
+    if (movimientoActual.origen?.tipo || /^(Ajuste )?(Nota de Pedido|Recibo de Pago|Comprobante de Pago)/.test(movimientoActual.referencia || '')) {
+        return res.status(409).json({ ok:false, message:'❌ Este movimiento lo generó un documento (nota, recibo o pago). Modifíquelo desde ese documento.' });
+    }
+
     const updatedCaja = await Caja.findByIdAndUpdate(
         cajaID,
         {
@@ -582,6 +543,16 @@ const deleteCaja = async(req,res) => {
             message:"❌ Error validar ID del movimiento a eliminar."
         })
         return
+    }
+
+    // Los movimientos generados por notas, recibos o pagos se corrigen desde su documento:
+    // editarlos acá desincronizaría la caja con la Cuenta Corriente.
+    const movimientoActual = await Caja.findById(req.params.id).lean();
+    if (!movimientoActual) {
+        return res.status(404).json({ ok:false, message:'❌ Movimiento no encontrado.' });
+    }
+    if (movimientoActual.origen?.tipo || /^(Ajuste )?(Nota de Pedido|Recibo de Pago|Comprobante de Pago)/.test(movimientoActual.referencia || '')) {
+        return res.status(409).json({ ok:false, message:'❌ Este movimiento lo generó un documento (nota, recibo o pago). Modifíquelo desde ese documento.' });
     }
 
     const deletedCaja = await Caja.findByIdAndUpdate(

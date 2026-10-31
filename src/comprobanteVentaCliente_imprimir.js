@@ -1,3 +1,11 @@
+const { round2 } = require('../utils/http');
+
+const ALICUOTA_IVA = 0.21;
+// El total del comprobante incluye IVA: el neto es total / 1,21 (no total * 0,79).
+const netoSinIva = (total) => round2(total / (1 + ALICUOTA_IVA));
+const formatoMoneda = (n) =>
+  Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 // src/ComprobanteVentaCliente_imprimir.js
 const PDFDocument = require("pdfkit");
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
@@ -310,19 +318,19 @@ const imprimir = async (req, res) => {
       // Texto del total sin iva
       doc.font("Helvetica-Bold")
         .fontSize(12)
-        .text(`Subtotal: $${comprobanteVenta.total * 0.79}`, 50, totalY-80, { align: "right" });
+        .text(`Subtotal: $${formatoMoneda(netoSinIva(comprobanteVenta.total))}`, 50, totalY-80, { align: "right" });
     } else {
       // Texto del total sin iva
       doc.font("Helvetica-Bold")
         .fontSize(12)
-        .text(`Subtotal: $${comprobanteVenta.total}`, 50, totalY-80, { align: "right" });
+        .text(`Subtotal: $${formatoMoneda(comprobanteVenta.total)}`, 50, totalY-80, { align: "right" });
     }
     
     if(comprobanteVenta.tipoComprobante?.name === 'A'){
       // Texto del total iva
       doc.font("Helvetica-Bold")
         .fontSize(12)
-        .text(`Total Iva: $${comprobanteVenta.total * 0.21}`, 50, totalY-40, { align: "right" });
+        .text(`Total Iva: $${formatoMoneda(round2(comprobanteVenta.total - netoSinIva(comprobanteVenta.total)))}`, 50, totalY-40, { align: "right" });
     } else {
       // Texto del total sin iva
       doc.font("Helvetica-Bold")
@@ -340,7 +348,7 @@ const imprimir = async (req, res) => {
     // Texto del total
     doc.font("Helvetica-Bold")
       .fontSize(16)
-      .text(`TOTAL: $${comprobanteVenta.total}`, 50, totalY, { align: "right" });
+      .text(`TOTAL: $${formatoMoneda(comprobanteVenta.total)}`, 50, totalY, { align: "right" });
     });
 
     // Finalizar PDF

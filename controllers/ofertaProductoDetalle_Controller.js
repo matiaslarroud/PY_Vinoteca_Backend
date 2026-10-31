@@ -93,7 +93,7 @@ const getOfertaDetalle_ByOferta = async(req,res) => {
     res.status(200).json({
         ok:true,
         message:"✔️ Detalles de Oferta obtenidos correctamente.",
-        data:OfertaDetalle,
+        data:ofertaDetalle,
     })
 }
 

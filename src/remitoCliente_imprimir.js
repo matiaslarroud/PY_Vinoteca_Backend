@@ -31,14 +31,14 @@ const imprimir = async (req, res) => {
       })
       .populate({path: "transporteID"})
 
+    if (!remito) {
+      return res.status(404).json({ ok: false, msg: "Remito no encontrado" });
+    }
+
     const comprobante = remito.comprobanteVentaID;
     const pedido = comprobante?.notaPedido;
     const cliente = pedido?.cliente;
     const transporte = remito.transporteID;
-
-    if (!remito) {
-      return res.status(404).json({ ok: false, msg: "Remito no encontrado" });
-    }
 
     // Traer los detalles con productos
     const detalles = await RemitoDetalle.find({ remitoID: id , estado:true})

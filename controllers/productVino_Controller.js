@@ -18,7 +18,7 @@ const setProduct =  async (req , res ) => {
     const productType = 'ProductoVino'
 
     
-    if (!nombreProducto || !proveedor || !productType || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !tipoVino || !varietalProducto || !volumenProducto || !depositoProducto) {
+    if (!nombreProducto || !proveedor || !productType || !precioProducto || stockProducto == null || stockProducto === "" || !bodegaProducto || !parajeProducto || !crianzaProducto || gananciaProducto == null || gananciaProducto === "" || !tipoVino || !varietalProducto || !volumenProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
     }
@@ -107,7 +107,7 @@ const updateProduct =  async (req , res ) => {
     const depositoProducto = req.body.deposito;
     const proveedor = req.body.proveedor;
     
-    if (!nombreProducto || !proveedor || !precioProducto || !stockProducto || !bodegaProducto || !parajeProducto || !crianzaProducto || !gananciaProducto || !varietalProducto || !volumenProducto || !depositoProducto) {
+    if (!nombreProducto || !proveedor || !precioProducto || stockProducto == null || stockProducto === "" || !bodegaProducto || !parajeProducto || !crianzaProducto || gananciaProducto == null || gananciaProducto === "" || !varietalProducto || !volumenProducto || !depositoProducto) {
         res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."});
         return
     }
@@ -276,10 +276,11 @@ const buscarProducto = async(req,res) => {
             detallesFiltrados = await ProductoVinoDetalle.find({
                 uva: { $in: uvasBuscadas },
             });
-        } if (uvasBuscadas.length > 0 && detallesFiltrados.length === 0) {
-            res.status(500).json({ ok: false, message: "❌ Error al buscar vinos" });       
-        } else if (!detalles) {
-            detallesFiltrados = await ProductoVinoDetalle.find();
+        }
+        // Se filtró por productos y ninguno coincide: no hay resultados.
+        // (Sin filtro de productos no hace falta cargar los detalles: se buscan todos los documentos.)
+        if (uvasBuscadas.length > 0 && detallesFiltrados.length === 0) {
+            return res.status(200).json({ ok: true, data: [], message: "Sin resultados." });
         }
         
         // 3️⃣ Obtenemos los IDs únicos de los vinos asociados

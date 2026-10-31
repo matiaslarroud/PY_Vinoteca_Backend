@@ -3,123 +3,84 @@ const ComprobanteVentaDetalle = require("../models/clienteComprobanteVentaDetall
 const NotaPedido = require("../models/clienteNotaPedido_Model");
 const Cliente = require("../models/cliente_Model");
 const MedioPago = require("../models/medioPago_Model");
+const NotaPedidoDetalle = require("../models/clienteNotaPedidoDetalle_Model");
+const Remito = require("../models/clienteRemito_Model");
+const { httpError } = require("../utils/http");
 const getNextSequence = require("../controllers/counter_Controller");
 const mongoose = require('mongoose');
 
 const { obtenerFechaHoy } = require('../utils/fecha');
 
-const setComprobanteVentaDetalle = async ({
-  importeP,
-  comprobanteVentaP,
-  productoID,
-  precioP,
-  cantidadP,
-  session
-}) => {
+const responderError = (res, error) =>
+  res.status(error.status && error.status < 500 ? error.status : 400).json({ ok: false, message: error.message });
 
-  if (!importeP || !comprobanteVentaP || !productoID || !precioP || !cantidadP) {
-    throw new Error('❌ Error al cargar los datos del detalle.');
-  }
-
-  const newId = await getNextSequence("Cliente_ComprobanteVentaDetalle");
-
-  const newComprobanteVentaDetalle = new ComprobanteVentaDetalle({
-    _id: newId,
-    importe: importeP,
-    comprobanteVenta: comprobanteVentaP,
-    producto: productoID,
-    precio: precioP,
-    cantidad: cantidadP,
-    estado: true
-  });
-
-  await newComprobanteVentaDetalle.save({ session });
-
-  return newComprobanteVentaDetalle;
-};
-
-
+// Crea el Comprobante de Venta de una Nota de Pedido. El total y las líneas se copian de la
+// nota (lo que se vendió y cobró), nunca del body. Una nota solo puede tener un comprobante activo.
 const setComprobanteVenta = async (req, res) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+  const session = await mongoose.startSession();
+  try {
+    let comprobante;
+    await session.withTransaction(async () => {
+      const { tipoComprobante, notaPedido: notaPedidoID } = req.body;
+      if (!tipoComprobante || !notaPedidoID) {
+        throw httpError(400, "❌ Faltan completar algunos campos obligatorios.");
+      }
 
-    try {
-        const totalP = req.body.total;
-        const fechaP = obtenerFechaHoy();
-        const tipoComprobanteP = req.body.tipoComprobante;
-        const notaPedidoP = req.body.notaPedido;
-        const detalles = req.body.detalles;
+      const nota = await NotaPedido.findOne({ _id: notaPedidoID, estado: true }).session(session).lean();
+      if (!nota) {
+        throw httpError(400, "❌ La nota de pedido no existe o fue eliminada.");
+      }
+      if (await ComprobanteVenta.exists({ notaPedido: nota._id, estado: true }).session(session)) {
+        throw httpError(409, `❌ La nota de pedido N° ${nota._id} ya está facturada.`);
+      }
 
-        // Validar datos obligatorios
-        if (!totalP || !fechaP || !tipoComprobanteP || !notaPedidoP) {
-          throw new Error("❌ Faltan completar algunos campos obligatorios.") 
-        }
-        
-        const newId = await getNextSequence("Cliente_ComprobanteVenta");
-        // Crear el comprobante
-        const newComprobanteVenta = new ComprobanteVenta({
-            _id: newId,
-            total: totalP,
-            fecha: fechaP,
-            tipoComprobante: tipoComprobanteP,
-            facturado: true,
-            remitoCreado: false,
-            notaPedido: notaPedidoP,
-            estado:true
-        });
+      const medioPago = await MedioPago.findById(nota.medioPago).session(session).lean();
+      if (medioPago && medioPago.name === "A coordinar") {
+        throw httpError(400, "❌ No se puede facturar con medio de pago 'A coordinar'. Edite la nota de pedido y seleccione el medio de pago real.");
+      }
 
-        // Guardar comprobante
-        await newComprobanteVenta.save({session});
-        
-        if (!Array.isArray(detalles) || detalles.length === 0) {
-          throw new Error("❌ El comprobante de venta debe tener al menos un detalle.");
-        }
+      const lineasNota = await NotaPedidoDetalle.find({ notaPedido: nota._id, estado: true }).session(session).lean();
+      if (lineasNota.length === 0) {
+        throw httpError(400, "❌ La nota de pedido no tiene detalles.");
+      }
 
-        // Guardar detalle
-        for (const det of detalles) {
-                await setComprobanteVentaDetalle({
-                    importeP: det.importe,
-                    precioP: det.precio,
-                    cantidadP: det.cantidad,
-                    comprobanteVentaP: newId,
-                    productoID: det.producto,
-                    session
-                });
-            }
+      const newId = await getNextSequence("Cliente_ComprobanteVenta", session);
+      comprobante = new ComprobanteVenta({
+        _id: newId,
+        total: nota.total,
+        fecha: obtenerFechaHoy(),
+        tipoComprobante,
+        facturado: true,
+        remitoCreado: false,
+        notaPedido: nota._id,
+        estado: true
+      });
+      await comprobante.save({ session });
 
-        // ===============================
-        // El Comprobante de Venta es solo facturación: NO genera movimientos de Caja
-        // ni descuenta Cuenta Corriente (eso ocurre al crear la Nota de Pedido).
-        // ===============================
-        const nota = await NotaPedido.findById(notaPedidoP).session(session);
-        if (!nota) {
-          throw new Error("❌ La nota de pedido asociada no fue encontrada.");
-        }
+      // El Comprobante de Venta es solo facturación: NO genera movimientos de Caja
+      // ni descuenta Cuenta Corriente (eso ocurre al crear la Nota de Pedido).
+      const primerId = await getNextSequence("Cliente_ComprobanteVentaDetalle", session, lineasNota.length);
+      await ComprobanteVentaDetalle.insertMany(lineasNota.map((l, i) => ({
+        _id: primerId + i,
+        comprobanteVenta: newId,
+        producto: l.producto,
+        precio: l.precio,
+        cantidad: l.cantidad,
+        importe: l.importe,
+        estado: true
+      })), { session });
+    });
 
-        const medioPago = await MedioPago.findById(nota.medioPago).session(session);
-        if (medioPago && medioPago.name === "A coordinar") {
-          throw new Error("❌ No se puede facturar con medio de pago 'A coordinar'. Edite la nota de pedido y seleccione el medio de pago real.");
-        }
-
-        await session.commitTransaction();
-
-        // Respuesta final única
-        return res.status(201).json({
-            ok: true,
-            message: '✔️ Comprobante de venta agregado y pedido actualizado correctamente.',
-            data: newComprobanteVenta
-        })
-
-    } catch (err) {
-        console.error(err);
-        await session.abortTransaction();
-        return res.status(400).json({
-            ok: false,
-            message: err.message || '❌ Error interno del servidor.'
-        });
-    }finally {
-        session.endSession();
-    }
+    return res.status(201).json({
+      ok: true,
+      message: '✔️ Comprobante de venta agregado correctamente.',
+      data: comprobante
+    });
+  } catch (err) {
+    return responderError(res, err);
+  } finally {
+    session.endSession();
+  }
 };
 
 
@@ -144,7 +105,7 @@ const getComprobanteVentaID = async (req, res) => {
     }
 
     // Buscar comprobante principal
-    const comprobanteVenta = await ComprobanteVenta.findById(id);
+    const comprobanteVenta = await ComprobanteVenta.findById(id).lean();
     if (!comprobanteVenta) {
       return res.status(404).json({
         ok: false,
@@ -152,10 +113,7 @@ const getComprobanteVentaID = async (req, res) => {
       });
     }
 
-    const [notaPedido, detalles] = await Promise.all([
-      NotaPedido.findById(comprobanteVenta.notaPedido).lean(),
-      ComprobanteVentaDetalle.find({ comprobanteVenta: comprobanteVenta._id }).lean()
-    ]);
+    const notaPedido = await NotaPedido.findById(comprobanteVenta.notaPedido).lean();
 
     if (!notaPedido) {
       return res.status(404).json({
@@ -191,100 +149,56 @@ const getComprobanteVentaID = async (req, res) => {
     res.status(500).json({
       ok: false,
       message: "Error interno del servidor al obtener el comprobante de venta.",
-      error: err.message,
     });
   }
 };
 
 
+// Un comprobante emitido es inmutable en lo fiscal (fecha, nota, total, líneas): solo se permite
+// corregir el tipo de comprobante. Para cambiar el contenido, anularlo y emitir uno nuevo.
 const updateComprobanteVenta = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const id = req.params.id;
-
-    const totalP = req.body.total;
-    const fechaP = obtenerFechaHoy();
-    const tipoComprobanteP = req.body.tipoComprobante;
-    const notaPedidoP = req.body.notaPedido;
-
-    if (!id) {
-      throw new Error('❌ El id no llegó al controlador correctamente.');
-    }
-
-    const updatedComprobanteVentaData = {
-      total: totalP,
-      fecha: fechaP,
-      tipoComprobante: tipoComprobanteP,
-      remitoCreado: false
-    };
-
-    if (notaPedidoP) {
-      updatedComprobanteVentaData.notaPedido = notaPedidoP;
-    }
-
-    const updatedComprobanteVenta = await ComprobanteVenta.findByIdAndUpdate(
-      id,
-      updatedComprobanteVentaData,
-      {
-        new: true,
-        runValidators: true,
-        session
-      }
-    );
-
-    if (!updatedComprobanteVenta) {
-      throw new Error('❌ Error al actualizar el comprobante de venta.');
-    }
-
-    await session.commitTransaction();
-
-    return res.status(200).json({
-      ok: true,
-      data: updatedComprobanteVenta,
-      message: '✔️ Comprobante de venta actualizado correctamente.'
-    });
-
-  } catch (err) {
-    console.error(err);
-    await session.abortTransaction();
-
-    return res.status(500).json({
-      ok: false,
-      message: err.message || '❌ Error interno del servidor.'
-    });
-
-  } finally {
-    session.endSession();
+  const { tipoComprobante } = req.body;
+  if (!tipoComprobante) {
+    return res.status(400).json({ ok: false, message: '❌ Debe indicar el tipo de comprobante.' });
   }
+
+  const updated = await ComprobanteVenta.findOneAndUpdate(
+    { _id: req.params.id, estado: true },
+    { tipoComprobante },
+    { new: true, runValidators: true }
+  );
+  if (!updated) {
+    return res.status(404).json({ ok: false, message: '❌ Comprobante de venta no encontrado.' });
+  }
+
+  return res.status(200).json({
+    ok: true,
+    data: updated,
+    message: '✔️ Comprobante de venta actualizado correctamente.'
+  });
 };
 
 
-const deleteComprobanteVenta = async(req,res) => {
+const deleteComprobanteVenta = async (req, res) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
   try {
-    const id = req.params.id;
-    if(!id) throw new Error('❌ El id no llego al controlador correctamente.');
+    await session.withTransaction(async () => {
+      const id = Number(req.params.id);
+      const comprobante = await ComprobanteVenta.findOne({ _id: id, estado: true }).session(session).lean();
+      if (!comprobante) throw httpError(404, '❌ Comprobante no encontrado.');
 
-    const deleted = await ComprobanteVenta.findByIdAndUpdate(
-        id, { estado: false }, { new: true, runValidators: true, session }
-    );
-    if(!deleted) throw new Error('❌ Comprobante no encontrado.');
+      if (await Remito.exists({ comprobanteVentaID: id, estado: true }).session(session)) {
+        throw httpError(409, '❌ No se puede anular el comprobante porque tiene un remito activo. Elimine primero el remito.');
+      }
 
-    await ComprobanteVentaDetalle.updateMany(
-        { comprobanteVenta: id }, { estado: false }, { session }
-    );
-
-    // El Comprobante de Venta no genera Caja ni CC (ocurre en la Nota de Pedido),
-    // por lo tanto su borrado no revierte movimientos de Caja ni stock.
-
-    await session.commitTransaction();
+      await ComprobanteVenta.updateOne({ _id: id }, { estado: false }, { session });
+      await ComprobanteVentaDetalle.updateMany({ comprobanteVenta: id }, { estado: false }, { session });
+      // El Comprobante de Venta no genera Caja ni CC (ocurre en la Nota de Pedido),
+      // por lo tanto su anulación no revierte movimientos de Caja ni stock.
+    });
     res.status(200).json({ ok: true, message: '✔️ Comprobante de venta eliminado correctamente.' });
-  } catch(error) {
-    await session.abortTransaction();
-    res.status(400).json({ ok: false, message: error.message });
+  } catch (error) {
+    return responderError(res, error);
   } finally {
     session.endSession();
   }
@@ -300,7 +214,7 @@ const buscarComprobanteVenta = async (req, res) => {
 
     if (productosBuscados.length > 0) {
       const detallesFiltrados = await ComprobanteVentaDetalle.find(
-        { producto: { $in: productosBuscados } },
+        { producto: { $in: productosBuscados.map(Number) }, estado: true },
         'comprobanteVenta'
       ).lean();
       if (detallesFiltrados.length === 0) {
@@ -312,18 +226,21 @@ const buscarComprobanteVenta = async (req, res) => {
     // Si hay filtro por cliente, obtener sus notas de pedido
     let notasPedidoIDs = null;
     if (cliente) {
-      const notas = await NotaPedido.find({ cliente }, '_id').lean();
+      const notas = await NotaPedido.find({ cliente: Number(cliente) }, '_id').lean();
       notasPedidoIDs = notas.map(n => n._id);
     }
 
     // Construir query directamente en MongoDB
     const query = { estado: true };
-    if (comprobanteVentaID) query._id = Number(comprobanteVentaID);
+    // Los filtros sobre el mismo campo se combinan con $and (antes uno pisaba al otro).
+    const condiciones = [];
+    if (comprobanteVentaID) condiciones.push({ _id: Number(comprobanteVentaID) });
+    if (comprobantesIDsDeDetalles) condiciones.push({ _id: { $in: comprobantesIDsDeDetalles } });
+    if (notaPedido) condiciones.push({ notaPedido: Number(notaPedido) });
+    if (notasPedidoIDs) condiciones.push({ notaPedido: { $in: notasPedidoIDs } });
     if (total) query.total = Number(total);
     if (fecha) query.fecha = fecha;
-    if (notaPedido) query.notaPedido = notaPedido;
-    if (notasPedidoIDs) query.notaPedido = { $in: notasPedidoIDs };
-    if (comprobantesIDsDeDetalles) query._id = { $in: comprobantesIDsDeDetalles };
+    if (condiciones.length) query.$and = condiciones;
 
     const comprobantes = await ComprobanteVenta.find(query).lean();
     res.status(200).json({ ok: true, data: comprobantes });

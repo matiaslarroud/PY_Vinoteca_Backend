@@ -1,87 +1,89 @@
 const ComprobantePago = require("../models/proveedorComprobantePago_Model");
 const ComprobanteCompra = require("../models/proveedorComprobanteCompra_Model");
 const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
-const Caja = require("../models/caja_Model");
 const getNextSequence = require("./counter_Controller");
 
 const { obtenerFechaHoy } = require('../utils/fecha');
 
-const setComprobantePago = async (req,res) => {
-    const total = req.body.total;
-    const medioPago = req.body.medioPago;
-    const fecha = obtenerFechaHoy();
-    const comprobanteCompra = req.body.comprobanteCompra;
+const mongoose = require('mongoose');
+const { httpError, round2 } = require('../utils/http');
+const { crearMovimientoCaja, buscarMovimientosDeOrigen } = require('../utils/caja');
 
-    if( !total || !fecha || !medioPago || !comprobanteCompra ){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
+const ORIGEN = 'PAGO_PROVEEDOR';
+// Los movimientos viejos se guardaron con y sin punto final.
+const referenciasLegacy = (id) => [
+    `Comprobante de Pago Proveedor N°: ${id}`,
+    `Comprobante de Pago Proveedor N°: ${id}.`,
+    `Ajuste Comprobante de Pago Proveedor N°: ${id}.`,
+];
+
+const responderError = (res, error) =>
+  res.status(error.status && error.status < 500 ? error.status : 400).json({ ok: false, message: error.message });
+
+// Comprobante de compra activo + proveedor + saldo pendiente de pago.
+const obtenerCompraParaPago = async (comprobanteCompraID, session, excluirPagoID = null) => {
+    const compra = await ComprobanteCompra.findOne({ _id: comprobanteCompraID, estado: true })
+        .populate({ path: 'ordenCompra', select: 'proveedor' })
+        .session(session).lean();
+    if (!compra) throw httpError(400, '❌ El comprobante de compra no existe o fue anulado.');
+
+    const filtro = { comprobanteCompra: compra._id, estado: true };
+    if (excluirPagoID) filtro._id = { $ne: excluirPagoID };
+    const pagos = await ComprobantePago.find(filtro, 'total').session(session).lean();
+    const pagado = round2(pagos.reduce((acc, p) => acc + p.total, 0));
+
+    return { compra, proveedorID: compra.ordenCompra?.proveedor, saldoPendiente: round2(compra.total - pagado) };
+};
+
+const validarTotalPago = (valor, saldoPendiente) => {
+    const total = round2(valor);
+    if (!Number.isFinite(total) || total <= 0) throw httpError(400, '❌ El total del pago debe ser mayor a 0.');
+    if (total > saldoPendiente) {
+        throw httpError(400, `❌ El pago ($${total}) supera el saldo pendiente del comprobante ($${saldoPendiente}).`);
     }
-    
-    const newId = await getNextSequence("Proveedor_ComprobantePago");
-    const newComprobantePago = new ComprobantePago ({
-        _id: newId,
-        total: total , 
-        fecha: fecha , 
-        comprobanteCompra : comprobanteCompra ,
-        medioPago : medioPago ,
-        estado:true
-    });
-    
-    
-      // AGREGAMOS MOVIMIENTO A LA CAJA
-      
-      const comprobanteCompraEncontrado = await ComprobanteCompra.findById(comprobanteCompra)
-        .populate({
-            path: "ordenCompra",
-            populate: {
-                path: "proveedor",
-                select: "_id"
+    return total;
+};
+
+const setComprobantePago = async (req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        let newComprobantePago;
+        await session.withTransaction(async () => {
+            const { medioPago, comprobanteCompra } = req.body;
+            if (!req.body.total || !medioPago || !comprobanteCompra) {
+                throw httpError(400, "❌ Faltan completar algunos campos obligatorios.");
             }
-      });
-      const proveedorID =
-        comprobanteCompraEncontrado
-            ?.ordenCompra
-            ?.proveedor
-            ?._id;
+            const { compra, proveedorID, saldoPendiente } = await obtenerCompraParaPago(comprobanteCompra, session);
+            const total = validarTotalPago(req.body.total, saldoPendiente);
 
-      const newIdCaja = await getNextSequence("Caja");
-      const newCaja = await new Caja({
-          _id: newIdCaja,
-          fecha:obtenerFechaHoy(),
-          tipo: 'SALIDA',
-          total: total,
-          persona:proveedorID ,
-          tipoPersona: 'PROVEEDOR',
-          referencia: `Comprobante de Pago Proveedor N°: ${newId}`,
-          medioPago:medioPago ,
-          estado:true
-      });
-  
-      if(!newCaja){
-          res.status(400).json({
-              ok:false,
-              message:"❌ Error al agregar movimiento de caja."
-          })
-          return
-      }
-      await newCaja.save()
+            const newId = await getNextSequence("Proveedor_ComprobantePago", session);
+            newComprobantePago = new ComprobantePago({
+                _id: newId,
+                total,
+                fecha: obtenerFechaHoy(),
+                comprobanteCompra: compra._id,
+                medioPago,
+                estado: true
+            });
+            await newComprobantePago.save({ session });
 
-    await newComprobantePago.save()
-        .then( () => {
-            res.status(201).json({
-                ok:true, 
-                message:'✔️ Comprobante de pago agregado correctamente.',
-                data: newComprobantePago
-            })
-        })
-        .catch((err)=>{
-            res.status(400).json({
-            ok: false,
-            message: "❌ Error al agregar comprobante de pago."
+            await crearMovimientoCaja({
+                persona: proveedorID, tipoPersona: 'PROVEEDOR', total, medioPago,
+                referencia: `Comprobante de Pago Proveedor N°: ${newId}.`, tipo: 'SALIDA',
+                origen: { tipo: ORIGEN, id: newId }, session,
             });
         });
-    
-    
+
+        res.status(201).json({
+            ok: true,
+            message: '✔️ Comprobante de pago agregado correctamente.',
+            data: newComprobantePago
+        });
+    } catch (error) {
+        return responderError(res, error);
+    } finally {
+        session.endSession();
+    }
 }
 
 const getComprobantePago = async (req, res) => {
@@ -184,131 +186,83 @@ const getComprobantePagoID = async (req, res) => {
 };
 
 
-const updateComprobantePago = async(req,res) => {
-    const id = req.params.id;
-    
-    const total = req.body.total;
-    const fecha = req.body.fecha;
-    const medioPago = req.body.medioPago;
-    const comprobanteCompra = req.body.comprobanteCompra;
+// Neto de caja de un pago (egreso): SALIDA resta, ENTRADA suma.
+// (Antes se comparaba `tipo === true`, que nunca es cierto porque tipo es un texto.)
+const netoCaja = (movimientos) =>
+    round2(movimientos.reduce((acc, mov) => mov.tipo === 'ENTRADA' ? acc + mov.total : acc - mov.total, 0));
 
-
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'❌El id no llego al controlador correctamente.',
-        })
-        return
-    }
-
-    if( !total || !medioPago || !comprobanteCompra ){
-        res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
-        return
-    }
-
-    const updatedComprobantePago = await ComprobantePago.findByIdAndUpdate(
-        id,
-        {   
-            total: total , 
-            fecha: fecha , 
-            comprobanteCompra : comprobanteCompra ,
-            medioPago : medioPago ,
-        },
-        { new: true , runValidators: true }
-    )
-
-    if(!updatedComprobantePago){
-        res.status(400).json({
-            ok:false,
-            message:'❌ Error al actualizar el comprobante de pago.'
-        })
-        return
-    }
-
-    const comprobanteCompraEncontrado = await ComprobanteCompra.findById(comprobanteCompra)
-        .populate({
-            path: "ordenCompra",
-            populate: {
-                path: "proveedor",
-                select: "_id"
+const updateComprobantePago = async (req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        let updatedComprobantePago;
+        await session.withTransaction(async () => {
+            const id = Number(req.params.id);
+            const { medioPago, comprobanteCompra } = req.body;
+            if (!req.body.total || !medioPago || !comprobanteCompra) {
+                throw httpError(400, "❌ Faltan completar algunos campos obligatorios.");
             }
-      });
-      const proveedorID =
-        comprobanteCompraEncontrado
-            ?.ordenCompra
-            ?.proveedor
-            ?._id;
 
-    // 1️⃣ Buscar TODOS los movimientos de caja de la Nota de Pedido
-    const movimientosCaja = await Caja.find({
-      estado: true,
-      referencia: { $regex: `Comprobante de Pago Proveedor N°: ${id}` }
-    });
-    if (!movimientosCaja || movimientosCaja.length === 0) {
-      throw new Error("❌ No se encontraron movimientos de caja para este comprobante de pago.");
+            const pagoOriginal = await ComprobantePago.findOne({ _id: id, estado: true }).session(session).lean();
+            if (!pagoOriginal) throw httpError(404, '❌ Comprobante de pago no encontrado.');
+
+            const { compra, proveedorID, saldoPendiente } = await obtenerCompraParaPago(comprobanteCompra, session, id);
+            const total = validarTotalPago(req.body.total, saldoPendiente);
+
+            // La fecha de emisión no cambia al editar.
+            updatedComprobantePago = await ComprobantePago.findByIdAndUpdate(
+                id,
+                { total, comprobanteCompra: compra._id, medioPago },
+                { new: true, runValidators: true, session }
+            );
+
+            // Caja: el neto de los movimientos del pago debe quedar en -total.
+            const movimientos = await buscarMovimientosDeOrigen(ORIGEN, id, referenciasLegacy(id), session);
+            const diferencia = round2(-total - netoCaja(movimientos));
+            if (diferencia !== 0) {
+                await crearMovimientoCaja({
+                    persona: proveedorID, tipoPersona: 'PROVEEDOR', total: Math.abs(diferencia), medioPago,
+                    referencia: `Ajuste Comprobante de Pago Proveedor N°: ${id}.`,
+                    tipo: diferencia > 0 ? 'ENTRADA' : 'SALIDA',
+                    origen: { tipo: ORIGEN, id }, session,
+                });
+            }
+        });
+
+        res.status(200).json({
+            ok: true,
+            data: updatedComprobantePago,
+            message: '✔️ Comprobante de pago actualizado correctamente.',
+        });
+    } catch (error) {
+        return responderError(res, error);
+    } finally {
+        session.endSession();
     }
-    // 2️⃣ Total actual REAL de caja (con signo)
-    const totalActualCaja = movimientosCaja.reduce((acc, mov) => {
-    return mov.tipo === true ? acc + mov.total : acc - mov.total;
-    }, 0);
-    // 3️⃣ Nuevo total CORRECTO en caja (egreso = negativo)
-    const nuevoTotalCaja = -Math.abs(total);
-    // 4️⃣ Diferencia real
-    const diferencia = totalActualCaja - nuevoTotalCaja;
-    // 5️⃣ Crear ajuste SOLO si hay diferencia
-    if (diferencia !== 0) {
-      const newIdCaja = await getNextSequence("Caja");
-      const tipoMovimiento = diferencia < 0 ? 'ENTRADA' : 'SALIDA';
-      const ajusteCaja = new Caja({
-        _id: newIdCaja,
-        fecha: obtenerFechaHoy(),
-        tipo: tipoMovimiento,
-        persona: proveedorID,
-        tipoPersona: 'PROVEEDOR',
-        referencia: `Ajuste Comprobante de Pago Proveedor N°: ${id}.`,
-        medioPago: movimientosCaja[0].medioPago,
-        total: Math.abs(diferencia),
-        estado: true
-      });
-      await ajusteCaja.save();
-    }
-    res.status(200).json({
-        ok:true,
-        data:updatedComprobantePago,
-        message:'✔️ Comprobante de pago actualizado correctamente.',
-    })
 }
 
-const deleteComprobantePago = async(req,res) => {
-    const id = req.params.id;
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.'
-        })
-        return
-    }
+// Anular un pago anula también sus movimientos de Caja.
+const deleteComprobantePago = async (req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        await session.withTransaction(async () => {
+            const id = Number(req.params.id);
+            const pago = await ComprobantePago.findOneAndUpdate(
+                { _id: id, estado: true }, { estado: false }, { new: true, session }
+            );
+            if (!pago) throw httpError(404, '❌ Comprobante de pago no encontrado.');
 
-    const deletedComprobantePago = await ComprobantePago.findByIdAndUpdate(
-        id,
-        {   
-            estado:false
-        },
-        { new: true , runValidators: true }
-    )
-;
-    if(!deletedComprobantePago){
-        res.status(400).json({
-            ok:false,
-            message: '❌ Error durante el borrado.'
-        })
-        return
+            const movimientos = await buscarMovimientosDeOrigen(ORIGEN, id, referenciasLegacy(id), session);
+            for (const mov of movimientos) {
+                mov.estado = false;
+                await mov.save({ session });
+            }
+        });
+        res.status(200).json({ ok: true, message: '✔️ Comprobante de pago eliminado correctamente.' });
+    } catch (error) {
+        return responderError(res, error);
+    } finally {
+        session.endSession();
     }
-    
-    res.status(200).json({
-        ok:true,
-        message:'✔️ Comprobante de pago eliminado correctamente.'
-    })
 }
 
 const buscarComprobantePago = async (req, res) => {

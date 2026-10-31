@@ -12,20 +12,20 @@ const Empleado = require("../models/empleado_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 const { setPresupuestoDetalle } = require("./clientePresupuesto_Controller");
 const { obtenerFechaHoy } = require("../utils/fecha");
+const { round2 } = require("../utils/http");
+const { validarCantidad } = require("../utils/stock");
+const { calcularPrecioEfectivo } = require("../utils/precios");
 
 const EMPLEADO_TIENDA = "Tienda Online";
 
-// Cache simple del empleado por defecto (resuelto por nombre)
-let _empleadoDefault = null;
-
+// Empleado por defecto de la tienda (se busca en cada pedido: es una consulta liviana y
+// así no queda un ID desactualizado en memoria).
 const getEmpleadoDefault = async (session) => {
-  if (!_empleadoDefault) {
-    _empleadoDefault = await Empleado.findOne({ name: EMPLEADO_TIENDA }).session(session);
-  }
-  if (!_empleadoDefault) {
+  const empleado = await Empleado.findOne({ name: EMPLEADO_TIENDA }, '_id').session(session).lean();
+  if (!empleado) {
     throw new Error("❌ Falta el empleado por defecto de la tienda ('Tienda Online').");
   }
-  return _empleadoDefault;
+  return empleado;
 };
 
 const setPresupuestoTienda = async (req, res) => {
@@ -38,22 +38,37 @@ const setPresupuestoTienda = async (req, res) => {
       throw new Error("❌ El usuario no tiene un cliente asociado. Solo los usuarios con rol cliente pueden comprar.");
     }
 
-    const totalP = req.body.total;
     const detalles = req.body.detalles;
 
-    if (!totalP) {
-      throw new Error("❌ El total del pedido es obligatorio.");
-    }
-    if (!detalles || detalles.length === 0) {
+    if (!Array.isArray(detalles) || detalles.length === 0) {
       throw new Error("❌ El pedido debe tener al menos un producto.");
     }
 
     const empleadoDefault = await getEmpleadoDefault(session);
 
-    const newId = await getNextSequence("Cliente_Presupuesto");
+    // Precios calculados en el servidor (precio de lista u oferta): el carrito del navegador
+    // solo indica productos y cantidades.
+    const lineas = [];
+    let total = 0;
+    for (const det of detalles) {
+      const productoDB = await Producto.findOne({ _id: det.producto, estado: true }).session(session).lean();
+      if (!productoDB) {
+        throw new Error("❌ Producto inexistente.");
+      }
+      const cantidad = validarCantidad(det.cantidad);
+      if (productoDB.stock < cantidad) {
+        throw new Error(`❌ Stock insuficiente para ${productoDB.name}.`);
+      }
+      const precio = calcularPrecioEfectivo(productoDB);
+      const importe = round2(precio * cantidad);
+      total += importe;
+      lineas.push({ producto: productoDB._id, cantidad, precio, importe });
+    }
+
+    const newId = await getNextSequence("Cliente_Presupuesto", session);
     const newPresupuesto = new Presupuesto({
       _id: newId,
-      total: totalP,
+      total: round2(total),
       fecha: obtenerFechaHoy(),
       cliente: clienteID,
       empleado: empleadoDefault._id,
@@ -62,24 +77,9 @@ const setPresupuestoTienda = async (req, res) => {
 
     await newPresupuesto.save({ session });
 
-    // Valida existencia/stock (sin descontar) y crea los detalles del presupuesto.
-    for (const det of detalles) {
-      const productoDB = await Producto.findById(det.producto).session(session);
-      if (!productoDB) {
-        throw new Error("❌ Producto inexistente.");
-      }
-      if (productoDB.stock < det.cantidad) {
-        throw new Error(`❌ Stock insuficiente para ${productoDB.name}.`);
-      }
-
-      await setPresupuestoDetalle({
-        importe: det.importe,
-        precio: det.precio,
-        cantidad: det.cantidad,
-        presupuesto: newId,
-        producto: det.producto,
-        session
-      });
+    // El presupuesto no descuenta stock: solo se validó que alcance.
+    for (const l of lineas) {
+      await setPresupuestoDetalle({ ...l, presupuesto: newId, session });
     }
 
     await session.commitTransaction();
@@ -87,7 +87,7 @@ const setPresupuestoTienda = async (req, res) => {
     return res.status(201).json({
       ok: true,
       message: "✔️ Presupuesto creado correctamente.",
-      data: { _id: newId }
+      data: { _id: newId, total: newPresupuesto.total }
     });
 
   } catch (error) {

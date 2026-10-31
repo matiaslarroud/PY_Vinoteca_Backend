@@ -3,41 +3,6 @@ const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
 const ProductoVino = require("../models/productoVino_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 
-const setComprobanteVentaDetalle = async (req,res) => {
-    const importeP = req.body.importe;
-    const comprobanteVentaP = req.body.comprobanteVenta;
-    const productoID = req.body.producto;
-    const precioP = req.body.precio;
-    const cantidadP = req.body.cantidad;
-
-    if(!importeP || !comprobanteVentaP || !productoID || !precioP || !cantidadP){
-        res.status(400).json({ok:false , message:'❌ Error al cargar los datos.'})
-        return
-    }
-    
-    const newId = await getNextSequence("Cliente_ComprobanteVentaDetalle");
-    const newComprobanteVentaDetalle = new ComprobanteVentaDetalle ({
-        _id: newId,
-        importe: importeP , 
-        comprobanteVenta: comprobanteVentaP , 
-        producto: productoID , 
-        precio:precioP , 
-        cantidad:cantidadP,
-        estado:true
-    });
-    await newComprobanteVentaDetalle.save()
-        .then( () => {
-            res.status(201).json({ok:true, message:'✔️ Detalle de comprobante de venta agregado correctamente.', data: newComprobanteVentaDetalle})
-        })
-        .catch((err) => {
-            res.status(400).json({
-                ok:false,
-                message:`❌  Error al agregar detalle de comprobante de venta. ERROR:\n${err}`
-            })
-        }) 
-
-}
-
 const getComprobanteVentaDetalle = async(req, res) => {
     const detallesNotaPedido = await ComprobanteVentaDetalle.find({estado:true}).lean();
 
@@ -86,7 +51,7 @@ const getComprobanteVentaDetalleID = async(req,res) => {
         return
     }
 
-    const comprobanteVentaDetalleEncontrado = await ComprobanteVentaDetalle.findByID(id);
+    const comprobanteVentaDetalleEncontrado = await ComprobanteVentaDetalle.findById(id);
     if(!comprobanteVentaDetalleEncontrado){
         res.status(400).json({
             ok:false,
@@ -102,79 +67,4 @@ const getComprobanteVentaDetalleID = async(req,res) => {
     })
 }
 
-const updateComprobanteVentaDetalle = async(req,res) => {
-    const id = req.params.id;
-    
-    const importeP = req.body.importe;
-    const comprobanteVentaP = req.body.comprobanteVenta;
-    const productoID = req.body.producto;
-    const precioP = req.body.precio;
-    const cantidadP = req.body.cantidad;
-
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.',
-        })
-        return
-    }
-
-    const updatedComprobanteVentaDetalle = await ComprobanteVentaDetalle.findByIdAndUpdate(
-        id,
-        {   
-            importe: importeP , 
-            comprobanteVenta: comprobanteVentaP , 
-            producto: productoID , 
-            precio:precioP , 
-            cantidad:cantidadP
-        },
-        { new: true , runValidators: true }
-    )
-
-    if(!updatedComprobanteVentaDetalle){
-        res.status(400).json({
-            ok:false,
-            message:'❌ Error al actualizar el detalle del comprobante de venta.'
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        data:updatedComprobanteVentaDetalle,
-        message:'✔️ Detalle de comprobante de venta actualizado correctamente.',
-    })
-}
-
-const deleteComprobanteVentaDetalle = async(req,res) => {
-    const id = req.params.id;
-    
-    if(!id){
-        res.status(400).json({
-            ok:false,
-            message:'❌ El id no llego al controlador correctamente.'
-        })
-        return
-    }
-
-    const deletedComprobanteVentaDetalle = await ComprobanteVentaDetalle.updateMany(
-        {comprobanteVenta:id},
-        {   
-            estado:false
-        },
-        { new: true , runValidators: true }
-    )
-    
-    if(!deletedComprobanteVentaDetalle){
-        res.status(400).json({
-            ok:false,
-            message: '❌ Error durante el borrado.'
-        })
-        return
-    }
-    res.status(200).json({
-        ok:true,
-        message:'✔️ Detalle de comprobante de venta eliminado correctamente.'
-    })
-}
-
-module.exports = { setComprobanteVentaDetalle , getComprobanteVentaDetalle , getComprobanteVentaDetalleID , updateComprobanteVentaDetalle , deleteComprobanteVentaDetalle , getComprobanteVentaDetalleByComprobanteVenta };
+module.exports = { getComprobanteVentaDetalle , getComprobanteVentaDetalleID , getComprobanteVentaDetalleByComprobanteVenta };;;;

@@ -15,7 +15,8 @@ const setProduct =  async (req , res ) => {
     const gananciaProducto = req.body.ganancia;
     const depositoProducto = req.body.deposito;
     
-    if (!nombreProducto || !tipoProducto || !precioProducto || !stockProducto  || !gananciaProducto  || !depositoProducto) {
+    // stock 0 es un valor válido: se valida que venga, no que sea distinto de 0.
+    if (!nombreProducto || !tipoProducto || !precioProducto || stockProducto == null || gananciaProducto == null || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede cargar el producto sin todos los datos.'});
         return
     }
@@ -34,7 +35,9 @@ const setProduct =  async (req , res ) => {
         .then(() => { 
             res.status(201).json({ok:true , message:'Producto agregado correctamente.'})
         })
-        .catch((error) => { console.log(error) }) 
+        .catch((error) => {
+            res.status(400).json({ok:false , message: error.message || 'Error al agregar el producto.'})
+        })
     
 }
 
@@ -45,39 +48,6 @@ const getProduct = async(req,res) => {
         ok:true,
         data:productos,
     })
-}
-
-const stockUpdate = async(req,res) => {
-    const id = req.params.id;
-    const cantidadVendida = req.body.cantidadVendida;
-    
-    if (isNaN(cantidadVendida)) {
-      return res.status(400).json({
-        ok: false,
-        mensaje: 'Cantidad inválida, debe ser un número',
-    })}
-
-    const producto = await Product.findById(id);
-    if(producto.stock - Number(cantidadVendida) < 0)
-    {
-      return res.status(400).json({
-            ok: false,
-            message: '❌ La cantidad solicitada supera al stock actual del producto.',
-        });
-    }
-      
-    producto.stock -= Number(cantidadVendida);
-    await producto.save();
-
-    if (!producto) {
-        return res.status(400).json({
-            ok: false,
-            mensaje: 'Producto no encontrado',
-        });
-    }
-
-    res.status(200).json({ok:true , message:"Stock actualizado correctamente."})   
-
 }
 
 const getProductTipos = async(req, res) => {
@@ -376,4 +346,4 @@ const updateOfertaProducto = async (req, res) => {
   }
 };
 
-module.exports = {setProduct , getProduct , getProductID , lowStockProducts , lowStockProductsByProveedor , updateProduct , deleteProduct , getProduct_query , getProductTipos , getProductTipoID , stockUpdate , updateOfertaProducto};
+module.exports = {setProduct , getProduct , getProductID , lowStockProducts , lowStockProductsByProveedor , updateProduct , deleteProduct , getProduct_query , getProductTipos , getProductTipoID ,  updateOfertaProducto};

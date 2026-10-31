@@ -133,46 +133,44 @@ const updateCliente = async(req,res) => {
         return
     }  
 
-    if (cuentaCorrienteC) {
-        if (!saldoCuentaCorriente) {
+    // Cuenta Corriente: solo se modifica si el campo viene explícitamente en el body.
+    delete updatedClienteData.cuentaCorriente;
+    const clienteActual = await Cliente.findById(id).lean();
+    if (!clienteActual) {
+        return res.status(404).json({ ok:false, message:'❌ Cliente no encontrado.' });
+    }
+    const deudaActual = clienteActual.cuentaCorriente
+        ? (clienteActual.saldoCuentaCorriente || 0) - (clienteActual.saldoActualCuentaCorriente || 0)
+        : 0;
+
+    if (cuentaCorrienteC === true) {
+        const limite = Number(saldoCuentaCorriente);
+        if (!Number.isFinite(limite) || limite < 0) {
             return res.status(400).json({
                 ok:false,
                 message:'❌ Error al cargar saldo de cuenta corriente.'
             });
         }
-
-        // Traer cliente actual
-        const cliente = await Cliente.findById(id);
-
-        // Actualizamos el saldo de cuenta corriente si el cliente ya lo poseia cuenta corriente asignada
-        if(cliente.cuentaCorriente === true) {
-            // Calcular diferencia
-            const diferenciaCuentaCorriente =
-                saldoCuentaCorriente - cliente.saldoCuentaCorriente;
-
-            // Actualizar ambos saldos en base al cliente actual
-            updatedClienteData.saldoCuentaCorriente =
-                cliente.saldoCuentaCorriente + diferenciaCuentaCorriente;
-
-            updatedClienteData.saldoActualCuentaCorriente =
-                cliente.saldoActualCuentaCorriente + diferenciaCuentaCorriente;
-        } else {
-            updatedClienteData.cuentaCorriente = true;
-            updatedClienteData.saldoCuentaCorriente = saldoCuentaCorriente;
-            updatedClienteData.saldoActualCuentaCorriente = saldoCuentaCorriente;
+        if (limite < deudaActual) {
+            return res.status(400).json({
+                ok:false,
+                message:`❌ El nuevo límite ($${limite}) es menor que la deuda actual del cliente ($${deudaActual}).`
+            });
         }
-        
-    }
-
-    if(!cuentaCorrienteC){
-        // Traer cliente actual
-        const cliente = await Cliente.findById(id);
-
-        // Borramos el saldo de su cuenta corriente
-        if(cliente.cuentaCorriente === true) {
-            updatedClienteData.saldoCuentaCorriente = '';
-            updatedClienteData.saldoActualCuentaCorriente = '';
+        // El crédito disponible es el límite menos lo adeudado: se conserva la deuda.
+        updatedClienteData.cuentaCorriente = true;
+        updatedClienteData.saldoCuentaCorriente = limite;
+        updatedClienteData.saldoActualCuentaCorriente = limite - deudaActual;
+    } else if (cuentaCorrienteC === false && clienteActual.cuentaCorriente === true) {
+        if (deudaActual > 0) {
+            return res.status(400).json({
+                ok:false,
+                message:`❌ No se puede deshabilitar la Cuenta Corriente: el cliente adeuda $${deudaActual}.`
+            });
         }
+        updatedClienteData.cuentaCorriente = false;
+        updatedClienteData.saldoCuentaCorriente = null;
+        updatedClienteData.saldoActualCuentaCorriente = null;
     }
 
 

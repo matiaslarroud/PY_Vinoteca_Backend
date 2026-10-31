@@ -214,10 +214,11 @@ const buscarProducto = async(req,res) => {
         detallesFiltrados = await PicadaDetalle.find({
             insumo: { $in: insumosBuscados },
         });
-    } if (insumosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "❌ Error al buscar picadas" });       
-    } else if (!detalles) {
-        detallesFiltrados = await PicadaDetalle.find();
+    }
+    // Se filtró por productos y ninguno coincide: no hay resultados.
+    // (Sin filtro de productos no hace falta cargar los detalles: se buscan todos los documentos.)
+    if (insumosBuscados.length > 0 && detallesFiltrados.length === 0) {
+        return res.status(200).json({ ok: true, data: [], message: "Sin resultados." });
     }
     
     // 3️⃣ Obtenemos los IDs únicos de los vinos asociados
@@ -259,7 +260,7 @@ const buscarProducto = async(req,res) => {
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ ok: false, message: "❌ Error al buscar productos" });
+        res.status(200).json({ ok: true, data: [], message: "Sin resultados." });
   }
 }
 

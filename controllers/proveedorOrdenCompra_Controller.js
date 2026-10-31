@@ -350,10 +350,11 @@ const buscarOrdenCompra = async (req, res) => {
       detallesFiltrados = await OrdenCompraDetalle.find({
         producto: { $in: productosBuscados },
       });
-    } if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
-        res.status(500).json({ ok: false, message: "❌ Error al buscar presupuestos" });       
-    } else if (!detalles) {
-      detallesFiltrados = await OrdenCompraDetalle.find();
+    }
+    // Se filtró por productos y ninguno coincide: no hay resultados.
+    // (Sin filtro de productos no hace falta cargar los detalles: se buscan todos los documentos.)
+    if (productosBuscados.length > 0 && detallesFiltrados.length === 0) {
+        return res.status(200).json({ ok: true, data: [], message: "Sin resultados." });
     }
 
     // 3️⃣ Obtenemos los IDs únicos de los presupuestos asociados
