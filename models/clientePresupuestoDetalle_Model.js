@@ -14,6 +14,8 @@ const PresupuestoDetalle_Schema = mongoose.Schema({
                 required: true
         },
         precio: {type: Number , required:true},
+        // Precio de lista del día del presupuesto: permite ver cuánto se negoció.
+        precioLista: {type: Number},
         cantidad: {type: Number , required:true},
         estado: {type: Boolean , required:true},
     },

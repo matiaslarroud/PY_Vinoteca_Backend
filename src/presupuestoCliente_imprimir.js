@@ -45,12 +45,17 @@ const imprimir = async (req, res) => {
       .text("Presupuesto Cliente", 50, 50, { align: "center" });
 
     // Texto a la derecha: fecha y código
-    const fechaPresupuesto = new Date(presupuesto.fecha).toLocaleDateString();
+    // Las fechas se guardan a medianoche UTC: se formatean en UTC para no correr el día.
+    const formatoFecha = (f) => new Date(f).toLocaleDateString('es-AR', { timeZone: 'UTC' });
+    const fechaPresupuesto = formatoFecha(presupuesto.fecha);
     const codigoPresupuesto = presupuesto._id?.toString().slice(-6) || "N/A"; // ejemplo: últimos 6 dígitos del ID
+    const lineaValidez = presupuesto.fechaVencimiento
+      ? `\nVálido hasta: ${formatoFecha(presupuesto.fechaVencimiento)}`
+      : "";
 
     doc.font("Helvetica")
       .fontSize(10)
-      .text(`Fecha: ${fechaPresupuesto}\nN° Presupuesto: ${codigoPresupuesto}`, 490, 55, {
+      .text(`Fecha: ${fechaPresupuesto}\nN° Presupuesto: ${codigoPresupuesto}${lineaValidez}`, 490, 55, {
         align: "left",
         width: 150
       });

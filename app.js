@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 const auth = require('./middleware/auth.js');
 const sanitizeBody = require('./middleware/sanitizeBody.js');
 const { staff } = require('./middleware/requireRole.js');
+const { errorClaveDuplicada } = require('./utils/http.js');
 
 const routerProductVino = require('./routes/productVino_Router.js');
 const routerProductVinoDetalle = require('./routes/productVinoDetalle_Router.js');
@@ -170,6 +171,7 @@ app.use((req, res) => {
 // Manejador de errores global: siempre responde JSON y no expone detalles internos.
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  err = errorClaveDuplicada(err) || err;
   const status = err.status || err.statusCode
     || (['CastError', 'ValidationError', 'MulterError'].includes(err.name) ? 400 : 500);
   if (status >= 500) console.error(err);

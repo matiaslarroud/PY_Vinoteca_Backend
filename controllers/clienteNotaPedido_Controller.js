@@ -14,6 +14,7 @@ const { httpError, round2 } = require('../utils/http');
 const { descontarStock, sumarStock, validarCantidad } = require('../utils/stock');
 const { calcularPrecioProducto, validarTotalConAjuste } = require('../utils/precios');
 const { crearMovimientoCaja, buscarMovimientosDeOrigen, moverSaldoCuentaCorriente } = require('../utils/caja');
+const { estaVigente } = require('../utils/presupuesto');
 
 const ORIGEN = 'NOTA_PEDIDO';
 const referenciaNota = (id) => `Nota de Pedido Cliente N°: ${id}.`;
@@ -32,16 +33,17 @@ const estaFacturada = (notaID, session) =>
   ComprobanteVenta.exists({ notaPedido: notaID, estado: true }).session(session);
 
 // Calcula precio e importe de cada línea en el servidor.
-// Prioridad del precio: precio de la nota original (al editar) > precio del presupuesto > precio de lista.
-const prepararDetalles = async ({ detalles, presupuestoID, preciosPrevios = new Map(), session }) => {
+// Prioridad del precio: precio de la nota original (al editar) > precio negociado del presupuesto
+// (solo si está vigente) > precio de lista actual.
+const prepararDetalles = async ({ detalles, presupuesto, preciosPrevios = new Map(), session }) => {
   if (!Array.isArray(detalles) || detalles.length === 0) {
     throw httpError(400, "❌ La nota de pedido debe tener al menos un detalle.");
   }
 
   const preciosPresupuesto = new Map();
-  if (presupuestoID) {
+  if (presupuesto && estaVigente(presupuesto)) {
     const detPresupuesto = await PresupuestoDetalle
-      .find({ presupuesto: presupuestoID, estado: true }, 'producto precio')
+      .find({ presupuesto: presupuesto._id, estado: true }, 'producto precio')
       .session(session).lean();
     for (const d of detPresupuesto) preciosPresupuesto.set(Number(d.producto), d.precio);
   }
@@ -122,14 +124,21 @@ const validarCabecera = async (body, session) => {
   return { fechaEntrega: fecha, medioPagoDB, direccion };
 };
 
-// El presupuesto debe existir, estar activo y ser del mismo cliente.
-const validarPresupuesto = async (presupuestoID, clienteID, session) => {
-  if (!presupuestoID) return;
+// El presupuesto debe existir, estar activo, ser del mismo cliente y no estar usado
+// en otra nota activa (un presupuesto se convierte en una sola nota de pedido).
+const validarPresupuesto = async (presupuestoID, clienteID, session, notaID = null) => {
+  if (!presupuestoID) return null;
   const presupuesto = await Presupuesto.findOne({ _id: presupuestoID, estado: true }).session(session).lean();
   if (!presupuesto) throw httpError(400, "❌ El presupuesto no existe o fue eliminado.");
   if (Number(presupuesto.cliente) !== Number(clienteID)) {
     throw httpError(400, "❌ El presupuesto pertenece a otro cliente.");
   }
+  const filtroOtraNota = { presupuesto: presupuesto._id, estado: true };
+  if (notaID != null) filtroOtraNota._id = { $ne: notaID };
+  if (await NotaPedido.exists(filtroOtraNota).session(session)) {
+    throw httpError(409, `❌ El presupuesto N° ${presupuesto._id} ya tiene una nota de pedido.`);
+  }
+  return presupuesto;
 };
 
 // Registra el movimiento de Caja (y el descuento de Cuenta Corriente) de una Nota de Pedido.
@@ -232,10 +241,10 @@ const setNotaPedido = async (req, res) => {
     await session.withTransaction(async () => {
       const body = req.body;
       const { fechaEntrega, medioPagoDB, direccion } = await validarCabecera(body, session);
-      await validarPresupuesto(body.presupuesto, body.cliente, session);
+      const presupuesto = await validarPresupuesto(body.presupuesto, body.cliente, session);
 
       const { lineas, totalCalculado } = await prepararDetalles({
-        detalles: body.detalles, presupuestoID: body.presupuesto, session,
+        detalles: body.detalles, presupuesto, session,
       });
       const { total, descuento } = calcularTotalNota(body.total, totalCalculado, body.descuento);
 
@@ -343,14 +352,14 @@ const updateNotaPedido = async (req, res) => {
 
       const { fechaEntrega, medioPagoDB, direccion } = await validarCabecera(body, session);
       const presupuestoID = body.presupuesto || notaAnterior.presupuesto;
-      await validarPresupuesto(presupuestoID, body.cliente, session);
+      const presupuesto = await validarPresupuesto(presupuestoID, body.cliente, session, id);
 
       // Se devuelve el stock de las líneas anteriores y se conservan sus precios.
       const detallesViejos = await anularDetalles(id, session);
       const preciosPrevios = new Map(detallesViejos.map(d => [Number(d.producto), d.precio]));
 
       const { lineas, totalCalculado } = await prepararDetalles({
-        detalles: body.detalles, presupuestoID, preciosPrevios, session,
+        detalles: body.detalles, presupuesto, preciosPrevios, session,
       });
       const { total, descuento } = calcularTotalNota(body.total, totalCalculado, body.descuento);
 

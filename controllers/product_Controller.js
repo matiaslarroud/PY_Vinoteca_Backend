@@ -251,13 +251,13 @@ const updateProduct =  async (req , res ) => {
     const id = req.params.id;
     
     const nombreProducto = req.body.name;
-    const tipoProducto = req.body.tipoProducto;
     const precioProducto = req.body.precioCosto;
-    const stockProducto = req.body.stock;
     const gananciaProducto = req.body.ganancia;
     const depositoProducto = req.body.deposito;
+    // No se edita el stock (se usa el ajuste de stock) ni el tipo de producto
+    // (cambiarlo dejaría al documento con campos de otro tipo).
     
-    if (!nombreProducto || !tipoProducto || !precioProducto || !stockProducto || !gananciaProducto || !depositoProducto) {
+    if (!nombreProducto || !precioProducto || gananciaProducto == null || !depositoProducto) {
         res.status(400).json({ok:false , message:'No se puede actualizar el producto sin todos los datos.'});
         return
     }
@@ -266,8 +266,6 @@ const updateProduct =  async (req , res ) => {
             id, 
             {
                 name: nombreProducto , 
-                tipoProducto: tipoProducto,
-                stock: stockProducto,
                 precioCosto: precioProducto,
                 ganancia: gananciaProducto,
                 deposito: depositoProducto,

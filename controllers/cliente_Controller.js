@@ -1,6 +1,7 @@
 const Cliente = require("../models/cliente_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
+const { errorClaveDuplicada } = require("../utils/http");
 
 const setCliente = async (req,res) => {
     const nombreC = req.body.name;
@@ -48,9 +49,11 @@ const setCliente = async (req,res) => {
             res.status(201).json({ok:true, message:'✔️ Cliente agregado correctamente.'})
         })
         .catch((err) => {
-            res.status(400).json({
+            // CUIT repetido → 409 con mensaje claro; el resto, sin exponer el error interno.
+            const duplicado = errorClaveDuplicada(err);
+            res.status(duplicado ? 409 : 400).json({
                 ok:false,
-                message:`❌  Error al agregar cliente. ERROR:\n${err}`
+                message: duplicado ? duplicado.message : '❌ Error al agregar cliente.'
             })
         })
 

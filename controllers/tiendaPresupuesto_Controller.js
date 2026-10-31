@@ -3,18 +3,19 @@
 // - El cliente se toma del token (req.user.cliente), no del body.
 // - empleado usa el registro por defecto ("Tienda Online").
 // - El presupuesto NO tiene medio de pago, NO genera movimiento de Caja y NO descuenta
-//   stock (solo valida que exista stock suficiente). El dueño luego lo convierte en
+//   stock (solo valida que exista stock suficiente, porque el cliente compra lo que ve disponible). El dueño luego lo convierte en
 //   Nota de Pedido eligiendo el medio de pago real, y ahí nace la Caja.
 const mongoose = require('mongoose');
 const Presupuesto = require("../models/clientePresupuesto_Model");
 const Producto = require("../models/producto_Model");
 const Empleado = require("../models/empleado_Model");
 const getNextSequence = require("../controllers/counter_Controller");
-const { setPresupuestoDetalle } = require("./clientePresupuesto_Controller");
+const { guardarDetallesPresupuesto } = require("./clientePresupuesto_Controller");
 const { obtenerFechaHoy } = require("../utils/fecha");
 const { round2 } = require("../utils/http");
 const { validarCantidad } = require("../utils/stock");
 const { calcularPrecioEfectivo } = require("../utils/precios");
+const { validarDiasValidez, calcularVencimiento } = require("../utils/presupuesto");
 
 const EMPLEADO_TIENDA = "Tienda Online";
 
@@ -62,25 +63,27 @@ const setPresupuestoTienda = async (req, res) => {
       const precio = calcularPrecioEfectivo(productoDB);
       const importe = round2(precio * cantidad);
       total += importe;
-      lineas.push({ producto: productoDB._id, cantidad, precio, importe });
+      lineas.push({ producto: productoDB._id, cantidad, precio, precioLista: precio, importe });
     }
 
     const newId = await getNextSequence("Cliente_Presupuesto", session);
+    const fecha = obtenerFechaHoy();
+    const diasValidez = validarDiasValidez();
     const newPresupuesto = new Presupuesto({
       _id: newId,
       total: round2(total),
-      fecha: obtenerFechaHoy(),
+      fecha,
       cliente: clienteID,
       empleado: empleadoDefault._id,
-      estado: true
+      estado: true,
+      diasValidez,
+      fechaVencimiento: calcularVencimiento(fecha, diasValidez),
     });
 
     await newPresupuesto.save({ session });
 
     // El presupuesto no descuenta stock: solo se validó que alcance.
-    for (const l of lineas) {
-      await setPresupuestoDetalle({ ...l, presupuesto: newId, session });
-    }
+    await guardarDetallesPresupuesto({ lineas, presupuestoID: newId, session });
 
     await session.commitTransaction();
 

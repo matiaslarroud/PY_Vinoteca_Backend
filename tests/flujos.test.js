@@ -237,3 +237,138 @@ describe('Compras: remito de proveedor', () => {
     expect(await stock(10)).toBe(antes);
   });
 });
+
+describe('Productos: ajuste de stock', () => {
+  let tokenVendedor;
+  beforeAll(async () => {
+    await raw('Usuario').insertOne({ _id: 3, name: 'vendedor', password: 'x', rol: 'vendedor', estado: true });
+    tokenVendedor = jwt.sign({ id: 3, rol: 'vendedor' }, process.env.JWT_SECRET);
+    await raw('Producto').insertOne({ _id: 32, name: 'Aceitunas', stock: 4, tipoProducto: 'ProductoInsumo', __t: 'ProductoInsumo', precioCosto: 10, ganancia: 20, deposito: 1, proveedor: 1, estado: true });
+  });
+
+  test('editar el producto no cambia su stock', async () => {
+    const res = await api('put', '/products/productInsumo/32')
+      .send({ name: 'Aceitunas verdes', precioCosto: 12, ganancia: 0, deposito: 1, proveedor: 1, stock: 999 });
+    expect(res.status).toBe(200);
+    expect(await stock(32)).toBe(4);
+  });
+
+  test('solo el administrador ajusta, nunca deja stock negativo y queda registrado', async () => {
+    const ruta = '/gestion/products/32/ajusteStock';
+    expect((await api('post', ruta, tokenVendedor).send({ cantidad: 5, motivo: 'x' })).status).toBe(403);
+    expect((await api('post', ruta).send({ cantidad: 5 })).status).toBe(400);
+    expect((await api('post', ruta).send({ cantidad: 1.5, motivo: 'x' })).status).toBe(400);
+
+    const suma = await api('post', ruta).send({ cantidad: 5, motivo: 'Inventario' });
+    expect(suma.status).toBe(201);
+    expect(suma.body.data).toMatchObject({ stockAnterior: 4, stockNuevo: 9, usuario: 1 });
+
+    expect((await api('post', ruta).send({ cantidad: -10, motivo: 'Rotura' })).status).toBe(400);
+    expect(await stock(32)).toBe(9);
+
+    const historial = await api('get', ruta, tokenVendedor);
+    expect(historial.status).toBe(200);
+    expect(historial.body.data).toHaveLength(1);
+  });
+});
+
+describe('Presupuestos: precio negociado, vigencia y paso a nota', () => {
+  // Vino 30: lista = 100 + 100% = 200, stock 2. Vino 31: sin stock.
+  beforeAll(async () => {
+    await raw('Producto').insertMany([
+      { _id: 30, name: 'Cabernet', stock: 2, tipoProducto: 'ProductoVino', __t: 'ProductoVino', precioCosto: 100, ganancia: 100, estado: true },
+      { _id: 31, name: 'Agotado', stock: 0, tipoProducto: 'ProductoVino', __t: 'ProductoVino', precioCosto: 50, ganancia: 0, estado: true },
+    ]);
+  });
+
+  const nuevoPresupuesto = (overrides = {}) => ({
+    cliente: 2, empleado: 1,
+    detalles: [{ producto: 30, cantidad: 3, precio: 150 }, { producto: 31, cantidad: 1, precio: 50 }],
+    total: 500, ...overrides,
+  });
+  const notaDesde = (presupuesto, detalles, total) => ({
+    cliente: 2, empleado: 1, medioPago: 1, fechaEntrega: '2026-11-15', envio: false, presupuesto, detalles, total,
+  });
+
+  let presupuestoID;
+
+  test('valida días de validez y total; acepta precio negociado y avisa falta de stock', async () => {
+    expect((await api('post', '/cliente/presupuesto').send(nuevoPresupuesto({ diasValidez: 31 }))).status).toBe(400);
+    expect((await api('post', '/cliente/presupuesto').send(nuevoPresupuesto({ diasValidez: 0 }))).status).toBe(400);
+    expect((await api('post', '/cliente/presupuesto').send(nuevoPresupuesto({ total: 400 }))).status).toBe(400);
+
+    const res = await api('post', '/cliente/presupuesto').send(nuevoPresupuesto());
+    expect(res.status).toBe(201);
+    expect(res.body.avisos).toHaveLength(2);
+    presupuestoID = res.body.data._id;
+    expect(res.body.data.diasValidez).toBe(5);
+
+    const detalles = await raw('Cliente_PresupuestoDetalle').find({ presupuesto: presupuestoID, estado: true }).toArray();
+    expect(detalles.find(d => d.producto === 30)).toMatchObject({ precio: 150, precioLista: 200, importe: 450 });
+  });
+
+  test('vigente: la nota se precarga con el stock real y el precio negociado', async () => {
+    const res = await api('get', `/cliente/presupuesto/${presupuestoID}/paraNota`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.presupuesto.vigente).toBe(true);
+    const [cabernet, agotado] = res.body.data.detalles;
+    expect(cabernet).toMatchObject({ cantidadPresupuestada: 3, stockDisponible: 2, cantidad: 2, precio: 150, cargar: true });
+    expect(agotado).toMatchObject({ cantidad: 0, cargar: false });
+    expect(res.body.data.total).toBe(300);
+  });
+
+  test('la nota respeta el precio negociado y el presupuesto queda tomado', async () => {
+    const nota = await api('post', '/cliente/notaPedido').send(notaDesde(presupuestoID, [{ producto: 30, cantidad: 2 }], 300));
+    expect(nota.status).toBe(201);
+    expect(await stock(30)).toBe(0);
+
+    expect((await api('post', '/cliente/notaPedido').send(notaDesde(presupuestoID, [{ producto: 30, cantidad: 1 }], 150))).status).toBe(409);
+    expect((await api('put', `/cliente/presupuesto/${presupuestoID}`).send(nuevoPresupuesto())).status).toBe(409);
+    expect((await api('delete', `/cliente/presupuesto/${presupuestoID}`)).status).toBe(409);
+    expect((await api('get', `/cliente/presupuesto/${presupuestoID}/paraNota`)).status).toBe(409);
+
+    // Anulada la nota, el presupuesto vuelve a estar libre (mismo criterio en editar y borrar).
+    expect((await api('delete', `/cliente/notaPedido/${nota.body.data._id}`)).status).toBe(200);
+    expect(await stock(30)).toBe(2);
+    const lista = await api('get', '/cliente/presupuesto');
+    expect(lista.body.data.find(p => p._id === presupuestoID).tieneNotaPedido).toBe(false);
+  });
+
+  test('vencido: se usan los precios actuales', async () => {
+    await raw('Cliente_Presupuesto').updateOne({ _id: presupuestoID }, { $set: { fechaVencimiento: new Date('2020-01-01') } });
+
+    const res = await api('get', `/cliente/presupuesto/${presupuestoID}/paraNota`);
+    expect(res.body.data.presupuesto.vigente).toBe(false);
+    expect(res.body.data.detalles[0]).toMatchObject({ cantidad: 2, precio: 200 });
+
+    // Con el precio negociado (300) ya no pasa la tolerancia: el servidor calcula 400.
+    expect((await api('post', '/cliente/notaPedido').send(notaDesde(presupuestoID, [{ producto: 30, cantidad: 2 }], 300))).status).toBe(400);
+    const nota = await api('post', '/cliente/notaPedido').send(notaDesde(presupuestoID, [{ producto: 30, cantidad: 2 }], 400));
+    expect(nota.status).toBe(201);
+  });
+
+  test('editar recalcula el vencimiento desde la fecha original', async () => {
+    const creado = await api('post', '/cliente/presupuesto').send(nuevoPresupuesto({ diasValidez: 10 }));
+    const id = creado.body.data._id;
+    const res = await api('put', `/cliente/presupuesto/${id}`).send(nuevoPresupuesto({ diasValidez: 30, fecha: '2000-01-01' }));
+    expect(res.status).toBe(200);
+    const fecha = new Date(creado.body.data.fecha);
+    const esperado = new Date(fecha);
+    esperado.setUTCDate(esperado.getUTCDate() + 30);
+    expect(new Date(res.body.data.fecha).getTime()).toBe(fecha.getTime());
+    expect(new Date(res.body.data.fechaVencimiento).getTime()).toBe(esperado.getTime());
+  });
+});
+
+describe('Clientes', () => {
+  test('un CUIT repetido responde 409 con un mensaje claro', async () => {
+    // Los clientes de prueba se insertaron sin pasar por el contador.
+    await raw('Counter').updateOne({ _id: 'Cliente' }, { $set: { seq: 100 } }, { upsert: true });
+    const res = await api('post', '/gestion/cliente').send({
+      name: 'Ceci', lastname: 'C', fechaNacimiento: '1990-01-01', telefono: '1', email: 'c@c.com', cuit: '20-1',
+      pais: 1, provincia: 1, localidad: 1, barrio: 1, calle: 1, altura: 1, condicionIva: 1,
+    });
+    expect(res.status).toBe(409);
+    expect(res.body.message).toMatch(/CUIT/);
+  });
+});

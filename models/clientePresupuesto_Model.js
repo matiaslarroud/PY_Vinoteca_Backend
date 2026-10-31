@@ -15,6 +15,9 @@ const Presupuesto_Schema = mongoose.Schema({
             required: true
         },
     estado: {type: Boolean , required:true},
+    // Vigencia: mientras esté vigente, la nota de pedido respeta los precios negociados.
+    diasValidez: {type: Number , min:1 , max:30},
+    fechaVencimiento: {type: Date},
     },
     
     {

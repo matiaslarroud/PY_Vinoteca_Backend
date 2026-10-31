@@ -81,13 +81,13 @@ const updateProduct =  async (req , res ) => {
     }
     const nombreProducto = req.body.name;
     const precioProducto = req.body.precioCosto;
-    const stockProducto = req.body.stock;
+    // El stock no se modifica al editar: se usa el ajuste de stock (POST /gestion/products/:id/ajusteStock).
     const stockMinimoProducto = req.body.stockMinimo;
     const gananciaProducto = req.body.ganancia;
     const depositoProducto = req.body.deposito;
     const proveedorProducto = req.body.proveedor;
     
-    if (!nombreProducto || !precioProducto || stockProducto == null || stockProducto === "" ||  !gananciaProducto || !depositoProducto || !proveedorProducto) {
+    if (!nombreProducto || !precioProducto || gananciaProducto == null || gananciaProducto === "" || !depositoProducto || !proveedorProducto) {
         res.status(400).json({ok:false , message:'❌ Faltan completar algunos campos obligatorios.'});
         return
     }
@@ -97,7 +97,6 @@ const updateProduct =  async (req , res ) => {
             {
                 name: nombreProducto , 
                 precioCosto: precioProducto , 
-                stock: stockProducto , 
                 stockMinimo: stockMinimoProducto,
                 ganancia: gananciaProducto , 
                 deposito: depositoProducto, 
