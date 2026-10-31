@@ -60,6 +60,8 @@ Rama: `revision-2026` en los dos repos. Un commit por bloque.
 
 ## B. Frontend: compatibilidad con el backend nuevo (bloquea el despliegue)
 
+> **Estado:** hecho (frontend, commit `aff71dc`). Incluye además las pantallas de presupuesto (precio editable, validez, avisos) y la nota desde presupuesto con `/paraNota`. El punto 4 no requirió cambios: no existe pantalla de edición de comprobantes de venta.
+
 1. **Botón de cambio de BD:** `pages/gestion/indexGestion.js:10,21` llama a `/ping/switchDb`, que ya no existe. Quitar el botón y mostrar, si se quiere, un indicador de entorno (`NEXT_PUBLIC_ENTORNO`).
 2. **Stock en la edición de productos:** en `updateVino.js`, `updateInsumo.js` y `updatePicada.js`, el stock pasa a solo lectura, con un botón "Ajustar stock" que abre un modal (cantidad ± y motivo) contra el endpoint de A1.
 3. **Mensajes de error del servidor:** las pantallas tienen que mostrar el `message` que devuelve el backend en lugar de un texto fijo. Casos nuevos que el usuario va a ver:
