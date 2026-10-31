@@ -19,6 +19,9 @@ const VinoDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+// Índices para las consultas por documento padre / estado.
+VinoDetalle_Schema.index({ vino: 1, estado: 1 });
+VinoDetalle_Schema.index({ uva: 1 });
 const VinoDetalle = mongoose.model("ProductoVinoDetalle", VinoDetalle_Schema, "ProductoVinoDetalle");
 
 module.exports = VinoDetalle;

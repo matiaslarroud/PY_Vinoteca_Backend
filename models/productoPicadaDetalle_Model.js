@@ -20,6 +20,9 @@ const PicadaDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+// Índices para las consultas por documento padre / estado.
+PicadaDetalle_Schema.index({ picada: 1, estado: 1 });
+PicadaDetalle_Schema.index({ insumo: 1 });
 const PicadaDetalle = mongoose.model("ProductoPicadaDetalle", PicadaDetalle_Schema, "ProductoPicadaDetalle");
 
 module.exports = PicadaDetalle;

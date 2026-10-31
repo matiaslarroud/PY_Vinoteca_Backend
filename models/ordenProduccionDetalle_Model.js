@@ -20,6 +20,9 @@ const OrdenProduccionDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+// Índices para las consultas por documento padre / estado.
+OrdenProduccionDetalle_Schema.index({ ordenProduccion: 1, estado: 1 });
+OrdenProduccionDetalle_Schema.index({ picada: 1 });
 const OrdenProduccionDetalle = mongoose.model("OrdenProduccionDetalle", OrdenProduccionDetalle_Schema, "OrdenProduccionDetalle");
 
 module.exports =  OrdenProduccionDetalle;

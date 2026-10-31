@@ -31,6 +31,8 @@ const ProductoFoto_Schema = mongoose.Schema({
     }
 );
 
+// Índices para las consultas por documento padre / estado.
+ProductoFoto_Schema.index({ productoID: 1, estado: 1, orden: 1 });
 const ProductoFoto = mongoose.model("ProductoFoto", ProductoFoto_Schema , "ProductoFoto");
 
 module.exports = ProductoFoto;

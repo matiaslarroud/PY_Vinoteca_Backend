@@ -36,6 +36,8 @@ productSchema.index({ tipoProducto: 1 });
 productSchema.index({ stock: 1 });
 productSchema.index({ enOferta: 1 });
 
+// Índices para las consultas por documento padre / estado.
+productSchema.index({ deposito: 1 });
 const Product = mongoose.model("Producto", productSchema , "Producto");
 
 module.exports = Product;

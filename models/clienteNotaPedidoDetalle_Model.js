@@ -22,6 +22,9 @@ const NotaPedidoDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+// Índices para las consultas por documento padre / estado.
+NotaPedidoDetalle_Schema.index({ notaPedido: 1, estado: 1 });
+NotaPedidoDetalle_Schema.index({ producto: 1 });
 const NotaPedidoDetalle = mongoose.model("Cliente_NotaPedidoDetalle", NotaPedidoDetalle_Schema , "Cliente_NotaPedidoDetalle");
 
 module.exports = NotaPedidoDetalle;

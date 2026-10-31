@@ -21,5 +21,8 @@ const Remito_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+// Índices para las consultas por documento padre / estado.
+Remito_Schema.index({ estado: 1 });
+Remito_Schema.index({ comprobanteVentaID: 1, estado: 1 });
 const Cliente_Remito = mongoose.model("Cliente_Remito", Remito_Schema , "Cliente_Remito");
 module.exports = Cliente_Remito;

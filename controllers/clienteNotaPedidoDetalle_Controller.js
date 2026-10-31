@@ -86,34 +86,24 @@ const getVinosMasVendidos = async (req, res) => {
       idsNotasValidas = notas.map(c => c._id);
     }
 
-    // 2. Obtener detalles (filtrados o todos)
-    const filtroDetalle = { estado: true };
+    // 2. Agrupar en la base de datos (antes se traían todos los detalles a memoria).
+    //    Solo cuentan vinos: picadas e insumos no forman parte del ranking.
+    const idsVinos = await ProductoVino.distinct('_id');
+    const filtroDetalle = { estado: true, producto: { $in: idsVinos } };
     if (idsNotasValidas) {
       filtroDetalle.notaPedido = { $in: idsNotasValidas };
     }
-    const detalles = await NotaPedidoDetalle.find(filtroDetalle).lean();
-
-    // 3. Agrupar por productoID
-    const mapaProducto = {};
-    for (const det of detalles) {
-      const pid = det.producto;
-      if (!mapaProducto[pid]) {
-        mapaProducto[pid] = { cantidadVendida: 0, importeTotal: 0, notas: new Set() };
-      }
-      mapaProducto[pid].cantidadVendida += Number(det.cantidad) || 0;
-      mapaProducto[pid].importeTotal    += Number(det.importe)  || 0;
-      mapaProducto[pid].notas.add(det.notaPedido);
-    }
-
-    // 4. Ordenar desc por cantidad y cortar al topN
-    let ranking = Object.entries(mapaProducto)
-      .map(([productoID, datos]) => ({
-        productoID: Number(productoID),
-        cantidadVendida: datos.cantidadVendida,
-        importeTotal: datos.importeTotal,
-        nroComprobantes: datos.notas.size
-      }))
-      .sort((a, b) => b.cantidadVendida - a.cantidadVendida);
+    let ranking = await NotaPedidoDetalle.aggregate([
+      { $match: filtroDetalle },
+      { $group: {
+          _id: '$producto',
+          cantidadVendida: { $sum: '$cantidad' },
+          importeTotal: { $sum: '$importe' },
+          notas: { $addToSet: '$notaPedido' },
+      } },
+      { $project: { _id: 0, productoID: '$_id', cantidadVendida: 1, importeTotal: 1, nroComprobantes: { $size: '$notas' } } },
+      { $sort: { cantidadVendida: -1 } },
+    ]);
 
     if (topN) ranking = ranking.slice(0, topN);
 

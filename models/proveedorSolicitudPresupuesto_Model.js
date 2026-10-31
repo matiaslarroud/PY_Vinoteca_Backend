@@ -20,6 +20,9 @@ const ProveedorSolicitudPresupuesto_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+// Índices para las consultas por documento padre / estado.
+ProveedorSolicitudPresupuesto_Schema.index({ estado: 1 });
+ProveedorSolicitudPresupuesto_Schema.index({ proveedor: 1, estado: 1 });
 const Proveedor_SolicitudPresupuesto = mongoose.model("Proveedor_SolicitudPresupuesto", ProveedorSolicitudPresupuesto_Schema , "Proveedor_SolicitudPresupuesto");
 
 module.exports = Proveedor_SolicitudPresupuesto;

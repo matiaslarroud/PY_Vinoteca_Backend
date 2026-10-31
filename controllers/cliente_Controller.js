@@ -290,30 +290,19 @@ const getClientesInactivos = async (req, res) => {
     const umbral = new Date();
     umbral.setDate(umbral.getDate() - dias);
 
-    // 1. Mapa notaPedidoID → clienteID
-    const notasPedido = await NotaPedido.find({ estado: true }).lean();
-    const mapaNotaCliente = {};
-    for (const np of notasPedido) {
-      mapaNotaCliente[np._id] = np.cliente;
-    }
-
-    // 2. Agrupar comprobantes por cliente: MAX(fecha) y SUM(total)
-    const comprobantes = await ComprobanteVenta.find({ estado: true }).lean();
+    // 1. Por cliente: última compra y total histórico (comprobantes activos), agrupado en la BD.
+    const compras = await ComprobanteVenta.aggregate([
+      { $match: { estado: true } },
+      { $lookup: { from: NotaPedido.collection.name, localField: 'notaPedido', foreignField: '_id', as: 'nota' } },
+      { $unwind: '$nota' },
+      { $match: { 'nota.estado': true } },
+      { $group: { _id: '$nota.cliente', ultimaCompra: { $max: '$fecha' }, totalHistorico: { $sum: '$total' } } },
+    ]);
     const mapaCliente = {};
-    for (const cv of comprobantes) {
-      const clienteID = mapaNotaCliente[cv.notaPedido];
-      if (!clienteID) continue;
-      if (!mapaCliente[clienteID]) {
-        mapaCliente[clienteID] = { ultimaCompra: cv.fecha, totalHistorico: 0 };
-      }
-      if (new Date(cv.fecha) > new Date(mapaCliente[clienteID].ultimaCompra)) {
-        mapaCliente[clienteID].ultimaCompra = cv.fecha;
-      }
-      mapaCliente[clienteID].totalHistorico += Number(cv.total) || 0;
-    }
+    for (const c of compras) mapaCliente[c._id] = c;
 
     // 3. Filtrar clientes sin compras recientes
-    const clientes = await Cliente.find({ estado: true }).lean();
+    const clientes = await Cliente.find({ estado: true }, 'name lastname email telefono cuentaCorriente').lean();
     const hoy = new Date();
     const resultado = [];
 

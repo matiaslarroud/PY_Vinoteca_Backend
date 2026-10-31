@@ -19,5 +19,8 @@ const ReciboPago_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+// Índices para las consultas por documento padre / estado.
+ReciboPago_Schema.index({ estado: 1 });
+ReciboPago_Schema.index({ clienteID: 1, estado: 1 });
 const Cliente_ReciboPago = mongoose.model("Cliente_ReciboPago", ReciboPago_Schema , "Cliente_ReciboPago");
 module.exports = Cliente_ReciboPago;

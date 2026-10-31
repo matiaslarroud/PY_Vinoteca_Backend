@@ -22,6 +22,9 @@ const ComprobanteVentaDetalle_Schema = mongoose.Schema({
         timestamps: true
     }
 )
+// Índices para las consultas por documento padre / estado.
+ComprobanteVentaDetalle_Schema.index({ comprobanteVenta: 1, estado: 1 });
+ComprobanteVentaDetalle_Schema.index({ producto: 1 });
 const ComprobanteVentaDetalle = mongoose.model("Cliente_ComprobanteVentaDetalle", ComprobanteVentaDetalle_Schema , "Cliente_ComprobanteVentaDetalle");
 
 module.exports = ComprobanteVentaDetalle;
