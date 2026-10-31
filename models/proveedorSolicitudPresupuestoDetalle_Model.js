@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const ProveedorSolicitudPresupuestoDetalle_Schema = mongoose.Schema({
     _id: Number,
-    cantidad: {type: Number , require:true},
+    cantidad: {type: Number , required:true},
     solicitudPresupuesto: {
             type: Number,
             ref: 'Proveedor_SolicitudPresupuesto',
@@ -13,8 +13,8 @@ const ProveedorSolicitudPresupuestoDetalle_Schema = mongoose.Schema({
             ref: 'Producto',
             required: true
         },
-    importe: {type:Number , require:true},
-    estado: {type: Boolean , require:true},
+    importe: {type:Number , required:true},
+    estado: {type: Boolean , required:true},
     },
     
     {

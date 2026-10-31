@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const NotaPedido_Schema = mongoose.Schema({
     _id: Number,
-    total: {type: Number , require:true},
-    fecha: {type: Date , require:true},
-    fechaEntrega: {type: Date , require:true},
+    total: {type: Number , required:true},
+    fecha: {type: Date , required:true},
+    fechaEntrega: {type: Date },
     cliente: {
             type: Number,
             ref: 'Cliente',
@@ -24,7 +24,7 @@ const NotaPedido_Schema = mongoose.Schema({
             type: Number,
             ref: 'Cliente_Presupuesto'
         },
-    envio: {type: Boolean , require:true},
+    envio: {type: Boolean },
     provincia: {
         type: Number,
         ref: 'Provincia',
@@ -67,8 +67,8 @@ const NotaPedido_Schema = mongoose.Schema({
         type: String,
         require:false
     },
-    descuento: {type: Number , require:true},
-    estado: {type: Boolean , require:true},
+    descuento: {type: Number },
+    estado: {type: Boolean , required:true},
 },
     
     {

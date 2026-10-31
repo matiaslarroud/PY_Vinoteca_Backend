@@ -1,18 +1,20 @@
 const mongoose = require('mongoose');
 
-let currentDb = 'prod';
-
-const buildUri = (dbName) =>
-  `mongodb+srv://matutedel30:${process.env.PASS_MONGODB}@vinOteca.thjyjhn.mongodb.net/${dbName}?retryWrites=true&w=majority&appName=Vinoteca`;
+// Cada entorno (producción / prueba) es un despliegue separado con su propia MONGODB_URI.
+const getUri = () => {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('Falta la variable de entorno MONGODB_URI.');
+  }
+  return uri;
+};
 
 const connectDatabase = async (app) => {
   const PORT = process.env.PORT || 4000;
-  const dbName = process.env.MONGODB_DB_PROD;
 
   try {
-    await mongoose.connect(buildUri(dbName));
-    currentDb = 'prod';
-    console.log(`✅ Conexión exitosa a la BD: ${dbName}`);
+    await mongoose.connect(getUri());
+    console.log(`✅ Conexión exitosa a la BD: ${mongoose.connection.name}`);
     app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
   } catch (error) {
     console.error('❌ No se pudo conectar a la BD:', error.message);
@@ -20,19 +22,5 @@ const connectDatabase = async (app) => {
   }
 };
 
-const switchDatabase = async (target) => {
-  const dbName = target === 'dev' ? process.env.MONGODB_DB_DEV : process.env.MONGODB_DB_PROD;
-  await mongoose.disconnect();
-  await mongoose.connect(buildUri(dbName));
-  currentDb = target;
-  console.log(`🔄 BD activa: ${dbName}`);
-};
-
-const getCurrentDb = () => ({
-  target: currentDb,
-  dbName: currentDb === 'dev' ? process.env.MONGODB_DB_DEV : process.env.MONGODB_DB_PROD,
-});
-
 module.exports = connectDatabase;
-module.exports.switchDatabase = switchDatabase;
-module.exports.getCurrentDb = getCurrentDb;
+module.exports.getUri = getUri;

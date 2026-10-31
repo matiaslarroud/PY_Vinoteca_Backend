@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const ProveedorSolicitudPresupuesto_Schema = mongoose.Schema({
     _id: Number,
-    fecha: {type: Date , require:true},
+    fecha: {type: Date , required:true},
     empleado: {
             type: Number,
             ref: 'Empleado',
@@ -13,7 +13,7 @@ const ProveedorSolicitudPresupuesto_Schema = mongoose.Schema({
             ref: 'Proveedor',
             required: true
         },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
     },
     
     {

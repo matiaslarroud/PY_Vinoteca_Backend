@@ -5,12 +5,12 @@ const productoInsumoSchema = new mongoose.Schema({
     _id: Number,
     precioCosto: {
         type: Number , 
-        require:true , 
+        
         min: [0, 'El precio de costo no puede ser negativo'] ,
     },
     ganancia: {
         type: Number , 
-        require:true , 
+        
         min: [0, 'La ganancia no puede ser negativa']
     },
     proveedor: {
@@ -18,7 +18,7 @@ const productoInsumoSchema = new mongoose.Schema({
             ref: 'Proveedor',
             required: true
         },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
     },
     
     {

@@ -12,8 +12,8 @@ const PicadaDetalle_Schema = mongoose.Schema({
                 ref: 'ProductoInsumo',
                 required: true
         },
-        cantidad: {type: Number , require:true},
-        estado: {type: Boolean , require:true},
+        cantidad: {type: Number , required:true},
+        estado: {type: Boolean , required:true},
     },
     
     {

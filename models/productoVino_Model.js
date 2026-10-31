@@ -40,11 +40,11 @@ const productoVinoSchema = new mongoose.Schema({
         },
     precioCosto: {
         type: Number , 
-        require:true , 
+        
         min: [0, 'El precio de costo no puede ser negativo']
     },
-    ganancia: {type: Number , require:true},
-    estado: {type: Boolean , require:true},
+    ganancia: {type: Number },
+    estado: {type: Boolean , required:true},
     },
     
     {

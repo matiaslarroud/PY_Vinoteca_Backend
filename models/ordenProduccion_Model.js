@@ -2,16 +2,16 @@ const mongoose = require('mongoose');
 
 const OrdenProduccion_Schema = mongoose.Schema({
     _id: Number,
-    fecha: {type: Date , require:true},
-    fechaElaboracion: {type: Date , require:true},
-    fechaEntrega: {type: Date , require:true},
+    fecha: {type: Date , required:true},
+    fechaElaboracion: {type: Date },
+    fechaEntrega: {type: Date },
     empleado: {
             type: Number,
             ref: 'Empleado',
             required: true
         },
-    estadoProduccion: {type: Boolean , require:true},
-    estado: {type: Boolean , require:true},
+    estadoProduccion: {type: Boolean },
+    estado: {type: Boolean , required:true},
     },
     
     {

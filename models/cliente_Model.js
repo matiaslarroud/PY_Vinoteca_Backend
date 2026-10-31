@@ -2,12 +2,12 @@ const mongoose = require("mongoose");
 
 const Cliente_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},
-    lastname: {type: String , require:true},
-    fechaNacimiento: {type: Date , require:true},
-    telefono: {type: String , require:true},
-    email: {type: String , require:true},
-    cuit: {type: String , require:true},
+    name: {type: String , required:true},
+    lastname: {type: String },
+    fechaNacimiento: {type: Date },
+    telefono: {type: String },
+    email: {type: String },
+    cuit: {type: String },
     pais: {
             type: Number,
             ref: 'Pais',
@@ -33,7 +33,7 @@ const Cliente_Schema = mongoose.Schema({
             ref: 'Calle',
             required: true
         },    
-    altura: {type: String , require:true},
+    altura: {type: String },
     deptoNumero: {type: String , require:false},
     deptoLetra: {type: String , require:false},
     condicionIva: {
@@ -44,7 +44,7 @@ const Cliente_Schema = mongoose.Schema({
     
     cuentaCorriente:{
             type:Boolean,
-            require:true
+            
         },
     saldoCuentaCorriente: {
         type: Number,
@@ -52,8 +52,8 @@ const Cliente_Schema = mongoose.Schema({
             return this.cuentaCorriente === true;
         }
     },
-    saldoActualCuentaCorriente: {type: Number , require:true},
-    estado: {type: Boolean , require:true},
+    saldoActualCuentaCorriente: {type: Number },
+    estado: {type: Boolean , required:true},
     },
     
     {

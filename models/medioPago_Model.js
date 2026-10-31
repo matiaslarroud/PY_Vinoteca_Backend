@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const MedioPago_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},
-    interes: {type: Number , require:true},
-    estado: {type: Boolean , require:true},
+    name: {type: String , required:true},
+    interes: {type: Number },
+    estado: {type: Boolean , required:true},
     },
     
     {

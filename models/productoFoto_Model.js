@@ -23,7 +23,7 @@ const ProductoFoto_Schema = mongoose.Schema({
         default: 0
     }, 
     
-    estado: {type: Boolean , require:true}
+    estado: {type: Boolean , required:true}
 },
     
     {

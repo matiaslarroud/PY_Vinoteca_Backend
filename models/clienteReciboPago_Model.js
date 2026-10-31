@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const ReciboPago_Schema = mongoose.Schema({
     _id: Number,
-    total: {type: Number , require:true},
-    fecha: {type: Date , require:true},
+    total: {type: Number , required:true},
+    fecha: {type: Date , required:true},
     clienteID: {
             type: Number,
             ref: 'Cliente',
@@ -12,7 +12,7 @@ const ReciboPago_Schema = mongoose.Schema({
             type: Number,
             ref: 'MedioPago',
         },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
 },
     
     {

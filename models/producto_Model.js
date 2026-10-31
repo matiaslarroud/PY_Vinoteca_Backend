@@ -2,10 +2,10 @@ const mongoose = require('mongoose')
 
 const productSchema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},
+    name: {type: String , required:true},
     stock: {
         type: Number , 
-        require:true ,
+        required:true ,
         min: [0, 'El stock no puede ser negativo']
     },
     stockMinimo: {
@@ -18,14 +18,14 @@ const productSchema = mongoose.Schema({
             ref: 'Deposito',
             required: false
         } ,
-    tipoProducto:{type: String , require:true},
+    tipoProducto:{type: String , required:true},
     enOferta: { type: Boolean, default: false },
     precioOferta: {
         type: Number,
         required: false,
         min: [0, 'El precio de oferta no puede ser negativo']
     },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
     },
     {
         timestamps: true

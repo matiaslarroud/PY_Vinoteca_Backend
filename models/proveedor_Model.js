@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 const Proveedor_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},
-    telefono: {type: String , require:true},
-    email: {type: String , require:true},
-    cuit: {type: String , require:true},
+    name: {type: String , required:true},
+    telefono: {type: String },
+    email: {type: String },
+    cuit: {type: String },
     pais: {
             type: Number,
             ref: 'Pais',
@@ -37,7 +37,7 @@ const Proveedor_Schema = mongoose.Schema({
         ref: 'CondicionIva',
         required: true
     },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
     },
     
     {

@@ -2,13 +2,13 @@ const mongoose = require("mongoose");
 
 const Localidad_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},
+    name: {type: String , required:true},
     provincia: {
             type: Number,
             ref: 'Provincia',
             required: true
         },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
     },
     
     {

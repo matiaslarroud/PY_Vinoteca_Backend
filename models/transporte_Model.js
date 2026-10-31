@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 const Transporte_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},name: {type: String , require:true},
-    telefono: {type: String , require:true},
-    email: {type: String , require:true},
-    cuit: {type: String , require:true},
+    name: {type: String , required:true},
+    telefono: {type: String },
+    email: {type: String },
+    cuit: {type: String },
     pais: {
             type: Number,
             ref: 'Pais',
@@ -31,13 +31,13 @@ const Transporte_Schema = mongoose.Schema({
             ref: 'Calle',
             required: true
         },    
-    altura: {type: String , require:true},
+    altura: {type: String },
     condicionIva: {
         type: Number,
         ref: 'CondicionIva',
         required: true
     },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
 
     },
     

@@ -12,8 +12,8 @@ const RemitoDetalle_Schema = mongoose.Schema({
                 ref: 'Producto',
                 required: true
         },
-        cantidad: {type: Number , require:true},
-        estado: {type: Boolean , require:true},
+        cantidad: {type: Number , required:true},
+        estado: {type: Boolean , required:true},
     },
     
     {

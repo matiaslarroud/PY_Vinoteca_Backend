@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const ProveedorOrdenCompra_Schema = mongoose.Schema({
     _id: Number,
-    fecha: {type: Date , require:true},
-    fechaEntrega: {type: Date , require:true},
-    total: {type: Number , require:true},
+    fecha: {type: Date , required:true},
+    fechaEntrega: {type: Date },
+    total: {type: Number , required:true},
     proveedor: {
             type: Number,
             ref: 'Proveedor',
@@ -25,8 +25,8 @@ const ProveedorOrdenCompra_Schema = mongoose.Schema({
             ref: 'Empleado',
             required: true
         },    
-    completo: {type: Boolean , require:true},
-    estado: {type: Boolean , require:true},
+    completo: {type: Boolean },
+    estado: {type: Boolean , required:true},
     },
     
     {

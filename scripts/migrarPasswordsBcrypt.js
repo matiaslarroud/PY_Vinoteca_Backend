@@ -12,7 +12,7 @@ const BCRYPT_PREFIX = '$2a$';
 
 async function migrar() {
   await mongoose.connect(
-    `mongodb+srv://matutedel30:${process.env.PASS_MONGODB}@vinOteca.thjyjhn.mongodb.net/${process.env.MONGODB_DB}?retryWrites=true&w=majority`
+    process.env.MONGODB_URI
   );
   console.log('Conectado a la BD.');
 

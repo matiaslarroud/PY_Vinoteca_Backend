@@ -2,19 +2,19 @@ const mongoose = require("mongoose");
 
 const ComprobanteVenta_Schema = mongoose.Schema({
     _id: Number,
-    total: {type: Number , require:true},
+    total: {type: Number , required:true},
     tipoComprobante: {
         type: String , 
         ref: 'TipoComprobante',
-        require:true},
-    fecha: {type: Date , require:true},
+        },
+    fecha: {type: Date , required:true},
     notaPedido: {
             type: Number,
             ref: 'Cliente_NotaPedido',
         },
-    facturado: {type: Boolean , require:true},
-    remitoCreado: {type: Boolean , require:true},
-    estado: {type: Boolean , require:true},
+    facturado: {type: Boolean },
+    remitoCreado: {type: Boolean },
+    estado: {type: Boolean , required:true},
 },
     
     {

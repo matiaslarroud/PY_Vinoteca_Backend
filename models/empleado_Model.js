@@ -2,12 +2,12 @@ const mongoose = require("mongoose");
 
 const Empleado_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},
-    lastname: {type: String , require:true},
-    fechaNacimiento: {type: Date , require:true},
-    telefono: {type: String , require:true},
-    email: {type: String , require:true},
-    cuit: {type: String , require:true},
+    name: {type: String , required:true},
+    lastname: {type: String },
+    fechaNacimiento: {type: Date },
+    telefono: {type: String },
+    email: {type: String },
+    cuit: {type: String },
     pais: {
             type: Number,
             ref: 'Pais',
@@ -33,10 +33,10 @@ const Empleado_Schema = mongoose.Schema({
             ref: 'Calle',
             required: true
         },      
-    altura: {type: Number , require:true},
+    altura: {type: Number },
     deptoNumero: {type: Number , require:false},
     deptoLetra: {type: String , require:false},  
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
     },
     
     {

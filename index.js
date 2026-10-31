@@ -2,7 +2,11 @@ const express = require('express');
 require('dotenv').config();
 const cors = require('cors');
 const connectDB = require('./db/db.js');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const auth = require('./middleware/auth.js');
+const sanitizeBody = require('./middleware/sanitizeBody.js');
+const { staff } = require('./middleware/requireRole.js');
 
 const routerProductVino = require('./routes/productVino_Router.js');
 const routerProductVinoDetalle = require('./routes/productVinoDetalle_Router.js');
@@ -55,7 +59,6 @@ const routerProveedor_RemitoDetalle = require('./routes/proveedorRemitoDetalle_R
 const routerUsuario = require('./routes/usuario_Router.js');
 const routerTienda_Presupuesto = require('./routes/tiendaPresupuesto_Router.js');
 const pingServer = require('./routes/pingServer.js');
-const routerSwitchDb = require('./routes/switchDb_Router.js');
 const routerProductofoto = require('./routes/productoFoto_Router.js');
 const routerCaja = require('./routes/caja_Router.js');
 const routerOferta = require('./routes/productOferta_Router.js');
@@ -63,14 +66,19 @@ const routerOfertaDetalle = require('./routes/productOfertaDetalle_Router.js');
 
 const app = express();
 
-app.use(express.json());
+const isProduction = process.env.NODE_ENV === 'production';
+
+app.use(helmet());
+app.use(express.json({ limit: '1mb' }));
+app.use(sanitizeBody);
 app.use(cors({
   origin: (origin, callback) => {
     const allowed = process.env.BASE_URL;
-    if (!origin || origin === allowed || /^http:\/\/localhost:\d+$/.test(origin)) {
+    const esLocalhost = /^http:\/\/localhost:\d+$/.test(origin || '');
+    if (!origin || origin === allowed || (!isProduction && esLocalhost)) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS: origen no permitido: ${origin}`));
+      callback(Object.assign(new Error(`CORS: origen no permitido: ${origin}`), { status: 403 }));
     }
   },
   credentials: true,
@@ -78,18 +86,32 @@ app.use(cors({
 
 connectDB(app);
 
-const R = process.env.ROUTE;
+const R = process.env.ROUTE || '';
+
+// Limita los intentos de login para frenar ataques de fuerza bruta.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { ok: false, message: '❌ Demasiados intentos de inicio de sesión. Intente más tarde.' },
+});
 
 // Rutas públicas
 app.use(`${R}/ping`, pingServer);
-app.use(`${R}/ping/switchDb`, routerSwitchDb);
+app.use(`${R}/usuario/login`, loginLimiter);
 app.use(`${R}/usuario`, routerUsuario);
 
-// Rutas protegidas
+// Rutas que requieren sesión (cualquier rol, incluido "cliente" de la tienda online)
 app.use(auth);
 
-app.use(`${R}/products/productVino`, routerProductVino);
+app.use(`${R}/tienda/presupuesto`, routerTienda_Presupuesto);
 app.use(`${R}/products/productFoto`, routerProductofoto);
+
+// Rutas del personal del negocio (administrador / vendedor)
+app.use(staff);
+
+app.use(`${R}/products/productVino`, routerProductVino);
 app.use(`${R}/products/productVinoDetalle`, routerProductVinoDetalle);
 app.use(`${R}/products/productPicada`, routerPicadas);
 app.use(`${R}/products/productInsumo`, routerInsumos);
@@ -132,8 +154,6 @@ app.use(`${R}/cliente/remito`, routerCliente_Remito);
 app.use(`${R}/cliente/remitoDetalle`, routerCliente_RemitoDetalle);
 app.use(`${R}/cliente/reciboPago`, routerCliente_ReciboPago);
 
-app.use(`${R}/tienda/presupuesto`, routerTienda_Presupuesto);
-
 app.use(`${R}/proveedor/solicitudPresupuesto`, routerProveedor_SolicitudPresupuesto);
 app.use(`${R}/proveedor/solicitudPresupuestoDetalle`, routerProveedor_SolicitudPresupuestoDetalle);
 app.use(`${R}/proveedor/presupuesto`, routerProveedor_Presupuesto);
@@ -145,3 +165,21 @@ app.use(`${R}/proveedor/comprobanteCompraDetalle`, routerProveedor_ComprobanteCo
 app.use(`${R}/proveedor/comprobantePago`, routerProveedor_ComprobantePago);
 app.use(`${R}/proveedor/remito`, routerProveedor_Remito);
 app.use(`${R}/proveedor/remitoDetalle`, routerProveedor_RemitoDetalle);
+
+// Ruta inexistente
+app.use((req, res) => {
+  res.status(404).json({ ok: false, message: '❌ Ruta no encontrada.' });
+});
+
+// Manejador de errores global: siempre responde JSON y no expone detalles internos.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const status = err.status || err.statusCode
+    || (['CastError', 'ValidationError', 'MulterError'].includes(err.name) ? 400 : 500);
+  if (status >= 500) console.error(err);
+  if (res.headersSent) return res.end();
+  res.status(status).json({
+    ok: false,
+    message: status >= 500 ? '❌ Error interno del servidor.' : err.message,
+  });
+});

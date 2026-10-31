@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const ProveedorComprobantePago_Schema = mongoose.Schema({
     _id: Number,
-    fecha: {type: Date , require:true},
-    total: {type: Number , require:true},
+    fecha: {type: Date , required:true},
+    total: {type: Number , required:true},
     comprobanteCompra: {
             type: Number,
             ref: 'Proveedor_ComprobanteCompra',
@@ -14,7 +14,7 @@ const ProveedorComprobantePago_Schema = mongoose.Schema({
             ref: 'MedioPago',
             required: true
         },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
     },
     
     {

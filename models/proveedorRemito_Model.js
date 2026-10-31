@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const Remito_Schema = mongoose.Schema({
     _id: Number,
-    totalPrecio: {type: Number , require:true},
-    totalBultos: {type: Number , require:true},
-    fecha: {type: Date , require:true},
+    totalPrecio: {type: Number },
+    totalBultos: {type: Number },
+    fecha: {type: Date , required:true},
     comprobanteCompra: {
             type: Number,
             ref: 'Proveedor_ComprobanteCompra',
@@ -13,7 +13,7 @@ const Remito_Schema = mongoose.Schema({
             type: Number,
             ref: 'Transporte',
         },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
 },
     
     {

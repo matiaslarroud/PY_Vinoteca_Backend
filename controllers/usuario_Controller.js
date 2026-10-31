@@ -105,18 +105,20 @@ const deleteUsuario = async (req, res) => {
   }
 };
 
+// Hash bcrypt válido de una contraseña aleatoria, usado cuando el usuario no existe.
+const HASH_FALSO = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8.Gf1dY1Ffh2Bf1QX6p6kq3Q1l3lUu';
+
 const Login = async (req, res) => {
   try {
     const { usuario, password } = req.body;
-    if (!usuario || !password) {
+    if (typeof usuario !== 'string' || typeof password !== 'string' || !usuario || !password) {
       return res.status(400).json({ ok: false, msg: '❌ Credenciales requeridas.' });
     }
     const user = await Usuario.findOne({ name: usuario, estado: true });
-    if (!user) {
-      return res.status(401).json({ ok: false, msg: '❌ Credenciales inválidas.' });
-    }
-    const passwordOk = await bcrypt.compare(password, user.password);
-    if (!passwordOk) {
+    // Se compara siempre (aunque el usuario no exista) para no revelar por tiempo de respuesta
+    // qué nombres de usuario existen.
+    const passwordOk = await bcrypt.compare(password, user?.password || HASH_FALSO);
+    if (!user || !passwordOk) {
       return res.status(401).json({ ok: false, msg: '❌ Credenciales inválidas.' });
     }
     const token = jwt.sign(

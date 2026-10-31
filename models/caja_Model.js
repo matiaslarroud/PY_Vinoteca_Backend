@@ -2,18 +2,18 @@ const mongoose = require("mongoose");
 
 const Caja_Schema = mongoose.Schema({
     _id: Number,
-    referencia: {type: String , require:true},
-    persona: {type: Number , require:true},
-    total: {type: Number , require:true},
-    tipo: {type: String , require:true},
-    fecha: {type:Date , require:true} ,
+    referencia: {type: String },
+    persona: {type: Number },
+    total: {type: Number , required:true},
+    tipo: {type: String , required:true},
+    fecha: {type:Date , required:true} ,
     medioPago: {
             type: Number,
             ref: 'MedioPago',
             required: true
         },
     tipoPersona: { type: String, enum: ['CLIENTE', 'PROVEEDOR'], required: false },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
     },
     
     {

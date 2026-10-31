@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const Presupuesto_Schema = mongoose.Schema({
     _id: Number,
-    total: {type: Number , require:true},
-    fecha: {type: Date , require:true},
+    total: {type: Number , required:true},
+    fecha: {type: Date , required:true},
     cliente: {
             type: Number,
             ref: 'Cliente',
@@ -14,7 +14,7 @@ const Presupuesto_Schema = mongoose.Schema({
             ref: 'Empleado',
             required: true
         },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
     },
     
     {

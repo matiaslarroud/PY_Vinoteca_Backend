@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const Deposito_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},
+    name: {type: String , required:true},
     pais: {
             type: Number,
             ref: 'Pais',
@@ -28,10 +28,10 @@ const Deposito_Schema = mongoose.Schema({
             ref: 'Calle',
             required: true
         },
-    altura: {type: String , require:true},
+    altura: {type: String },
     deptoNumero: {type: String , require:false},
     deptoLetra: {type: String , require:false},
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
 },
     {
         timestamps: true

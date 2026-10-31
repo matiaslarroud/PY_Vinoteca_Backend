@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const PresupuestoDetalle_Schema = mongoose.Schema({
     _id: Number,
-        importe: {type: Number , require:true},
+        importe: {type: Number , required:true},
         presupuesto: {
                 type: Number,
                 ref: 'Cliente_Presupuesto',
@@ -13,9 +13,9 @@ const PresupuestoDetalle_Schema = mongoose.Schema({
                 ref: 'Producto',
                 required: true
         },
-        precio: {type: Number , require:true},
-        cantidad: {type: Number , require:true},
-        estado: {type: Boolean , require:true},
+        precio: {type: Number , required:true},
+        cantidad: {type: Number , required:true},
+        estado: {type: Boolean , required:true},
     },
     
     {

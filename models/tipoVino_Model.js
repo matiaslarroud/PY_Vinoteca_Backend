@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const VinoTipo_Schema = mongoose.Schema({
     _id: Number,
-    name: {type: String , require:true},
-    estado: {type: Boolean , require:true},
+    name: {type: String , required:true},
+    estado: {type: Boolean , required:true},
 },
     
     {

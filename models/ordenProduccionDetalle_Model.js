@@ -7,13 +7,13 @@ const OrdenProduccionDetalle_Schema = mongoose.Schema({
                 ref: 'ProductoPicada',
                 required: true
             },
-    cantidad: {type:Number , require:true},
+    cantidad: {type:Number , required:true},
     ordenProduccion: {
             type: Number,
             ref: 'OrdenProduccion',
             required: true
         },
-    estado: {type: Boolean , require:true},
+    estado: {type: Boolean , required:true},
     },
     
     {
