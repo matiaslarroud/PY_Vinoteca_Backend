@@ -87,10 +87,14 @@ const setRemito = async (req, res) => {
       for (const l of lineas) {
         await sumarStock(l.producto, l.cantidad, session);
         // Actualiza el precio de costo con el del comprobante (solo vinos e insumos lo tienen).
-        const producto = await Producto.findById(l.producto).session(session);
-        if (producto && producto.schema.path('precioCosto') && precioPorProducto.has(l.producto)) {
-          producto.precioCosto = precioPorProducto.get(l.producto);
-          await producto.save({ session });
+        // Se actualiza solo ese campo: guardar el documento completo fallaría si un producto
+        // viejo no tiene algún campo obligatorio.
+        if (precioPorProducto.has(l.producto)) {
+          await Producto.updateOne(
+            { _id: l.producto, tipoProducto: { $in: ['ProductoVino', 'ProductoInsumo'] } },
+            { $set: { precioCosto: precioPorProducto.get(l.producto) } },
+            { session, strict: false }
+          );
         }
       }
     });
