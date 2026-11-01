@@ -10,6 +10,7 @@ const mongoose = require('mongoose');
 const { obtenerFechaHoy } = require('../utils/fecha');
 const { httpError } = require('../utils/http');
 const { validarCantidad, sumarStock, descontarStock } = require('../utils/stock');
+const { leerPaginacion, paginar } = require('../utils/paginacion');
 
 const responderError = (res, error) =>
   res.status(error.status && error.status < 500 ? error.status : 400).json({ ok: false, message: error.message });
@@ -112,11 +113,8 @@ const setRemito = async (req, res) => {
 };
 
 const getRemito = async(req, res) => {
-    const remitos = await Remito.find({estado:true}).lean();
-    res.status(200).json({
-        ok:true,
-        data: remitos
-    })
+    const resultado = await paginar(Remito, { estado: true }, leerPaginacion(req.query));
+    res.status(200).json({ ok: true, ...resultado });
 }
 
 const getRemitosByProveedor = async (req, res) => {

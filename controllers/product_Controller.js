@@ -5,6 +5,7 @@ const ProductoVino = require("../models/productoVino_Model");
 const ProductoInsumo = require("../models/productoInsumo_Model");
 const ProductoPicada = require("../models/productoPicada_Model");
 const getNextSequence = require("../controllers/counter_Controller");
+const { leerPaginacion, paginar } = require('../utils/paginacion');
 
 const setProduct =  async (req , res ) => {
     const newId = await getNextSequence("Producto");
@@ -42,12 +43,8 @@ const setProduct =  async (req , res ) => {
 }
 
 const getProduct = async(req,res) => {
-    const productos = await Product.find({estado:true}).lean();
-
-    res.status(200).json({
-        ok:true,
-        data:productos,
-    })
+    const resultado = await paginar(Product, { estado: true }, leerPaginacion(req.query));
+    res.status(200).json({ ok: true, ...resultado });
 }
 
 const getProductTipos = async(req, res) => {

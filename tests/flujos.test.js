@@ -372,3 +372,52 @@ describe('Clientes', () => {
     expect(res.body.message).toMatch(/CUIT/);
   });
 });
+
+describe('Paginación de listados', () => {
+  test('sin parámetros devuelve todo, como antes', async () => {
+    const res = await api('get', '/cliente/notaPedido');
+    expect(res.status).toBe(200);
+    expect(res.body.paginacion).toBeUndefined();
+    expect(res.body.data.length).toBe(await raw('Cliente_NotaPedido').countDocuments({ estado: true }));
+  });
+
+  test('con page y limit devuelve esa página, de la más nueva a la más vieja', async () => {
+    const total = await raw('Cliente_NotaPedido').countDocuments({ estado: true });
+    const p1 = await api('get', '/cliente/notaPedido?page=1&limit=2');
+    const p2 = await api('get', '/cliente/notaPedido?page=2&limit=2');
+    expect(p1.status).toBe(200);
+    expect(p1.body.paginacion).toEqual({ page: 1, limit: 2, total, pages: Math.ceil(total / 2) });
+    expect(p1.body.data.length).toBe(Math.min(2, total));
+    const ids = [...p1.body.data, ...p2.body.data].map(n => n._id);
+    expect(ids).toEqual([...ids].sort((a, b) => b - a));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(p1.body.data[0]).toHaveProperty('facturado');
+  });
+
+  test('parámetros inválidos responden 400', async () => {
+    for (const q of ['page=0', 'limit=0', 'limit=201', 'page=abc', 'limit=1.5']) {
+      const res = await api('get', `/cliente/comprobanteVenta?${q}`);
+      expect(res.status).toBe(400);
+      expect(res.body.ok).toBe(false);
+    }
+  });
+
+  test('caja: el resumen se calcula sobre todos los movimientos, no sobre la página', async () => {
+    const todo = await api('get', '/gestion/caja');
+    const pagina = await api('get', '/gestion/caja?limit=1');
+    expect(pagina.status).toBe(200);
+    expect(pagina.body.data.length).toBe(1);
+    expect(pagina.body.paginacion.total).toBe(todo.body.data.length);
+    expect(pagina.body.resumen).toEqual(todo.body.resumen);
+  });
+
+  test('el resto de los listados acepta la paginación', async () => {
+    for (const ruta of ['/cliente/remito', '/cliente/reciboPago', '/gestion/products', '/proveedor/remito',
+      '/proveedor/comprobanteCompra', '/proveedor/comprobantePago']) {
+      const res = await api('get', `${ruta}?limit=1`);
+      expect([ruta, res.status]).toEqual([ruta, 200]);
+      expect(res.body.paginacion).toMatchObject({ page: 1, limit: 1 });
+      expect(res.body.data.length).toBeLessThanOrEqual(1);
+    }
+  });
+});

@@ -8,7 +8,7 @@ Rama: `revision-2026` en los dos repos. Un commit por bloque.
 
 ## A. Backend: lo que quedó abierto
 
-> **Estado:** A1, A2 y A3 hechos, con tests (23 en total, todos pasan). A4 queda para la Fase 4.
+> **Estado:** A1–A4 hechos, con tests (28 en total, todos pasan). En producción, la respuesta 409 de A3 depende del índice único de CUIT, que hoy no se puede crear: ver D2.
 
 ### A1. La edición de productos pisa el stock (prioridad alta)
 
@@ -56,6 +56,13 @@ Rama: `revision-2026` en los dos repos. Un commit por bloque.
 
 `?page&limit` opcional en caja, notas, comprobantes, remitos, recibos y productos. Sin parámetros devuelve todo, como hoy. Conviene hacerla junto con el `DataTable` de la Fase 4, que es quien la va a usar.
 
+**Hecho** (`utils/paginacion.js`):
+- Listados: caja, notas de pedido, comprobantes de venta, remitos de cliente y de proveedor, recibos, productos, comprobantes de compra y comprobantes de pago.
+- Con `page` y/o `limit` (por defecto 50, máximo 200) devuelve esa página, de la más nueva a la más vieja, y agrega `paginacion: { page, limit, total, pages }`. Un valor inválido responde 400.
+- En caja, el `resumen` se sigue calculando sobre todos los movimientos.
+- De paso: `tieneRemito` de los comprobantes de compra solo cuenta remitos activos (un remito anulado libera el comprobante, igual que en ventas).
+- El frontend todavía no la usa: la va a usar el `DataTable` de la Fase 4.
+
 ---
 
 ## B. Frontend: compatibilidad con el backend nuevo (bloquea el despliegue)
@@ -92,6 +99,23 @@ Rama: `revision-2026` en los dos repos. Un commit por bloque.
 ---
 
 ## D. Antes de desplegar
+
+> **Estado (31/10/2026):** chequeos hechos. Quedan decisiones manuales sobre datos de producción.
+>
+> - **Script de solo lectura** `node scripts/chequeoPreDespliegue.js [base]`. Además, el servidor ahora informa en el log de arranque los índices que no puede crear (antes fallaban en silencio).
+> - **Producción (`Vinoteca`):**
+>   - 2 notas facturadas dos veces: nota 95 (comprobantes 61 y 62) y nota 170 (126 y 127). Hay que anular a mano el comprobante que sobra; mientras tanto no se crea el índice único (la transacción igual impide nuevas dobles facturas).
+>   - 7 CUIT repetidos, la mayoría de relleno ("27" ×37, "4666666" ×19, "22" ×20, "2323" ×18, "30" ×7) y además 20316585427 ×6 y 20173133651 ×2. **Hay que decidir la regla del CUIT**: con estos datos el índice único no se crea y A3 no responde 409.
+>   - 3 comprobantes de compra con dos remitos activos el mismo día (comprobantes 38, 57 y 101; remitos 12/13, 26/27 y 72/73). Cada remito sumó stock, así que el stock de esos productos probablemente está inflado. Revisarlo y corregirlo con un ajuste de stock.
+>   - 165 de 179 remitos de cliente activos sin factura vinculada (D3, esperado).
+>   - Sin stock negativo.
+> - **Prueba (`Vinoteca_dev`):** 2 notas con doble factura (40 y 55), 1 CUIT repetido (clientes 2, 4 y 5) y 4 remitos sin vínculo.
+> - **D4:**
+>   - `npm test`: 28 tests en verde.
+>   - Recorrido real contra `Vinoteca_dev` por la API: venta (nota en CC → factura → remito → entrega → recibo) y compra (orden → comprobante → remito → pago). Stock, saldo y caja se movieron como corresponde.
+>   - Al anular todo en orden inverso volvieron exactamente al estado inicial. Los documentos de prueba quedaron anulados: nota 64, factura 18, remito 5, recibo 17, orden 9, comprobante de compra 21, remito de proveedor 3 y pago 11.
+> - **D1** (`MONGODB_URI` en el servidor de producción) lo tiene que configurar quien administra el despliegue.
+> - En el cluster existe una base llamada `undefined`, probablemente creada por el código viejo sin nombre de base. Se puede revisar y borrar a mano.
 
 1. Producción: definir `MONGODB_URI` (sin ella el servidor no arranca).
 2. Correr una consulta **de solo lectura** que liste notas con más de un comprobante activo. Si aparece alguna, el índice único no se crea; hay que decidir a mano qué comprobante anular (sin script de reparación, según lo acordado).

@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const { obtenerFechaHoy } = require('../utils/fecha');
 const { httpError, round2 } = require('../utils/http');
 const { crearMovimientoCaja, buscarMovimientosDeOrigen, moverSaldoCuentaCorriente } = require('../utils/caja');
+const { leerPaginacion, paginar } = require('../utils/paginacion');
 
 const ORIGEN = 'RECIBO_PAGO';
 const referenciaRecibo = (id) => `Recibo de Pago Cliente N°: ${id}.`;
@@ -90,11 +91,8 @@ const setReciboPago = async (req, res) => {
 
 
 const getReciboPago = async(req, res) => {
-    const recibos = await ReciboPago.find({estado:true}).lean();
-    res.status(200).json({
-        ok:true,
-        data: recibos
-    })
+    const resultado = await paginar(ReciboPago, { estado: true }, leerPaginacion(req.query));
+    res.status(200).json({ ok: true, ...resultado });
 }
 
 const getReciboPagoID = async(req,res) => {

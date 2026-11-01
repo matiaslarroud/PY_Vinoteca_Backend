@@ -6,6 +6,7 @@ const MedioPago = require("../models/medioPago_Model");
 const NotaPedidoDetalle = require("../models/clienteNotaPedidoDetalle_Model");
 const Remito = require("../models/clienteRemito_Model");
 const { httpError } = require("../utils/http");
+const { leerPaginacion, paginar } = require('../utils/paginacion');
 const getNextSequence = require("../controllers/counter_Controller");
 const mongoose = require('mongoose');
 
@@ -85,9 +86,10 @@ const setComprobanteVenta = async (req, res) => {
 
 
 const getComprobanteVenta = async(req, res) => {
+  const pag = leerPaginacion(req.query);
   try {
-    const comprobanteVentas = await ComprobanteVenta.find({estado:true}).lean();
-    res.status(200).json({ ok: true, data: comprobanteVentas });
+    const resultado = await paginar(ComprobanteVenta, { estado: true }, pag);
+    res.status(200).json({ ok: true, ...resultado });
   } catch {
     res.status(500).json({ ok: false, message: '❌ Error al obtener comprobantes de venta.' });
   }

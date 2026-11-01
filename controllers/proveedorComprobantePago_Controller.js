@@ -8,6 +8,7 @@ const { obtenerFechaHoy } = require('../utils/fecha');
 const mongoose = require('mongoose');
 const { httpError, round2 } = require('../utils/http');
 const { crearMovimientoCaja, buscarMovimientosDeOrigen } = require('../utils/caja');
+const { leerPaginacion, datosPaginacion } = require('../utils/paginacion');
 
 const ORIGEN = 'PAGO_PROVEEDOR';
 // Los movimientos viejos se guardaron con y sin punto final.
@@ -87,9 +88,12 @@ const setComprobantePago = async (req, res) => {
 }
 
 const getComprobantePago = async (req, res) => {
+    const pag = leerPaginacion(req.query);
     try {
-        const comprobantes = await ComprobantePago.find({ estado: true })
-            .populate({
+        const consulta = ComprobantePago.find({ estado: true });
+        if (pag) consulta.sort({ _id: -1 }).skip(pag.skip).limit(pag.limit);
+        const [comprobantes, total] = await Promise.all([
+            consulta.populate({
                 path: "comprobanteCompra",     // 1️⃣ Trae el comprobante de compra
                 select: "ordenCompra",         // Solo necesito la orden
                 populate: {
@@ -99,8 +103,10 @@ const getComprobantePago = async (req, res) => {
                         path: "proveedor",     // 3️⃣ Finalmente traigo el proveedor
                     }
                 }
-            });
-        
+            }),
+            pag ? ComprobantePago.countDocuments({ estado: true }) : null,
+        ]);
+
         // Agregar proveedorID directamente en la respuesta
         const respuesta = comprobantes.map(c => ({
             ...c.toObject(),
@@ -109,7 +115,8 @@ const getComprobantePago = async (req, res) => {
 
         res.status(200).json({
             ok: true,
-            data: respuesta
+            data: respuesta,
+            ...(pag && { paginacion: datosPaginacion(pag, total) })
         });
 
     } catch (error) {

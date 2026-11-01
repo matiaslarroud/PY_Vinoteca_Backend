@@ -5,6 +5,7 @@ const MedioPago = require("../models/medioPago_Model.js")
 const getNextSequence = require("./counter_Controller.js");
 
 const { obtenerFechaHoy } = require('../utils/fecha');
+const { leerPaginacion, paginar } = require('../utils/paginacion');
 
 // Agrega nombre de persona y de medio de pago a cada movimiento con 3 consultas en lote
 // (antes eran 2-3 consultas POR movimiento: miles de consultas por pedido).
@@ -93,12 +94,18 @@ const setCaja = async(req,res) => {
 }
 
 const getCaja = async (req, res) => {
+  const pag = leerPaginacion(req.query);
   try {
-    const movimientos = await Caja.find({ estado: true }).lean();
+    // El resumen se calcula siempre sobre todos los movimientos (solo los campos necesarios);
+    // la paginación afecta únicamente a la lista que se devuelve.
+    const [{ data: movimientos, paginacion }, paraTotales] = await Promise.all([
+      paginar(Caja, { estado: true }, pag),
+      pag ? Caja.find({ estado: true }).select('tipo referencia total').lean() : null,
+    ]);
 
     const movimientosConPersona = await enriquecerMovimientos(movimientos);
 
-    const movimientosNormalizados = movimientosConPersona.map(m => ({
+    const movimientosNormalizados = (paraTotales || movimientosConPersona).map(m => ({
       tipo: m.tipo,
       referencia: m.referencia,
       total: Number(m.total) || 0
@@ -109,7 +116,8 @@ const getCaja = async (req, res) => {
     res.status(200).json({
       ok: true,
       data: movimientosConPersona,
-      resumen: totales
+      resumen: totales,
+      ...(paginacion && { paginacion })
     });
 
   } catch (error) {

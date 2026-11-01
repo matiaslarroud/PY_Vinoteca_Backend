@@ -9,6 +9,17 @@ const getUri = () => {
   return uri;
 };
 
+// Mongoose crea los índices en segundo plano y, si fallan (por ejemplo, un índice único con
+// datos duplicados), no avisa. Se informa en el log para que no pase desapercibido.
+// Ver scripts/chequeoPreDespliegue.js para listar los duplicados.
+const avisarIndicesFallidos = () => {
+  Object.values(mongoose.models).forEach((modelo) => {
+    modelo.init().catch((err) => {
+      console.error(`⚠️ No se pudo crear un índice de ${modelo.modelName}: ${err.message}`);
+    });
+  });
+};
+
 const connectDatabase = async (app) => {
   const PORT = process.env.PORT || 4000;
 
@@ -16,6 +27,7 @@ const connectDatabase = async (app) => {
     await mongoose.connect(getUri());
     console.log(`✅ Conexión exitosa a la BD: ${mongoose.connection.name}`);
     app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+    avisarIndicesFallidos();
   } catch (error) {
     console.error('❌ No se pudo conectar a la BD:', error.message);
     process.exit(1);

@@ -8,6 +8,7 @@ const Remito = require("../models/proveedorRemito_Model");
 const Proveedor = require("../models/proveedor_Model");
 const getNextSequence = require("./counter_Controller");
 const mongoose = require('mongoose');
+const { leerPaginacion, paginar } = require('../utils/paginacion');
 
 const { obtenerFechaHoy } = require('../utils/fecha');
 
@@ -187,14 +188,14 @@ const setComprobanteCompra = async (req, res) => {
 
 
 const getComprobanteCompra = async (req, res) => {
+  const pag = leerPaginacion(req.query);
   try {
-    const comprobantes = await ComprobanteCompra.find({ estado: true }).lean();
-
-    const remitos = await Remito.find().lean();
-
-    const comprobantesConRemito = new Set(
-      remitos.map(c => String(c.comprobanteCompra))
-    );
+    const [{ data: comprobantes, paginacion }, idsConRemito] = await Promise.all([
+      paginar(ComprobanteCompra, { estado: true }, pag),
+      // Solo cuentan los remitos activos: si se eliminó el remito, el comprobante vuelve a estar pendiente.
+      Remito.distinct("comprobanteCompra", { estado: true }),
+    ]);
+    const comprobantesConRemito = new Set(idsConRemito.map(String));
 
     const comprobantesConEstado = comprobantes.map(oc => ({
       ...oc,
@@ -203,7 +204,8 @@ const getComprobanteCompra = async (req, res) => {
 
     res.status(200).json({
       ok: true,
-      data: comprobantesConEstado
+      data: comprobantesConEstado,
+      ...(paginacion && { paginacion })
     });
 
   } catch (error) {

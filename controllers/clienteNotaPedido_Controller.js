@@ -15,6 +15,7 @@ const { descontarStock, sumarStock, validarCantidad } = require('../utils/stock'
 const { calcularPrecioProducto, validarTotalConAjuste } = require('../utils/precios');
 const { crearMovimientoCaja, buscarMovimientosDeOrigen, moverSaldoCuentaCorriente } = require('../utils/caja');
 const { estaVigente } = require('../utils/presupuesto');
+const { leerPaginacion, paginar } = require('../utils/paginacion');
 
 const ORIGEN = 'NOTA_PEDIDO';
 const referenciaNota = (id) => `Nota de Pedido Cliente N°: ${id}.`;
@@ -283,9 +284,10 @@ const setNotaPedido = async (req, res) => {
 }
 
 const getNotaPedido = async (req, res) => {
+  const pag = leerPaginacion(req.query);
   try {
-    const [notaPedidos, notasFacturadas] = await Promise.all([
-      NotaPedido.find({ estado: true }).lean(),
+    const [{ data: notaPedidos, paginacion }, notasFacturadas] = await Promise.all([
+      paginar(NotaPedido, { estado: true }, pag),
       // Solo cuentan los comprobantes activos: si se anuló la factura, la nota vuelve a estar pendiente.
       ComprobanteVenta.distinct("notaPedido", { estado: true }),
     ]);
@@ -293,7 +295,8 @@ const getNotaPedido = async (req, res) => {
 
     res.status(200).json({
       ok: true,
-      data: notaPedidos.map(np => ({ ...np, facturado: facturadas.has(String(np._id)) }))
+      data: notaPedidos.map(np => ({ ...np, facturado: facturadas.has(String(np._id)) })),
+      ...(paginacion && { paginacion })
     });
   } catch (error) {
     res.status(500).json({
