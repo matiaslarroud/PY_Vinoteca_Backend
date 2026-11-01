@@ -75,6 +75,12 @@ Rama: `revision-2026` en los dos repos. Un commit por bloque.
 
 ## C. Frontend: bugs puntuales (en la pantalla actual o dentro de la Fase 5)
 
+> **Estado:** hecho (frontend, commit `c870467`). Además de la tabla:
+> - La copia antes de ordenar se aplicó a los 20 listados con el mismo patrón, no solo a los dos señalados.
+> - En 8 listados, los comparadores encadenaban mal el `else`, así que ordenar por cliente, nota, etc. no hacía nada. Ahora usan `else if`.
+> - El N+1 de clientes se resolvió con un hook común (`utils/clientes.js`) en notas, presupuestos, comprobantes y recibos. Ordenar por cliente fallaba porque se llamaba `.find` sobre un objeto.
+> - La línea nueva de presupuesto y nota arranca con cantidad 0.
+
 | Bug | Dónde | Arreglo |
 |---|---|---|
 | El orden muta el estado y rompe la tabla | `indexNotaPedido.js:40-72`, `indexVino.js:38-56` | Ordenar una copia (`[...lista].sort`) |
