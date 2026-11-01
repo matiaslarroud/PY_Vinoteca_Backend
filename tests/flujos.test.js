@@ -361,15 +361,53 @@ describe('Presupuestos: precio negociado, vigencia y paso a nota', () => {
 });
 
 describe('Clientes', () => {
-  test('un CUIT repetido responde 409 con un mensaje claro', async () => {
+  const nuevoCliente = (extra) => ({
+    name: 'Ceci', lastname: 'C', fechaNacimiento: '1990-01-01', telefono: '1', email: 'c@c.com',
+    pais: 1, provincia: 1, localidad: 1, barrio: 1, calle: 1, altura: 1, condicionIva: 1, ...extra,
+  });
+
+  beforeAll(async () => {
     // Los clientes de prueba se insertaron sin pasar por el contador.
     await raw('Counter').updateOne({ _id: 'Cliente' }, { $set: { seq: 100 } }, { upsert: true });
-    const res = await api('post', '/gestion/cliente').send({
-      name: 'Ceci', lastname: 'C', fechaNacimiento: '1990-01-01', telefono: '1', email: 'c@c.com', cuit: '20-1',
-      pais: 1, provincia: 1, localidad: 1, barrio: 1, calle: 1, altura: 1, condicionIva: 1,
-    });
+  });
+
+  test('el CUIT es opcional: dos clientes sin CUIT no chocan', async () => {
+    expect((await api('post', '/gestion/cliente').send(nuevoCliente({ cuit: '' }))).status).toBe(201);
+    expect((await api('post', '/gestion/cliente').send(nuevoCliente({}))).status).toBe(201);
+  });
+
+  test('un CUIT inválido se rechaza con 400', async () => {
+    const res = await api('post', '/gestion/cliente').send(nuevoCliente({ cuit: '20-31658542-8' }));
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/CUIT/);
+  });
+
+  test('un CUIT real repetido responde 409, aunque esté escrito con otro formato', async () => {
+    expect((await api('post', '/gestion/cliente').send(nuevoCliente({ cuit: '20316585427' }))).status).toBe(201);
+    const res = await api('post', '/gestion/cliente').send(nuevoCliente({ cuit: '20-31658542-7' }));
     expect(res.status).toBe(409);
     expect(res.body.message).toMatch(/CUIT/);
+  });
+
+  test('un cliente viejo con CUIT repetido de otro cliente viejo se detecta por el texto guardado', async () => {
+    await raw('Cliente').insertOne({ _id: 90, name: 'Viejo', cuit: '20-17313365-1', estado: true });
+    const res = await api('post', '/gestion/cliente').send(nuevoCliente({ cuit: '20173133651' }));
+    expect(res.status).toBe(409);
+  });
+
+  test('un cliente con CUIT de relleno se puede editar sin tocar el CUIT', async () => {
+    // Ana tiene el CUIT viejo "20-1".
+    const res = await api('put', '/gestion/cliente/1').send(nuevoCliente({ name: 'Ana María', cuit: '20-1' }));
+    expect(res.status).toBe(200);
+    const ana = await raw('Cliente').findOne({ _id: 1 });
+    expect(ana.name).toBe('Ana María');
+    expect(ana.cuit).toBe('20-1');
+    expect(ana.cuitNumero).toBeUndefined();
+  });
+
+  test('si se cambia el CUIT de relleno, el nuevo tiene que ser válido', async () => {
+    const res = await api('put', '/gestion/cliente/1').send(nuevoCliente({ name: 'Ana', cuit: '27' }));
+    expect(res.status).toBe(400);
   });
 });
 

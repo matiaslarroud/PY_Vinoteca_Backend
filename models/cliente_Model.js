@@ -8,6 +8,7 @@ const Cliente_Schema = mongoose.Schema({
     telefono: {type: String },
     email: {type: String },
     cuit: {type: String },
+    cuitNumero: {type: String }, // solo dígitos, únicamente si es un CUIT válido (utils/cuit.js)
     pais: {
             type: Number,
             ref: 'Pais',
@@ -62,7 +63,11 @@ const Cliente_Schema = mongoose.Schema({
 )
 Cliente_Schema.index({ estado: 1 });
 Cliente_Schema.index({ name: 1, lastname: 1 });
-Cliente_Schema.index({ cuit: 1 }, { unique: true });
+// Único solo para CUIT reales: los vacíos o de relleno no tienen cuitNumero y quedan fuera del índice.
+Cliente_Schema.index(
+    { cuitNumero: 1 },
+    { unique: true, name: 'cuitNumero_unico', partialFilterExpression: { cuitNumero: { $type: 'string' } } }
+);
 const Cliente = mongoose.model('Cliente', Cliente_Schema , "Cliente");
 
 module.exports = Cliente;

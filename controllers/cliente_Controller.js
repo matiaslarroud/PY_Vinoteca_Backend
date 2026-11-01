@@ -2,6 +2,28 @@ const Cliente = require("../models/cliente_Model");
 const getNextSequence = require("../controllers/counter_Controller");
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
 const { errorClaveDuplicada } = require("../utils/http");
+const { leerCuit } = require("../utils/cuit");
+
+// CUIT opcional; si se carga, tiene que ser válido y no estar en otro cliente.
+// Devuelve { cuit, cuitNumero } para guardar, o { error: {status, message} }.
+const prepararCuit = async (texto, idExcluir) => {
+    const datos = leerCuit(texto);
+    if (!datos) {
+        return { error: { status: 400, message: '❌ El CUIT no es válido: debe tener 11 dígitos y el dígito verificador correcto.' } };
+    }
+    if (datos.cuitNumero) {
+        // Los clientes viejos no tienen cuitNumero: se buscan también por el texto guardado.
+        const d = datos.cuitNumero;
+        const repetido = await Cliente.exists({
+            _id: { $ne: idExcluir },
+            $or: [{ cuitNumero: d }, { cuit: { $in: [d, `${d.slice(0, 2)}-${d.slice(2, 10)}-${d.slice(10)}`] } }],
+        });
+        if (repetido) {
+            return { error: { status: 409, message: '❌ Ya existe un registro con ese CUIT.' } };
+        }
+    }
+    return datos;
+};
 
 const setCliente = async (req,res) => {
     const nombreC = req.body.name;
@@ -22,15 +44,20 @@ const setCliente = async (req,res) => {
     const cuentaCorrienteC = req.body.cuentaCorriente ? true : false;
     const saldoCuentaCorriente = req.body.saldoCuentaCorriente;
 
-    if(!nombreC || !altura || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
+    if(!nombreC || !altura || !apellidoC || !nacimientoC || !telefonoC || !emailC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
         res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
     }
+    const datosCuit = await prepararCuit(cuitC, null);
+    if (datosCuit.error) {
+        return res.status(datosCuit.error.status).json({ ok:false, message: datosCuit.error.message });
+    }
     const newId = await getNextSequence("Cliente");
     const newCliente = new Cliente ({
         _id: newId,
-        name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
+        name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC ,
+        cuit: datosCuit.cuit , cuitNumero: datosCuit.cuitNumero ,
         pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC, cuentaCorriente: cuentaCorrienteC ,
         altura: altura , deptoNumero: deptoNumero , deptoLetra: deptoLetra , estado:true
     });    
@@ -125,12 +152,12 @@ const updateCliente = async(req,res) => {
     }
 
     const updatedClienteData = {
-        name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC , cuit: cuitC ,
+        name: nombreC , lastname: apellidoC , fechaNacimiento: nacimientoC , telefono: telefonoC , email: emailC ,
         pais: paisC , provincia: provinciaC , localidad: localidadC , barrio: barrioC , calle: calleC , condicionIva: ivaC , cuentaCorriente:cuentaCorrienteC ,
         altura: altura , deptoNumero: deptoNumero , deptoLetra: deptoLetra
     };
 
-    if(!nombreC || !altura || !apellidoC || !nacimientoC || !telefonoC || !emailC || !cuitC
+    if(!nombreC || !altura || !apellidoC || !nacimientoC || !telefonoC || !emailC
          || !paisC || !provinciaC || !localidadC || !barrioC || !calleC || !ivaC){
         res.status(400).json({ok:false , message:"❌ Faltan completar algunos campos obligatorios."})
         return
@@ -142,6 +169,19 @@ const updateCliente = async(req,res) => {
     if (!clienteActual) {
         return res.status(404).json({ ok:false, message:'❌ Cliente no encontrado.' });
     }
+
+    // Un CUIT viejo de relleno que no se tocó se conserva, para poder editar el resto del cliente.
+    const cuitSinCambios = String(cuitC ?? '').trim() === String(clienteActual.cuit ?? '').trim()
+        && !leerCuit(clienteActual.cuit);
+    if (!cuitSinCambios) {
+        const datosCuit = await prepararCuit(cuitC, clienteActual._id);
+        if (datosCuit.error) {
+            return res.status(datosCuit.error.status).json({ ok:false, message: datosCuit.error.message });
+        }
+        updatedClienteData.cuit = datosCuit.cuit;
+        updatedClienteData.cuitNumero = datosCuit.cuitNumero;
+    }
+
     const deudaActual = clienteActual.cuentaCorriente
         ? (clienteActual.saldoCuentaCorriente || 0) - (clienteActual.saldoActualCuentaCorriente || 0)
         : 0;

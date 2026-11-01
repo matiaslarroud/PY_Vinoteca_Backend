@@ -10,6 +10,7 @@
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
+const { leerCuit } = require('../utils/cuit');
 
 const duplicados = (coleccion, campo, filtro = {}) =>
   mongoose.connection.db.collection(coleccion).aggregate([
@@ -46,11 +47,18 @@ async function chequear() {
     'Bloquean el índice único. Anular a mano el comprobante que sobra en cada nota.'
   );
 
-  // 2. Índice único de CUIT (incluye clientes inactivos).
+  // 2. CUIT: solo los CUIT reales (11 dígitos, verificador correcto) tienen que ser únicos.
+  //    Los vacíos o de relleno se permiten. Un CUIT real repetido no deja editar esos clientes
+  //    hasta corregirlo a mano.
+  const porCuit = new Map();
+  for (const c of await db.collection('Cliente').find({}, { projection: { cuit: 1, estado: 1 } }).toArray()) {
+    const numero = leerCuit(c.cuit)?.cuitNumero;
+    if (numero) porCuit.set(numero, [...(porCuit.get(numero) || []), c._id]);
+  }
   informar(
-    'CUIT repetidos en clientes',
-    await duplicados('Cliente', 'cuit'),
-    'Bloquean el índice único de CUIT. Corregir el CUIT de los clientes repetidos.'
+    'CUIT reales repetidos en clientes',
+    [...porCuit].filter(([, ids]) => ids.length > 1).map(([cuit, ids]) => ({ cuit, ids })),
+    'Corregir a mano: mientras sigan repetidos, editar esos clientes responde "Ya existe un registro con ese CUIT".'
   );
 
   // 3. Desde ahora solo se permite un remito activo por comprobante; los viejos pueden tener varios.
@@ -88,7 +96,10 @@ async function chequear() {
   const cliente = await nombresIndices('Cliente');
   const estado = (presente) => (presente ? 'sí' : 'no (se intenta crear al arrancar; falla si hay duplicados)');
   console.log(`   notaPedido_unico_activo: ${estado(comprobante.includes('notaPedido_unico_activo'))}`);
-  console.log(`   cuit_1: ${estado(cliente.includes('cuit_1'))}`);
+  console.log(`   cuitNumero_unico: ${estado(cliente.includes('cuitNumero_unico'))}`);
+  if (cliente.includes('cuit_1')) {
+    console.log('   ⚠️  Existe el índice viejo cuit_1 (único sobre el texto): borrarlo con db.Cliente.dropIndex("cuit_1").');
+  }
 
   await mongoose.disconnect();
 }

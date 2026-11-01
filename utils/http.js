@@ -12,7 +12,7 @@ const escapeRegex = (s) => String(s).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
 // Error de índice único de MongoDB (E11000) → 409 con un mensaje legible.
-const NOMBRES_CAMPO = { cuit: 'CUIT', name: 'nombre', email: 'email', notaPedido: 'nota de pedido' };
+const NOMBRES_CAMPO = { cuit: 'CUIT', cuitNumero: 'CUIT', name: 'nombre', email: 'email', notaPedido: 'nota de pedido' };
 const errorClaveDuplicada = (err) => {
   if (err?.code !== 11000) return null;
   const campo = Object.keys(err.keyValue || err.keyPattern || {})[0];

@@ -8,7 +8,7 @@ Rama: `revision-2026` en los dos repos. Un commit por bloque.
 
 ## A. Backend: lo que quedó abierto
 
-> **Estado:** A1–A4 hechos, con tests (28 en total, todos pasan). En producción, la respuesta 409 de A3 depende del índice único de CUIT, que hoy no se puede crear: ver D2.
+> **Estado:** A1–A4 hechos, con tests (33 en total, todos pasan). Regla de CUIT decidida y aplicada: ver A3.
 
 ### A1. La edición de productos pisa el stock (prioridad alta)
 
@@ -51,6 +51,8 @@ Rama: `revision-2026` en los dos repos. Un commit por bloque.
 **Problema:** un CUIT repetido (índice único de Cliente) termina como error 500 genérico.
 
 **Cambio:** en el manejador global de `app.js`, mapear `err.code === 11000` a **409** con un mensaje legible ("Ya existe un registro con ese CUIT"). Test incluido.
+
+> **Regla de CUIT (decidida):** el CUIT es opcional y solo es único si es un CUIT real (11 dígitos con dígito verificador correcto). Se guarda como se escribe y, si es válido, también en `cuitNumero` (solo dígitos), con índice único parcial `cuitNumero_unico`. El controller rechaza un CUIT inválido (400) y uno real repetido (409), comparando también con el texto de los clientes viejos. Un cliente viejo con CUIT de relleno se puede editar si no se toca el CUIT. El índice nuevo se crea aunque haya datos viejos. Si en alguna base quedó el índice viejo `cuit_1`, hay que borrarlo a mano.
 
 ### A4. Paginación (prioridad baja, va con el frontend)
 
@@ -105,7 +107,7 @@ Rama: `revision-2026` en los dos repos. Un commit por bloque.
 > - **Script de solo lectura** `node scripts/chequeoPreDespliegue.js [base]`. Además, el servidor ahora informa en el log de arranque los índices que no puede crear (antes fallaban en silencio).
 > - **Producción (`Vinoteca`):**
 >   - 2 notas facturadas dos veces: nota 95 (comprobantes 61 y 62) y nota 170 (126 y 127). Hay que anular a mano el comprobante que sobra; mientras tanto no se crea el índice único (la transacción igual impide nuevas dobles facturas).
->   - 7 CUIT repetidos, la mayoría de relleno ("27" ×37, "4666666" ×19, "22" ×20, "2323" ×18, "30" ×7) y además 20316585427 ×6 y 20173133651 ×2. **Hay que decidir la regla del CUIT**: con estos datos el índice único no se crea y A3 no responde 409.
+>   - 7 CUIT repetidos, la mayoría de relleno ("27" ×37, "4666666" ×19, "22" ×20, "2323" ×18, "30" ×7) y además 20316585427 ×6 y 20173133651 ×2. Con la regla nueva, los de relleno ya no molestan. Quedan por corregir a mano los dos CUIT reales repetidos: 20316585427 (clientes 8, 38, 42, 45, 46 y 47) y 20173133651 (clientes 39 y 40). Mientras sigan repetidos, editar esos clientes responde 409.
 >   - 3 comprobantes de compra con dos remitos activos el mismo día (comprobantes 38, 57 y 101; remitos 12/13, 26/27 y 72/73). Cada remito sumó stock, así que el stock de esos productos probablemente está inflado. Revisarlo y corregirlo con un ajuste de stock.
 >   - 165 de 179 remitos de cliente activos sin factura vinculada (D3, esperado).
 >   - Sin stock negativo.
