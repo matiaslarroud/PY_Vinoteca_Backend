@@ -86,6 +86,18 @@ describe('Seguridad', () => {
     const res = await request(app).post('/usuario/login').send({ usuario: { $ne: null }, password: 'x' });
     expect(res.status).toBe(400);
   });
+
+  test('CORS acepta cada origen de la lista de BASE_URL y rechaza el resto', async () => {
+    process.env.BASE_URL = 'https://midominio.com.ar, https://app.vercel.app/';
+    try {
+      const desde = (origen) => request(app).get('/ping').set('Origin', origen);
+      expect((await desde('https://midominio.com.ar')).status).toBe(200);
+      expect((await desde('https://app.vercel.app')).headers['access-control-allow-origin']).toBe('https://app.vercel.app');
+      expect((await desde('https://otro.com')).status).toBe(403);
+    } finally {
+      delete process.env.BASE_URL;
+    }
+  });
 });
 
 describe('Ventas: nota de pedido, factura, remito', () => {

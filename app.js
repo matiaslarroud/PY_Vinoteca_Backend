@@ -72,9 +72,13 @@ app.use(express.json({ limit: '1mb' }));
 app.use(sanitizeBody);
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = process.env.BASE_URL;
+    // BASE_URL admite varios orígenes separados por coma (dominio propio y el de Vercel).
+    const allowed = (process.env.BASE_URL || '')
+      .split(',')
+      .map((url) => url.trim().replace(/\/+$/, ''))
+      .filter(Boolean);
     const esLocalhost = /^http:\/\/localhost:\d+$/.test(origin || '');
-    if (!origin || origin === allowed || (!isProduction && esLocalhost)) {
+    if (!origin || allowed.includes(origin) || (!isProduction && esLocalhost)) {
       callback(null, true);
     } else {
       callback(Object.assign(new Error(`CORS: origen no permitido: ${origin}`), { status: 403 }));
