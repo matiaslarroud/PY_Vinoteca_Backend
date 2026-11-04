@@ -65,6 +65,10 @@ const routerOfertaDetalle = require('./routes/productOfertaDetalle_Router.js');
 
 const app = express();
 
+// Detrás de un proxy (Traefik en Coolify, el balanceador de Render) la IP real del cliente llega en
+// X-Forwarded-For. Sin esto el límite de login contaría a todos los usuarios como uno solo.
+app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
+
 const isProduction = process.env.NODE_ENV === 'production';
 
 app.use(helmet());
