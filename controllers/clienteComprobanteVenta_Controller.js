@@ -11,6 +11,7 @@ const getNextSequence = require("../controllers/counter_Controller");
 const mongoose = require('mongoose');
 
 const { obtenerFechaHoy } = require('../utils/fecha');
+const { resolverTipoComprobante } = require('../utils/tipoComprobante');
 
 const responderError = (res, error) =>
   res.status(error.status && error.status < 500 ? error.status : 400).json({ ok: false, message: error.message });
@@ -20,9 +21,11 @@ const responderError = (res, error) =>
 const setComprobanteVenta = async (req, res) => {
   const session = await mongoose.startSession();
   try {
+    // Un negocio monotributista emite siempre Factura C (ver utils/tipoComprobante.js).
+    const tipoComprobante = await resolverTipoComprobante(req.body.tipoComprobante);
     let comprobante;
     await session.withTransaction(async () => {
-      const { tipoComprobante, notaPedido: notaPedidoID } = req.body;
+      const { notaPedido: notaPedidoID } = req.body;
       if (!tipoComprobante || !notaPedidoID) {
         throw httpError(400, "❌ Faltan completar algunos campos obligatorios.");
       }
@@ -159,7 +162,7 @@ const getComprobanteVentaID = async (req, res) => {
 // Un comprobante emitido es inmutable en lo fiscal (fecha, nota, total, líneas): solo se permite
 // corregir el tipo de comprobante. Para cambiar el contenido, anularlo y emitir uno nuevo.
 const updateComprobanteVenta = async (req, res) => {
-  const { tipoComprobante } = req.body;
+  const tipoComprobante = await resolverTipoComprobante(req.body.tipoComprobante);
   if (!tipoComprobante) {
     return res.status(400).json({ ok: false, message: '❌ Debe indicar el tipo de comprobante.' });
   }

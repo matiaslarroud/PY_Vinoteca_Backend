@@ -118,6 +118,7 @@ const imprimir = async (req, res) => {
         ["Altura:", empresa.altura],
         ["Teléfono:", empresa.telefono],
         ["CUIT:", empresa.cuit],
+        ["Cond. IVA:", empresa.condicionIva],
         ["Email:", empresa.email],
         ["Inicio Act.:", empresa.inicioActividades]
       ];

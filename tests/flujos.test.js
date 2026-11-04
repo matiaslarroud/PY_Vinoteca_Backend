@@ -530,6 +530,37 @@ describe('Configuración del negocio', () => {
     expect((await api('get', '/gestion/bodega')).status).toBe(200);
   });
 
+  test('un negocio monotributista factura siempre con C, aunque se elija otro tipo', async () => {
+    await raw('CondicionIva').insertMany([
+      { _id: 1, name: 'Responsable inscripto', estado: true },
+      { _id: 3, name: 'Monotributista', estado: true },
+    ]);
+    await raw('TipoComprobante').insertOne({ _id: 1, name: 'A', condicionIva: 1, estado: true });
+    await raw('Counter').updateOne({ _id: 'TipoComprobante' }, { $set: { seq: 1 } }, { upsert: true });
+
+    expect((await api('put', '/configuracion').send({ empresa: { condicionIva: 'Monotributista' } })).status).toBe(200);
+    expect((await request(app).get('/configuracion/publica')).body.data.condicionIva).toBe('Monotributista');
+    try {
+      const nota = await api('post', '/cliente/notaPedido')
+        .send(nuevaNota({ medioPago: 1, detalles: [{ producto: 21, cantidad: 1 }], total: 10 }));
+      expect(nota.status).toBe(201);
+
+      const res = await api('post', '/cliente/comprobanteVenta').send({ tipoComprobante: 1, notaPedido: nota.body.data._id });
+      expect(res.status).toBe(201);
+      const tipoC = await raw('TipoComprobante').findOne({ name: 'C' });
+      expect(tipoC).toMatchObject({ _id: 2, condicionIva: 3, estado: true });
+      const comprobanteID = (await ComprobanteVenta.findOne({ notaPedido: nota.body.data._id }).lean())._id;
+      expect(Number((await ComprobanteVenta.findById(comprobanteID).lean()).tipoComprobante)).toBe(2);
+
+      // Corregir el tipo tampoco saca al comprobante de C, y C no se duplica.
+      expect((await api('put', `/cliente/comprobanteVenta/${comprobanteID}`).send({ tipoComprobante: 1 })).status).toBe(200);
+      expect(Number((await ComprobanteVenta.findById(comprobanteID).lean()).tipoComprobante)).toBe(2);
+      expect(await raw('TipoComprobante').countDocuments({ name: 'C' })).toBe(1);
+    } finally {
+      await api('put', '/configuracion').send({ empresa: { condicionIva: 'Responsable inscripto' } });
+    }
+  });
+
   test('los PDFs usan los datos y la alícuota configurados', async () => {
     const { empresa, alicuotaIva } = await encabezadoEmpresa();
     expect(empresa.razonSocial).toBe('Almacén Don Pepe');

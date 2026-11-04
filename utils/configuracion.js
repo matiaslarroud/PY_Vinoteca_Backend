@@ -27,6 +27,8 @@ const configuracionPublica = (config) => ({
   logoUrl: config.marca.logoUrl,
   colorPrimario: config.marca.colorPrimario,
   whatsapp: config.marca.whatsapp,
+  // Se imprime en las facturas; el frontend lo usa para fijar la Factura C del monotributo.
+  condicionIva: config.empresa.condicionIva,
   modulos: config.modulos,
 });
 

@@ -23,6 +23,7 @@ const MedioPago = require('../models/medioPago_Model');
 const Usuario = require('../models/usuario_Model');
 const getNextSequence = require('../controllers/counter_Controller');
 const { MODULOS } = require('../utils/configuracion');
+const { emiteFacturaC, obtenerTipoC } = require('../utils/tipoComprobante');
 
 const SALT_ROUNDS = 10;
 
@@ -129,6 +130,12 @@ async function inicializar() {
     ]);
   } else {
     console.log('  [skip] Tipos de comprobante: las condiciones de IVA ya existían');
+  }
+  // Un negocio monotributista o exento factura siempre con C: se asegura que exista.
+  const { empresa } = await Configuracion.findById(1).lean();
+  if (emiteFacturaC(empresa?.condicionIva)) {
+    const tipoC = await obtenerTipoC();
+    console.log(`  [ok]   Factura C disponible (tipo de comprobante N° ${tipoC._id})`);
   }
   await sembrarSiVacia(MedioPago, 'Medios de pago', [
     { name: 'Efectivo', interes: 0 },
