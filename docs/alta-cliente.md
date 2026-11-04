@@ -57,6 +57,9 @@ En el proveedor del dominio del cliente, creá dos registros **A** que apunten a
 6. En **Advanced → Resource Limits**, poné un límite de memoria (por ejemplo 512 MB), así un
    cliente no afecta a los demás.
 
+> Los repos tienen `yarn.lock` y `package-lock.json`. En las dos aplicaciones, en **General → Build**,
+> poné **Install Command** = `npm ci` para que Nixpacks use npm y el `package-lock.json`.
+
 ## 4. Inicializar el negocio
 
 Desde la **Terminal** de la aplicación backend en Coolify (ya tiene `MONGODB_URI` cargada):
