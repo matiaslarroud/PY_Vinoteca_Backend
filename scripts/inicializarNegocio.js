@@ -26,22 +26,23 @@ const { MODULOS } = require('../utils/configuracion');
 
 const SALT_ROUNDS = 10;
 
-// Datos que estaban escritos en los 9 PDFs antes de la configuración por negocio.
+// Datos reales de Entusiasmo por el Vino (cliente n.º 1), confirmados por el dueño.
 const ENTUSIASMO_POR_EL_VINO = {
   empresa: {
     razonSocial: 'Entusiasmo por el Vino',
-    nombreFantasia: 'Vinoteca',
+    nombreFantasia: 'Entusiasmo por el Vino',
+    cuit: '20-31658542-7',
+    condicionIva: 'Monotributista',
     inicioActividades: '23/03/2023',
-    cuit: '30-12345678-9',
     pais: 'Argentina',
     provincia: 'Buenos Aires',
-    localidad: 'La Plata',
-    calle: 'Calle Falsa',
-    altura: '123',
-    telefono: '2392-556644',
-    email: 'vino@gmail.com',
+    localidad: 'Trenque Lauquen',
+    calle: 'Colón',
+    altura: '435',
+    telefono: '2392-463978',
+    email: 'celtorino191@gmail.com',
   },
-  marca: { colorPrimario: '#7b1e2b', whatsapp: process.env.WHATSAPP_DUENO || '' },
+  marca: { colorPrimario: '#7b1e2b', whatsapp: '5492392463978' },
 };
 
 const OPCIONES_EMPRESA = {
