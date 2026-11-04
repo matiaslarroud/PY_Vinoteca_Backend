@@ -1,0 +1,21 @@
+# Corre los tests en cada push y PR a las ramas que se despliegan.
+# Usan MongoDB en memoria (mongodb-memory-server), no necesitan una base externa.
+name: Tests
+
+on:
+  push:
+    branches: [master, staging]
+  pull_request:
+    branches: [master, staging]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
