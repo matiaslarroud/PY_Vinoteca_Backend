@@ -1,11 +1,13 @@
 // src/RemitoCliente_imprimir.js
 const PDFDocument = require("pdfkit");
+const encabezadoEmpresa = require('./encabezadoEmpresa');
 const Remito = require("../models/clienteRemito_Model");
 const RemitoDetalle = require("../models/clienteRemitoDetalle_Model");
 
 
 const imprimir = async (req, res) => {
   try {
+    const { empresa, logoPath } = await encabezadoEmpresa();
     const { id } = req.params;
 
     // Traer el Remito con cliente, empleado y medio de pago
@@ -72,20 +74,6 @@ const imprimir = async (req, res) => {
     doc.moveDown(1);
 
     // ---------------- Encabezado con logo y datos de la empresa ----------------
-    const path = require('path');
-    const logoPath = path.resolve(__dirname, '../public/logo.jpg');
-    const empresa = {
-    razonSocial: "Entusiasmo por el Vino",
-    inicioActividades: "23/03/2023",
-    cuit: "30-12345678-9",
-    pais: "Argentina",
-    provincia: "Buenos Aires",
-    localidad: "La Plata",
-    calle: "Calle Falsa",
-    altura: "123",
-    telefono: "2392-556644",
-    email: "vino@gmail.com"
-    };
 
     // Posición inicial del encabezado
     const headerY = 100;

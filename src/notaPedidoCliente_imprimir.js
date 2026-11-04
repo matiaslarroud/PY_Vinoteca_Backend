@@ -1,5 +1,6 @@
 // src/NotaPedidoCliente_imprimir.js
 const PDFDocument = require("pdfkit");
+const encabezadoEmpresa = require('./encabezadoEmpresa');
 const NotaPedido = require("../models/clienteNotaPedido_Model");
 const NotaPedidoDetalle = require("../models/clienteNotaPedidoDetalle_Model");
 
@@ -7,6 +8,7 @@ const { obtenerFechaHoy } = require('../utils/fecha');
 
 const imprimir = async (req, res) => {
   try {
+    const { empresa, logoPath } = await encabezadoEmpresa();
     const { id } = req.params;
 
     // Traer el NotaPedido con cliente, empleado y medio de pago
@@ -67,20 +69,6 @@ const imprimir = async (req, res) => {
     doc.moveDown(1);
 
     // ---------------- Encabezado con logo y datos de la empresa ----------------
-    const path = require('path');
-    const logoPath = path.resolve(__dirname, '../public/logo.jpg');
-    const empresa = {
-    razonSocial: "Entusiasmo por el Vino",
-    inicioActividades: "23/03/2023",
-    cuit: "30-12345678-9",
-    pais: "Argentina",
-    provincia: "Buenos Aires",
-    localidad: "La Plata",
-    calle: "Calle Falsa",
-    altura: "123",
-    telefono: "2392-556644",
-    email: "vino@gmail.com"
-    };
 
     // Posición inicial del encabezado
     const headerY = 100;

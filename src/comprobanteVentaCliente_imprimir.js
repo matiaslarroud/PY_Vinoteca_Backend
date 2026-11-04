@@ -1,13 +1,14 @@
 const { round2 } = require('../utils/http');
 
-const ALICUOTA_IVA = 0.21;
-// El total del comprobante incluye IVA: el neto es total / 1,21 (no total * 0,79).
-const netoSinIva = (total) => round2(total / (1 + ALICUOTA_IVA));
+// El total del comprobante incluye IVA: el neto es total / (1 + alícuota), por ejemplo total / 1,21 (no total * 0,79).
+// La alícuota sale de la configuración del negocio.
+const netoSinIva = (total, alicuotaIva) => round2(total / (1 + alicuotaIva));
 const formatoMoneda = (n) =>
   Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // src/ComprobanteVentaCliente_imprimir.js
 const PDFDocument = require("pdfkit");
+const encabezadoEmpresa = require('./encabezadoEmpresa');
 const ComprobanteVenta = require("../models/clienteComprobanteVenta_Model");
 const ComprobanteVentaDetalle = require("../models/clienteComprobanteVentaDetalle_Model");
 
@@ -15,6 +16,7 @@ const { obtenerFechaHoy } = require('../utils/fecha');
 
 const imprimir = async (req, res) => {
   try {
+    const { empresa, logoPath, alicuotaIva } = await encabezadoEmpresa();
     const { id } = req.params;
 
     // Traer el ComprobanteVenta con cliente, empleado y medio de pago
@@ -98,20 +100,6 @@ const imprimir = async (req, res) => {
         });
 
       // ---------------- Encabezado con logo y datos de la empresa ----------------
-      const path = require('path');
-      const logoPath = path.resolve(__dirname, '../public/logo.jpg');
-      const empresa = {
-        razonSocial: "Entusiasmo por el Vino",
-        inicioActividades: "23/03/2023",
-        cuit: "30-12345678-9",
-        pais: "Argentina",
-        provincia: "Buenos Aires",
-        localidad: "La Plata",
-        calle: "Calle Falsa",
-        altura: "123",
-        telefono: "2392-556644",
-        email: "vino@gmail.com"
-      };
 
       const headerY = 110;
       const headerX = 150;
@@ -318,7 +306,7 @@ const imprimir = async (req, res) => {
       // Texto del total sin iva
       doc.font("Helvetica-Bold")
         .fontSize(12)
-        .text(`Subtotal: $${formatoMoneda(netoSinIva(comprobanteVenta.total))}`, 50, totalY-80, { align: "right" });
+        .text(`Subtotal: $${formatoMoneda(netoSinIva(comprobanteVenta.total, alicuotaIva))}`, 50, totalY-80, { align: "right" });
     } else {
       // Texto del total sin iva
       doc.font("Helvetica-Bold")
@@ -330,7 +318,7 @@ const imprimir = async (req, res) => {
       // Texto del total iva
       doc.font("Helvetica-Bold")
         .fontSize(12)
-        .text(`Total Iva: $${formatoMoneda(round2(comprobanteVenta.total - netoSinIva(comprobanteVenta.total)))}`, 50, totalY-40, { align: "right" });
+        .text(`Total Iva: $${formatoMoneda(round2(comprobanteVenta.total - netoSinIva(comprobanteVenta.total, alicuotaIva)))}`, 50, totalY-40, { align: "right" });
     } else {
       // Texto del total sin iva
       doc.font("Helvetica-Bold")

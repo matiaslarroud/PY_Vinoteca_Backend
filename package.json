@@ -6,6 +6,7 @@
   "author": "Matias Larroude Moriames",
   "license": "MIT",
   "scripts": {
+    "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "jest --runInBand"
   },
@@ -36,5 +37,8 @@
   "jest": {
     "testEnvironment": "node",
     "testTimeout": 60000
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
