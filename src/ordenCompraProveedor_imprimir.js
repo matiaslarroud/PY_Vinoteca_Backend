@@ -1,6 +1,6 @@
+const { datosEmpresa } = require("../utils/empresa");
 // src/NotaPedidoCliente_imprimir.js
 const PDFDocument = require("pdfkit");
-const encabezadoEmpresa = require('./encabezadoEmpresa');
 const OrdenCompra = require("../models/proveedorOrdenCompra_Model");
 const OrdenCompraDetalle = require("../models/proveedorOrdenCompraDetalle_Model");
 
@@ -8,7 +8,6 @@ const { obtenerFechaHoy } = require('../utils/fecha');
 
 const imprimir = async (req, res) => {
   try {
-    const { empresa, logoPath } = await encabezadoEmpresa();
     const { id } = req.params;
 
     // Traer el NotaPedido con cliente, empleado y medio de pago
@@ -65,6 +64,9 @@ const imprimir = async (req, res) => {
     doc.moveDown(1);
 
     // ---------------- Encabezado con logo y datos de la empresa ----------------
+    const path = require('path');
+    const logoPath = path.resolve(__dirname, '../public/logo.jpg');
+    const empresa = datosEmpresa();
 
     // Posición inicial del encabezado
     const headerY = 100;

@@ -5,7 +5,6 @@ const rateLimit = require('express-rate-limit');
 const auth = require('./middleware/auth.js');
 const sanitizeBody = require('./middleware/sanitizeBody.js');
 const { staff } = require('./middleware/requireRole.js');
-const requireModulo = require('./middleware/requireModulo.js');
 const { errorClaveDuplicada } = require('./utils/http.js');
 
 const routerProductVino = require('./routes/productVino_Router.js');
@@ -63,7 +62,6 @@ const routerProductofoto = require('./routes/productoFoto_Router.js');
 const routerCaja = require('./routes/caja_Router.js');
 const routerOferta = require('./routes/productOferta_Router.js');
 const routerOfertaDetalle = require('./routes/productOfertaDetalle_Router.js');
-const routerConfiguracion = require('./routes/configuracion_Router.js');
 
 const app = express();
 
@@ -108,42 +106,39 @@ const loginLimiter = rateLimit({
 app.use(`${R}/ping`, pingServer);
 app.use(`${R}/usuario/login`, loginLimiter);
 app.use(`${R}/usuario`, routerUsuario);
-// /configuracion/publica no pide sesión; el resto de la configuración es solo para administrador.
-app.use(`${R}/configuracion`, routerConfiguracion);
 
 // Rutas que requieren sesión (cualquier rol, incluido "cliente" de la tienda online)
 app.use(auth);
 
-app.use(`${R}/tienda/presupuesto`, requireModulo('tienda'), routerTienda_Presupuesto);
+app.use(`${R}/tienda/presupuesto`, routerTienda_Presupuesto);
 app.use(`${R}/products/productFoto`, routerProductofoto);
 
 // Rutas del personal del negocio (administrador / vendedor)
 app.use(staff);
 
-// Módulos opcionales: si el negocio los tiene apagados, sus rutas responden 404.
-app.use(`${R}/products/productVino`, requireModulo('vinos'), routerProductVino);
-app.use(`${R}/products/productVinoDetalle`, requireModulo('vinos'), routerProductVinoDetalle);
-app.use(`${R}/products/productPicada`, requireModulo('picadas'), routerPicadas);
+app.use(`${R}/products/productVino`, routerProductVino);
+app.use(`${R}/products/productVinoDetalle`, routerProductVinoDetalle);
+app.use(`${R}/products/productPicada`, routerPicadas);
 app.use(`${R}/products/productInsumo`, routerInsumos);
-app.use(`${R}/products/productPicadaDetalle`, requireModulo('picadas'), routerPicadasDetalle);
-app.use(`${R}/products/ordenProduccion`, requireModulo('produccion'), routerOrdenProduccion);
-app.use(`${R}/products/ordenProduccionDetalle`, requireModulo('produccion'), routerOrdenProduccionDetalle);
-app.use(`${R}/products/oferta`, requireModulo('ofertas'), routerOferta);
-app.use(`${R}/products/ofertaDetalle`, requireModulo('ofertas'), routerOfertaDetalle);
+app.use(`${R}/products/productPicadaDetalle`, routerPicadasDetalle);
+app.use(`${R}/products/ordenProduccion`, routerOrdenProduccion);
+app.use(`${R}/products/ordenProduccionDetalle`, routerOrdenProduccionDetalle);
+app.use(`${R}/products/oferta`, routerOferta);
+app.use(`${R}/products/ofertaDetalle`, routerOfertaDetalle);
 
-app.use(`${R}/gestion/bodega`, requireModulo('vinos'), routerBodega);
-app.use(`${R}/gestion/bodega-paraje`, requireModulo('vinos'), routerParaje);
+app.use(`${R}/gestion/bodega`, routerBodega);
+app.use(`${R}/gestion/bodega-paraje`, routerParaje);
 app.use(`${R}/gestion/pais`, routerPais);
 app.use(`${R}/gestion/provincia`, routerProvincia);
 app.use(`${R}/gestion/localidad`, routerLocalidad);
 app.use(`${R}/gestion/barrio`, routerBarrio);
 app.use(`${R}/gestion/calle`, routerCalle);
-app.use(`${R}/gestion/crianza`, requireModulo('vinos'), routerProductVinoCrianza);
-app.use(`${R}/gestion/uva`, requireModulo('vinos'), routerProductVinoUva);
-app.use(`${R}/gestion/tipoVino`, requireModulo('vinos'), routerProductVinoTipo);
-app.use(`${R}/gestion/varietal`, requireModulo('vinos'), routerProductVinoVarietal);
+app.use(`${R}/gestion/crianza`, routerProductVinoCrianza);
+app.use(`${R}/gestion/uva`, routerProductVinoUva);
+app.use(`${R}/gestion/tipoVino`, routerProductVinoTipo);
+app.use(`${R}/gestion/varietal`, routerProductVinoVarietal);
 app.use(`${R}/gestion/deposito`, routerDeposito);
-app.use(`${R}/gestion/volumen`, requireModulo('vinos'), routerVolumen);
+app.use(`${R}/gestion/volumen`, routerVolumen);
 app.use(`${R}/gestion/mediopago`, routerMedioPago);
 app.use(`${R}/gestion/condicioniva`, routerCondicionIva);
 app.use(`${R}/gestion/cliente`, routerCliente);

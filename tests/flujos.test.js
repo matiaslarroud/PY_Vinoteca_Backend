@@ -472,62 +472,18 @@ describe('Paginación de listados', () => {
   });
 });
 
-describe('Configuración del negocio', () => {
-  const encabezadoEmpresa = require('../src/encabezadoEmpresa');
-  let tokenVendedor;
+describe('Datos de la empresa y Factura C', () => {
+  const { datosEmpresa } = require('../utils/empresa');
 
-  beforeAll(async () => {
-    await raw('Usuario').insertOne({ _id: 91, name: 'vendedor-config', password: 'x', rol: 'vendedor', estado: true });
-    tokenVendedor = jwt.sign({ id: 91, rol: 'vendedor' }, process.env.JWT_SECRET);
-  });
-
-  test('la configuración pública se lee sin sesión y trae valores por defecto', async () => {
-    const res = await request(app).get('/configuracion/publica');
-    expect(res.status).toBe(200);
-    expect(res.body.data).toMatchObject({ nombre: 'Mi negocio', colorPrimario: '#7b1e2b' });
-    expect(res.body.data.modulos.vinos).toBe(true);
-    expect(res.body.data.empresa).toBeUndefined();
-  });
-
-  test('solo el administrador ve y modifica la configuración completa', async () => {
-    expect((await api('get', '/configuracion', tokenVendedor)).status).toBe(403);
-    expect((await api('put', '/configuracion', tokenVendedor).send({ empresa: { razonSocial: 'X' } })).status).toBe(403);
-    expect((await api('put', '/configuracion', tokenCliente).send({ empresa: { razonSocial: 'X' } })).status).toBe(403);
-    expect((await request(app).put('/configuracion').send({ empresa: { razonSocial: 'X' } })).status).toBe(401);
-
-    const res = await api('put', '/configuracion').send({
-      empresa: { razonSocial: 'Almacén Don Pepe', cuit: '30-11111111-1' },
-      marca: { colorPrimario: '#1e5b7b' },
-      fiscal: { alicuotaIva: 0.105 },
-      otroCampo: 'se ignora',
-    });
-    expect(res.status).toBe(200);
-    expect(res.body.data.empresa.razonSocial).toBe('Almacén Don Pepe');
-    expect(res.body.data.otroCampo).toBeUndefined();
-    expect((await request(app).get('/configuracion/publica')).body.data).toMatchObject({
-      nombre: 'Almacén Don Pepe', colorPrimario: '#1e5b7b',
-    });
-  });
-
-  test('rechaza valores inválidos', async () => {
-    expect((await api('put', '/configuracion').send({ marca: { colorPrimario: 'rojo' } })).status).toBe(400);
-    expect((await api('put', '/configuracion').send({ fiscal: { alicuotaIva: 21 } })).status).toBe(400);
-    expect((await api('put', '/configuracion').send({ modulos: { vinos: 'no' } })).status).toBe(400);
-    expect((await api('put', '/configuracion').send({})).status).toBe(400);
-  });
-
-  test('un módulo apagado responde 404 y vuelve al encenderlo', async () => {
-    expect((await api('get', '/gestion/bodega')).status).toBe(200);
-    expect((await api('put', '/configuracion').send({ modulos: { vinos: false } })).status).toBe(200);
+  test('los datos de la empresa para los PDFs salen del entorno', () => {
+    process.env.EMPRESA_RAZON_SOCIAL = 'Almacén Don Pepe';
+    process.env.EMPRESA_CUIT = '20-12345678-6';
     try {
-      expect((await api('get', '/gestion/bodega')).status).toBe(404);
-      expect((await api('get', '/products/productVino')).status).toBe(404);
-      // Lo genérico sigue funcionando.
-      expect((await api('get', '/gestion/deposito')).status).toBe(200);
+      expect(datosEmpresa()).toMatchObject({ razonSocial: 'Almacén Don Pepe', cuit: '20-12345678-6', calle: '' });
     } finally {
-      await api('put', '/configuracion').send({ modulos: { vinos: true } });
+      delete process.env.EMPRESA_RAZON_SOCIAL;
+      delete process.env.EMPRESA_CUIT;
     }
-    expect((await api('get', '/gestion/bodega')).status).toBe(200);
   });
 
   test('un negocio monotributista factura siempre con C, aunque se elija otro tipo', async () => {
@@ -538,8 +494,7 @@ describe('Configuración del negocio', () => {
     await raw('TipoComprobante').insertOne({ _id: 1, name: 'A', condicionIva: 1, estado: true });
     await raw('Counter').updateOne({ _id: 'TipoComprobante' }, { $set: { seq: 1 } }, { upsert: true });
 
-    expect((await api('put', '/configuracion').send({ empresa: { condicionIva: 'Monotributista' } })).status).toBe(200);
-    expect((await request(app).get('/configuracion/publica')).body.data.condicionIva).toBe('Monotributista');
+    process.env.EMPRESA_CONDICION_IVA = 'Monotributista';
     try {
       const nota = await api('post', '/cliente/notaPedido')
         .send(nuevaNota({ medioPago: 1, detalles: [{ producto: 21, cantidad: 1 }], total: 10 }));
@@ -557,19 +512,7 @@ describe('Configuración del negocio', () => {
       expect(Number((await ComprobanteVenta.findById(comprobanteID).lean()).tipoComprobante)).toBe(2);
       expect(await raw('TipoComprobante').countDocuments({ name: 'C' })).toBe(1);
     } finally {
-      await api('put', '/configuracion').send({ empresa: { condicionIva: 'Responsable inscripto' } });
+      delete process.env.EMPRESA_CONDICION_IVA;
     }
-  });
-
-  test('los PDFs usan los datos y la alícuota configurados', async () => {
-    const { empresa, alicuotaIva } = await encabezadoEmpresa();
-    expect(empresa.razonSocial).toBe('Almacén Don Pepe');
-    expect(alicuotaIva).toBe(0.105);
-
-    const comprobante = await ComprobanteVenta.findOne().lean();
-    expect(comprobante).toBeTruthy();
-    const res = await api('get', `/cliente/comprobanteVenta/imprimir/${comprobante._id}`);
-    expect(res.status).toBe(200);
-    expect(res.headers['content-type']).toContain('application/pdf');
   });
 });

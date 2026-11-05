@@ -1,90 +1,26 @@
 /**
- * Prepara la base de datos de un negocio (cliente del sistema). Se puede correr más de una vez:
- * solo crea lo que falta y nunca pisa datos existentes, salvo la configuración si se pasan opciones.
+ * Prepara una base de datos nueva: tablas base y usuario administrador. Se puede correr más de una
+ * vez: solo crea lo que falta y nunca pisa datos existentes.
  *
  * Uso:
- *   node scripts/inicializarNegocio.js --desde-actual
- *       Carga los datos de "Entusiasmo por el Vino" (los que antes estaban fijos en los PDFs).
- *   node scripts/inicializarNegocio.js --razon-social "Almacén Don Pepe" --color "#1e5b7b" --apagar vinos,picadas
- *       Negocio nuevo. Otras opciones: --nombre-fantasia, --cuit, --telefono, --email, --whatsapp.
+ *   ADMIN_USUARIO=admin ADMIN_PASSWORD=... node scripts/inicializarNegocio.js
  *
- * Usuario administrador: si la base no tiene ninguno, se crea con ADMIN_USUARIO y ADMIN_PASSWORD
- * tomados del entorno (nunca por línea de comandos, para que la contraseña no quede en el historial).
- *
- * Usa MONGODB_URI del .env; para otra base: MONGODB_URI=... node scripts/inicializarNegocio.js ...
+ * - La base es la de MONGODB_URI (.env). Para otra: MONGODB_URI=... node scripts/inicializarNegocio.js
+ * - La contraseña del administrador va por entorno, nunca por línea de comandos.
+ * - Si EMPRESA_CONDICION_IVA es Monotributista o Exento, se asegura el tipo de comprobante C.
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const Configuracion = require('../models/configuracion_Model');
 const CondicionIva = require('../models/condicionIva_Model');
 const TipoComprobante = require('../models/tipoComprobante');
 const MedioPago = require('../models/medioPago_Model');
 const Usuario = require('../models/usuario_Model');
 const getNextSequence = require('../controllers/counter_Controller');
-const { MODULOS } = require('../utils/configuracion');
+const { datosEmpresa } = require('../utils/empresa');
 const { emiteFacturaC, obtenerTipoC } = require('../utils/tipoComprobante');
 
 const SALT_ROUNDS = 10;
-
-// Datos reales de Entusiasmo por el Vino (cliente n.º 1), confirmados por el dueño.
-const ENTUSIASMO_POR_EL_VINO = {
-  empresa: {
-    razonSocial: 'Entusiasmo por el Vino',
-    nombreFantasia: 'Entusiasmo por el Vino',
-    cuit: '20-31658542-7',
-    condicionIva: 'Monotributista',
-    inicioActividades: '23/03/2023',
-    pais: 'Argentina',
-    provincia: 'Buenos Aires',
-    localidad: 'Trenque Lauquen',
-    calle: 'Colón',
-    altura: '435',
-    telefono: '2392-463978',
-    email: 'celtorino191@gmail.com',
-  },
-  marca: { colorPrimario: '#7b1e2b', whatsapp: '5492392463978' },
-};
-
-const OPCIONES_EMPRESA = {
-  '--razon-social': 'razonSocial',
-  '--nombre-fantasia': 'nombreFantasia',
-  '--cuit': 'cuit',
-  '--telefono': 'telefono',
-  '--email': 'email',
-};
-
-const leerArgumentos = (argv) => {
-  const args = {};
-  for (let i = 0; i < argv.length; i++) {
-    if (!argv[i].startsWith('--')) continue;
-    const siguiente = argv[i + 1];
-    if (siguiente === undefined || siguiente.startsWith('--')) args[argv[i]] = true;
-    else args[argv[i]] = argv[++i];
-  }
-  return args;
-};
-
-// Traduce los argumentos a un $set sobre la configuración.
-const cambiosDeConfiguracion = (args) => {
-  const cambios = {};
-  if (args['--desde-actual']) {
-    Object.entries(ENTUSIASMO_POR_EL_VINO.empresa).forEach(([k, v]) => { cambios[`empresa.${k}`] = v; });
-    Object.entries(ENTUSIASMO_POR_EL_VINO.marca).forEach(([k, v]) => { if (v) cambios[`marca.${k}`] = v; });
-  }
-  Object.entries(OPCIONES_EMPRESA).forEach(([opcion, campo]) => {
-    if (typeof args[opcion] === 'string') cambios[`empresa.${campo}`] = args[opcion];
-  });
-  if (typeof args['--color'] === 'string') cambios['marca.colorPrimario'] = args['--color'];
-  if (typeof args['--whatsapp'] === 'string') cambios['marca.whatsapp'] = args['--whatsapp'];
-  if (typeof args['--apagar'] === 'string') {
-    args['--apagar'].split(',').map((m) => m.trim()).filter(Boolean).forEach((modulo) => {
-      if (!MODULOS.includes(modulo)) throw new Error(`Módulo desconocido: ${modulo}. Válidos: ${MODULOS.join(', ')}`);
-      cambios[`modulos.${modulo}`] = false;
-    });
-  }
-  return cambios;
-};
 
 // Crea los registros de una tabla solo si está vacía.
 const sembrarSiVacia = async (Modelo, nombre, registros) => {
@@ -102,19 +38,8 @@ const sembrarSiVacia = async (Modelo, nombre, registros) => {
 };
 
 async function inicializar() {
-  const args = leerArgumentos(process.argv.slice(2));
-  const cambios = cambiosDeConfiguracion(args);
-
   await mongoose.connect(process.env.MONGODB_URI);
   console.log(`Conectado a la BD: ${mongoose.connection.name}\n`);
-
-  // Configuración
-  const existe = await Configuracion.exists({ _id: 1 });
-  if (!existe) await Configuracion.create({ _id: 1 });
-  if (Object.keys(cambios).length) {
-    await Configuracion.updateOne({ _id: 1 }, { $set: cambios }, { runValidators: true });
-  }
-  console.log(`  [ok]   Configuración ${existe ? 'actualizada' : 'creada'} (${Object.keys(cambios).length} campo(s))`);
 
   // Tablas base. Los nombres "Cuenta Corriente" y "A coordinar" los usa el código: no cambiarlos.
   const condiciones = await sembrarSiVacia(CondicionIva, 'Condiciones de IVA', [
@@ -132,8 +57,7 @@ async function inicializar() {
     console.log('  [skip] Tipos de comprobante: las condiciones de IVA ya existían');
   }
   // Un negocio monotributista o exento factura siempre con C: se asegura que exista.
-  const { empresa } = await Configuracion.findById(1).lean();
-  if (emiteFacturaC(empresa?.condicionIva)) {
+  if (emiteFacturaC(datosEmpresa().condicionIva)) {
     const tipoC = await obtenerTipoC();
     console.log(`  [ok]   Factura C disponible (tipo de comprobante N° ${tipoC._id})`);
   }

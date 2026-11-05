@@ -1,13 +1,12 @@
+const { datosEmpresa } = require("../utils/empresa");
 // src/presupuestoCliente_imprimir.js
 const PDFDocument = require("pdfkit");
-const encabezadoEmpresa = require('./encabezadoEmpresa');
 const Presupuesto = require("../models/proveedorPresupuesto_Model");
 const PresupuestoDetalle = require("../models/proveedorPresupuestoDetalle_Model");
 
 
 const imprimir = async (req, res) => {
   try {
-    const { empresa, logoPath } = await encabezadoEmpresa();
     const { id } = req.params;
 
     // Traer el presupuesto con cliente, empleado
@@ -61,6 +60,9 @@ const imprimir = async (req, res) => {
     doc.moveDown(1);
 
     // ---------------- Encabezado con logo y datos de la empresa ----------------
+    const path = require('path');
+    const logoPath = path.resolve(__dirname, '../public/logo.jpg');
+    const empresa = datosEmpresa();
 
     // Posición inicial del encabezado
     const headerY = 100;

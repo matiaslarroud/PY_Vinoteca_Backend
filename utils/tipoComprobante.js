@@ -1,7 +1,7 @@
 const TipoComprobante = require('../models/tipoComprobante');
 const CondicionIva = require('../models/condicionIva_Model');
 const getNextSequence = require('../controllers/counter_Controller');
-const { obtenerConfiguracion } = require('./configuracion');
+const { datosEmpresa } = require('./empresa');
 
 const normalizar = (texto) =>
   String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
@@ -29,8 +29,7 @@ const obtenerTipoC = async () => {
 // Tipo de comprobante con el que se emite una venta. Si el negocio emite Factura C, se usa siempre C
 // (lo que mande el formulario se ignora); si no, se respeta el tipo elegido.
 const resolverTipoComprobante = async (tipoElegido) => {
-  const config = await obtenerConfiguracion();
-  if (emiteFacturaC(config.empresa?.condicionIva)) {
+  if (emiteFacturaC(datosEmpresa().condicionIva)) {
     return (await obtenerTipoC())._id;
   }
   return tipoElegido;
